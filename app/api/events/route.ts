@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { Connection } from '@solana/web3.js';
 import { listEvents, addEvent } from '@/lib/eventStore';
 import { fetchOnChainEvents } from '@/app/lib/onchain-indexer';
 
@@ -10,9 +9,7 @@ export async function GET(req: NextRequest) {
 
   if (sync) {
     try {
-      const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com';
-      const connection = new Connection(rpcUrl, 'confirmed');
-      const chainEvents = await fetchOnChainEvents(connection, limit);
+      const chainEvents = await fetchOnChainEvents(undefined, limit);
       
       // Upsert into DB
       for (const e of chainEvents) {

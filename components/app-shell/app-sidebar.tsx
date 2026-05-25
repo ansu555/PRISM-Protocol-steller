@@ -5,8 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { createPortal } from 'react-dom';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useWallet } from '@/components/providers/stellar-wallet-context';
+
 import {
   LayoutDashboard,
   WalletCards,
@@ -52,7 +52,7 @@ function SidebarWalletButton({
   setWalletOpen: (v: boolean) => void;
 }) {
   const { publicKey, wallet, connected, disconnect } = useWallet();
-  const { setVisible } = useWalletModal();
+  const setVisible = (_v: boolean) => {}; // wallet modal not available in Stellar
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; bottom: number }>({ left: 248, bottom: 0 });

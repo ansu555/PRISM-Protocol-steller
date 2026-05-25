@@ -6,8 +6,8 @@ import { TrancheKind, Q64_ONE } from '@/app/lib/constants';
 import { formatUsdc } from '@/app/lib/format';
 import { useUserPosition } from '@/hooks/useUserPosition';
 import { useVaultState } from '@/hooks/useVaultState';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useWallet } from '@/components/providers/stellar-wallet-context';
+
 
 // ─── Sparkline ────────────────────────────────────────────────────────────────
 
@@ -435,7 +435,7 @@ function EmptyPositions() {
 
 export function PositionsOverview() {
   const { connected } = useWallet();
-  const { setVisible } = useWalletModal();
+  const setVisible = (_v: boolean) => {}; // wallet modal not available in Stellar
   const data = usePositionsData();
 
   if (!connected) {

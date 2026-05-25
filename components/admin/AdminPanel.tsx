@@ -12,20 +12,9 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useLoanApplications } from '@/hooks/useLoanApplications';
-import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { useWallet, useConnection } from '@/components/providers/stellar-wallet-context';
 import { useVaultState } from '@/hooks/useVaultState';
 import { formatNavQ, formatUsdc } from '@/app/lib/format';
-import { AnchorProvider, Program, BN, type Idl } from '@coral-xyz/anchor';
-import { SystemProgram, SYSVAR_RENT_PUBKEY, PublicKey, Transaction, Keypair } from '@solana/web3.js';
-import adminSecret from '@/contracts/keys/admin.json';
-import {
-  TOKEN_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddress,
-  createMintToInstruction,
-  createAssociatedTokenAccountInstruction,
-} from '@solana/spl-token';
 import { toast } from 'sonner';
 
 import { ActionPanel } from '@/components/simulation/ActionPanel';
@@ -54,9 +43,6 @@ import {
   getPoolQuoteReservePda,
   getLpMintPda,
 } from '@/app/lib/pda';
-import prismCoreIdl from '@/app/lib/idl/prism_core.json';
-import prismAmmIdl from '@/app/lib/idl/prism_amm.json';
-import { buildPrograms } from '@/app/lib/program';
 
 import {
   useIkaCollateralAccount,
@@ -73,7 +59,7 @@ const SETUP_STEPS = [
 ];
 
 export function AdminPanel() {
-  const wallet = useAnchorWallet();
+  const wallet = useWallet();
   const { connection } = useConnection();
   const { applications, approve, reject } = useLoanApplications();
   const [log, setLog] = useState<string[]>([]);
@@ -132,7 +118,7 @@ export function AdminPanel() {
   }
 
   async function handleCreateVault() {
-    if (!wallet || !newVaultForm.name.trim()) return;
+    if (!wallet.connected || !newVaultForm.name.trim()) return;
     const id = nextVaultId();
     setVaultCreateRunning(true);
     addLog(`Creating vault #${id} "${newVaultForm.name}"…`);
@@ -194,7 +180,7 @@ export function AdminPanel() {
       const maturityTs = Math.floor(Date.now() / 1000) + Number(newVaultForm.maturityDays) * 86400;
       if (!(await core.account.loan.fetchNullable(loan))) {
         await core.methods
-          .initializeLoan(0, new BN(principal.toString()), Number(newVaultForm.coreBps), new BN(maturityTs), adminKeypair.publicKey)
+          .initializeLoan(0, BigInt(principal.toString()), Number(newVaultForm.coreBps), BigInt(maturityTs), adminKeypair.publicKey)
           .accounts({ admin, config, vault, loan, systemProgram: SystemProgram.programId })
           .rpc({ commitment: 'confirmed' });
         addLog('✓ Loan initialized');
@@ -267,38 +253,30 @@ export function AdminPanel() {
     });
   }
 
-  function getAdminKeypair() {
-    return Keypair.fromSecretKey(Uint8Array.from(adminSecret as number[]));
+  function notMigrated(): never {
+    throw new Error('Not yet migrated to Stellar — use the simulation panel instead.');
   }
 
-  function getPrograms() {
-    const admin = getAdminKeypair();
-    const { core, amm } = buildPrograms(connection, admin);
-    return { core, amm, adminKeypair: admin };
+  // Stubs for Solana objects referenced in not-yet-migrated function bodies.
+  // getPrograms() throws immediately, so these are never actually used at runtime.
+  const SystemProgram = { programId: null } as any;
+  const TOKEN_PROGRAM_ID = null as any;
+  const ASSOCIATED_TOKEN_PROGRAM_ID = null as any;
+  const SYSVAR_RENT_PUBKEY = null as any;
+  const PublicKey = (function(_s: string) { return null; }) as any;
+  const getAssociatedTokenAddress = (async (..._args: any[]) => null) as any;
+  const Transaction = (function() {}) as any;
+  const Keypair = { fromSecretKey: () => ({ publicKey: null }) } as any;
+  const adminSecret = [] as number[];
+
+  function getPrograms(): any {
+    notMigrated();
   }
 
   function getPdas(loanId: number = 0) {
-    const [config] = getConfigPda(PRISM_CORE_PROGRAM_ID);
     const [vault] = getVaultPda(VAULT_ID, PRISM_CORE_PROGRAM_ID);
-    const [trancheP] = getTranchePda(vault, TrancheKind.Prime, PRISM_CORE_PROGRAM_ID);
-    const [trancheC] = getTranchePda(vault, TrancheKind.Core, PRISM_CORE_PROGRAM_ID);
-    const [trancheA] = getTranchePda(vault, TrancheKind.Alpha, PRISM_CORE_PROGRAM_ID);
-    const [mintP] = getTrancheMintPda(vault, TrancheKind.Prime, PRISM_CORE_PROGRAM_ID);
-    const [mintC] = getTrancheMintPda(vault, TrancheKind.Core, PRISM_CORE_PROGRAM_ID);
-    const [mintA] = getTrancheMintPda(vault, TrancheKind.Alpha, PRISM_CORE_PROGRAM_ID);
-    const [reserve] = getVaultReservePda(vault, PRISM_CORE_PROGRAM_ID);
-    const [lossBucket] = getLossBucketPda(vault, PRISM_CORE_PROGRAM_ID);
     const [loan] = getLoanPda(vault, loanId, PRISM_CORE_PROGRAM_ID);
-    const [poolP] = getPoolPda(mintP, PRISM_AMM_PROGRAM_ID);
-    const [poolC] = getPoolPda(mintC, PRISM_AMM_PROGRAM_ID);
-    const [poolA] = getPoolPda(mintA, PRISM_AMM_PROGRAM_ID);
-    return {
-      config, vault,
-      tranches: { prime: trancheP, core: trancheC, alpha: trancheA },
-      mints: { prime: mintP, core: mintC, alpha: mintA },
-      reserve, lossBucket, loan,
-      pools: { prime: poolP, core: poolC, alpha: poolA },
-    };
+    return { config: null, vault, tranches: {}, mints: {}, reserve: null, lossBucket: null, loan, pools: {} } as any;
   }
 
   // ── Individual Step Functions ──────────────────────────────────────────
@@ -309,7 +287,7 @@ export function AdminPanel() {
     const admin = adminKeypair.publicKey;
     setStep(0, 'running');
     try {
-      console.log('Using config PDA:', p.config.toBase58());
+      console.log('Using config PDA:', String(p.config ?? ''));
       const TEST_ORACLE = new PublicKey('5nmEq5cNc9yXpK1ySrb4XH65zccBvRK2hwKnEJePjcrf');
       const existing = await core.account.globalConfig.fetchNullable(p.config);
       if (existing) {
@@ -427,8 +405,8 @@ export function AdminPanel() {
         addLog('Loan already exists — skipping');
       } else {
         const maturityDays = parseInt(params.loanMaturityDays);
-        const maturity = new BN(Math.floor(Date.now() / 1000) + maturityDays * 24 * 60 * 60);
-        const principal = new BN(parseFloat(params.loanPrincipal) * 1_000_000);
+        const maturity = BigInt(Math.floor(Date.now() / 1000) + maturityDays * 24 * 60 * 60);
+        const principal = BigInt(parseFloat(params.loanPrincipal) * 1_000_000);
         const apr = parseInt(params.loanApr) * 100;
 
         await core.methods
@@ -494,7 +472,7 @@ export function AdminPanel() {
   }
 
   async function runFullSetup() {
-    if (!wallet) { toast.error('Connect wallet first'); return; }
+    if (!wallet.connected) { toast.error('Connect wallet first'); return; }
     setSetupRunning(true);
     setLog([]);
     setStepStatuses(SETUP_STEPS.map(() => 'idle'));
@@ -517,7 +495,7 @@ export function AdminPanel() {
   }
 
   async function deposit(kind: TrancheKind, label: string, amountUsdc: string) {
-    if (!wallet) { toast.error('Connect wallet first'); return; }
+    if (!wallet.connected) { toast.error('Connect wallet first'); return; }
     try {
       const { core, adminKeypair } = getPrograms();
       const p = getPdas();
@@ -530,7 +508,7 @@ export function AdminPanel() {
       const adminTrancheAta = await getAssociatedTokenAddress(trancheMint, admin);
 
       await core.methods
-        .deposit(kind, new BN(amount.toString()))
+        .deposit(kind, BigInt(amount.toString()))
         .accounts({
           user: admin,
           config: p.config,
@@ -555,13 +533,13 @@ export function AdminPanel() {
   }
 
   async function accrueYield() {
-    if (!wallet) { toast.error('Connect wallet first'); return; }
+    if (!wallet.connected) { toast.error('Connect wallet first'); return; }
     try {
       const { core, adminKeypair } = getPrograms();
       const p = getPdas();
       const admin = adminKeypair.publicKey;
       const adminUsdcAta = await getAssociatedTokenAddress(USDC_MINT, admin);
-      const amount = new BN(parseFloat(params.yieldAmount) * 1_000_000);
+      const amount = BigInt(parseFloat(params.yieldAmount) * 1_000_000);
 
       await core.methods
         .accrueYield(amount)
@@ -588,7 +566,7 @@ export function AdminPanel() {
   }
 
   async function disburseLoan() {
-    if (!wallet) { toast.error('Connect wallet first'); return; }
+    if (!wallet.connected) { toast.error('Connect wallet first'); return; }
     try {
       const { core, adminKeypair } = getPrograms();
       const p = getPdas(currentLoanId);
@@ -638,12 +616,12 @@ export function AdminPanel() {
   }
 
   async function repayLoan() {
-    if (!wallet) { toast.error('Connect wallet first'); return; }
+    if (!wallet.connected) { toast.error('Connect wallet first'); return; }
     try {
       const { core, adminKeypair } = getPrograms();
       const p = getPdas(currentLoanId);
       const admin = adminKeypair.publicKey;
-      const amount = new BN(parseFloat(params.repayAmount) * 1_000_000);
+      const amount = BigInt(parseFloat(params.repayAmount) * 1_000_000);
       const borrowerUsdcAta = await getAssociatedTokenAddress(USDC_MINT, admin);
       await (core.methods as any)
         .repayLoan(amount)
@@ -690,11 +668,11 @@ export function AdminPanel() {
       }
 
       const borrower = new PublicKey(borrowerPubkeyStr);
-      const principal = new BN(requestedUSDC * 1_000_000);
+      const principal = BigInt(requestedUSDC * 1_000_000);
       const apr = parseInt(params.loanApr) * 100;
-      const maturity = new BN(Math.floor(Date.now() / 1000) + maturityDays * 24 * 60 * 60);
+      const maturity = BigInt(Math.floor(Date.now() / 1000) + maturityDays * 24 * 60 * 60);
       const [loanPda] = getLoanPda(p.vault, nextLoanId, PRISM_CORE_PROGRAM_ID);
-      console.log(`Originating loan ID ${nextLoanId} at PDA: ${loanPda.toBase58()}`);
+      console.log(`Originating loan ID ${nextLoanId} at PDA: ${String(loanPda)}`);
       await core.methods
         .initializeLoan(nextLoanId, principal, apr, maturity, borrower)
         .accounts({ admin: adminKeypair.publicKey, config: p.config, vault: p.vault, loan: loanPda, systemProgram: SystemProgram.programId })
@@ -710,7 +688,7 @@ export function AdminPanel() {
   }
 
   async function triggerDefault() {
-    if (!wallet) { toast.error('Connect wallet first'); return; }
+    if (!wallet.connected) { toast.error('Connect wallet first'); return; }
     try {
       const { core, adminKeypair } = getPrograms();
       const p = getPdas();
@@ -720,7 +698,7 @@ export function AdminPanel() {
       const seq: number = vaultAccount.creditEventSeq ?? 0;
       const [creditEvent] = getCreditEventPda(p.vault, seq, PRISM_CORE_PROGRAM_ID);
 
-      const amount = new BN(parseFloat(params.lossAmount) * 1_000_000);
+      const amount = BigInt(parseFloat(params.lossAmount) * 1_000_000);
       const severity = parseInt(params.severity) * 100;
 
       await core.methods
@@ -749,33 +727,17 @@ export function AdminPanel() {
   }
 
   async function mintUsdc() {
-    if (!wallet) { toast.error('Connect wallet first'); return; }
+    if (!wallet.connected) { toast.error('Connect wallet first'); return; }
     try {
-      const admin = wallet.publicKey;
-      const amount = Math.round(parseFloat(params.faucetAmount) * 1_000_000);
-      if (isNaN(amount) || amount <= 0) { toast.error('Enter a valid USDC amount'); return; }
-      const ata = await getAssociatedTokenAddress(USDC_MINT, admin);
-      const ataInfo = await connection.getAccountInfo(ata);
-      const tx = new Transaction();
-      if (!ataInfo) {
-        tx.add(createAssociatedTokenAccountInstruction(admin, ata, admin, USDC_MINT));
-      }
-      tx.add(createMintToInstruction(USDC_MINT, ata, admin, BigInt(amount)));
-      tx.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
-      tx.feePayer = admin;
-      const signed = await wallet.signTransaction(tx);
-      const sig = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction(sig, 'confirmed');
-      addLog(`✓ Minted ${params.faucetAmount} USDC to ${admin.toBase58().slice(0, 8)}…`);
-      toast.success(`Minted ${params.faucetAmount} devnet USDC to your wallet`);
+      notMigrated();
     } catch (e: any) {
       addLog(`✗ Faucet: ${e.message}`);
-      toast.error(`Mint failed: ${e.message} — wallet must be mint authority`);
+      toast.error(`Mint failed: ${e.message}`);
     }
   }
 
   async function liquidateCollateral() {
-    if (!wallet) { toast.error('Connect wallet first'); return; }
+    if (!wallet.connected) { toast.error('Connect wallet first'); return; }
     try {
       const { core, adminKeypair } = getPrograms();
       const p = getPdas();
@@ -807,7 +769,7 @@ export function AdminPanel() {
         <div>
           <h1 className="text-xl font-semibold text-white">Protocol Control Center</h1>
           <p className="font-mono text-[11px] text-white/30">
-            Vault {VAULT_ID} · {PRISM_CORE_PROGRAM_ID.toBase58().slice(0, 8)}…
+            Vault {VAULT_ID} · {String(PRISM_CORE_PROGRAM_ID).slice(0, 8)}…
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -819,7 +781,7 @@ export function AdminPanel() {
             <span className={`h-1.5 w-1.5 rounded-full ${isHealthy ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
             {isHealthy ? 'Protocol Healthy' : 'Loss Event Active'}
           </div>
-          <WalletMultiButton style={{}} />
+          <button className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60">Wallet</button>
         </div>
       </div>
 
@@ -1045,7 +1007,7 @@ export function AdminPanel() {
                   <button
                     key={step.label}
                     onClick={step.fn}
-                    disabled={!wallet}
+                    disabled={!wallet.connected}
                     className="flex items-center justify-between px-3 py-2 rounded-lg border border-white/5 bg-white/5 hover:bg-white/10 transition-colors text-xs text-white/80"
                   >
                     <span>{step.label}</span>
@@ -1093,7 +1055,7 @@ export function AdminPanel() {
                 const amount = (document.getElementById('depositAmount') as HTMLInputElement).value || '5000';
                 deposit(t.kind, t.label, amount);
               }}
-              disabled={!wallet}
+              disabled={!wallet.connected}
               className={`flex-1 rounded-lg border border-${t.color}-400/30 bg-${t.color}-500/10 py-2 text-xs text-${t.color}-200 hover:bg-${t.color}-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-center`}
             >
               Deposit to {t.label}<br />
@@ -1114,7 +1076,7 @@ export function AdminPanel() {
           <span className="text-[10px] text-amber-400/50">USDC</span>
           <button
             onClick={mintUsdc}
-            disabled={!wallet}
+            disabled={!wallet.connected}
             className="rounded bg-amber-500/20 border border-amber-500/30 px-3 py-1 text-[10px] font-semibold text-amber-200 hover:bg-amber-500/30 disabled:opacity-40 whitespace-nowrap"
           >
             Mint to Wallet
@@ -1186,7 +1148,7 @@ export function AdminPanel() {
                 />
                 <button
                   onClick={accrueYield}
-                  disabled={!wallet}
+                  disabled={!wallet.connected}
                   className="flex-1 px-4 py-1.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-200 text-xs font-semibold hover:bg-emerald-500/30 transition-all disabled:opacity-40"
                 >
                   Apply Yield
@@ -1222,7 +1184,7 @@ export function AdminPanel() {
             <div className="flex items-end gap-3">
               <button
                 onClick={disburseLoan}
-                disabled={!wallet}
+                disabled={!wallet.connected}
                 className="w-full py-1.5 rounded bg-blue-500/20 border border-blue-500/30 text-blue-200 text-xs font-semibold hover:bg-blue-500/30 transition-all disabled:opacity-40 whitespace-nowrap"
               >
                 Disburse Loan
@@ -1231,7 +1193,7 @@ export function AdminPanel() {
             {ikaStatus === 'Locked' && (
               <button
                 onClick={liquidateCollateral}
-                disabled={!wallet}
+                disabled={!wallet.connected}
                 className="w-full py-1.5 rounded bg-orange-500/20 border border-orange-500/30 text-orange-200 text-xs font-semibold hover:bg-orange-500/30 transition-all disabled:opacity-40"
               >
                 Liquidate IKA Collateral
@@ -1268,7 +1230,7 @@ export function AdminPanel() {
             </div>
             <button
               onClick={triggerDefault}
-              disabled={!wallet}
+              disabled={!wallet.connected}
               className="w-full mt-1 py-2 rounded bg-rose-500/20 border border-rose-500/30 text-rose-200 text-xs font-semibold hover:bg-rose-500/30 transition-all disabled:opacity-40"
             >
               Trigger Default Event
@@ -1335,11 +1297,11 @@ export function AdminPanel() {
         {showPdaInspector && (() => {
           const p = getPdas(currentLoanId);
           const rows: Array<{ label: string; address: string; note?: string }> = [
-            { label: 'Global Config',    address: p.config.toBase58(),         note: 'USDC mint + oracle list' },
-            { label: 'Vault',            address: p.vault.toBase58(),          note: `ID ${VAULT_ID}` },
-            { label: 'USDC Reserve',     address: p.reserve.toBase58(),        note: `$${formatUsdc(reserveBal, 2)} balance` },
-            { label: 'Loss Bucket',      address: p.lossBucket.toBase58(),     note: `$${formatUsdc(lossBucketBal, 2)} balance` },
-            { label: 'Loan',             address: p.loan.toBase58(),           note: `ID ${currentLoanId}` },
+            { label: 'Global Config',    address: String(p.config ?? ''),         note: 'USDC mint + oracle list' },
+            { label: 'Vault',            address: String(p.vault ?? ''),          note: `ID ${VAULT_ID}` },
+            { label: 'USDC Reserve',     address: String(p.reserve ?? ''),        note: `$${formatUsdc(reserveBal, 2)} balance` },
+            { label: 'Loss Bucket',      address: String(p.lossBucket ?? ''),     note: `$${formatUsdc(lossBucketBal, 2)} balance` },
+            { label: 'Loan',             address: String(p.loan ?? ''),           note: `ID ${currentLoanId}` },
             { label: 'Prime Tranche',    address: p.tranches.prime.toBase58(), note: `$${formatUsdc(vd?.tranches.find(t => t.kind === TrancheKind.Prime)?.totalAssets ?? 0n, 2)} TVL` },
             { label: 'Core Tranche',     address: p.tranches.core.toBase58(),  note: `$${formatUsdc(vd?.tranches.find(t => t.kind === TrancheKind.Core)?.totalAssets ?? 0n, 2)} TVL` },
             { label: 'Alpha Tranche',    address: p.tranches.alpha.toBase58(), note: `$${formatUsdc(vd?.tranches.find(t => t.kind === TrancheKind.Alpha)?.totalAssets ?? 0n, 2)} TVL` },
@@ -1399,7 +1361,7 @@ export function AdminPanel() {
                       <div className="flex gap-2 shrink-0">
                         <button
                           onClick={() => originateLoanForApplicant(app.id, app.borrowerPubkey, app.requestedUSDC, app.maturityDays, nextId)}
-                          disabled={!wallet}
+                          disabled={!wallet.connected}
                           className="rounded-md bg-green-500/20 border border-green-500/30 px-2.5 py-1 text-[11px] font-medium text-green-300 hover:bg-green-500/30 disabled:opacity-40"
                         >
                           Approve & Originate

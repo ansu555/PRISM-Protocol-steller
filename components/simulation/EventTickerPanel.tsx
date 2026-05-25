@@ -1,8 +1,8 @@
 'use client';
 
 import { RefreshCw, Wallet } from 'lucide-react';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useWallet } from '@/components/providers/stellar-wallet-context';
+
 
 import { useEvents } from '@/hooks/useEvents';
 import { useDuneBalances } from '@/hooks/useDuneBalances';
@@ -70,7 +70,7 @@ function EventRow({ event, isLocal }: { event: ProtocolEvent; isLocal?: boolean 
 export function EventTickerPanel() {
   const { data, isFetching } = useEvents();
   const { publicKey } = useWallet();
-  const { setVisible } = useWalletModal();
+  const setVisible = (_v: boolean) => {}; // wallet modal not available in Stellar
   const walletAddress = publicKey?.toBase58() ?? null;
   const { data: balances, isFetching: balancesFetching } = useDuneBalances(walletAddress ?? '');
   const { entries: logEntries } = useSimulationLog();

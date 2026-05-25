@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet } from '@/components/providers/stellar-wallet-context';
 import { useLoanApplications } from '@/hooks/useLoanApplications';
 import { BorrowerProvider } from '@/hooks/useBorrowerState';
 import { BorrowingWorkflow } from '@/components/borrower/BorrowingWorkflow';

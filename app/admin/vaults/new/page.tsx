@@ -22,31 +22,21 @@ import {
   Settings2,
   Lock
 } from 'lucide-react';
-import { SystemProgram, SYSVAR_RENT_PUBKEY, Keypair } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@/components/providers/stellar-wallet-context';
 import { toast } from 'sonner';
 
-import { buildPrograms } from '@/app/lib/program';
-import { PRISM_CORE_PROGRAM_ID, USDC_MINT, TrancheKind } from '@/app/lib/constants';
+import { PRISM_CORE_PROGRAM_ID, TrancheKind } from '@/app/lib/constants';
 import {
-  getConfigPda,
   getVaultPda,
-  getTranchePda,
-  getTrancheMintPda,
   getVaultReservePda,
   getLossBucketPda,
+  getTrancheMintPda,
 } from '@/app/lib/pda';
 import { useAdminVault } from '@/components/admin/AdminVaultContext';
-import adminSecret from '@/contracts/keys/admin.json';
-
-function getAdminKeypair() {
-  return Keypair.fromSecretKey(Uint8Array.from(adminSecret as number[]));
-}
 
 export default function NewVaultPage() {
   const router = useRouter();
-  const wallet = useAnchorWallet();
+  const wallet = useWallet();
   const { connection } = useConnection();
   const { addLog } = useAdminVault();
 
@@ -82,91 +72,21 @@ export default function NewVaultPage() {
     const [primeMint] = getTrancheMintPda(vault, TrancheKind.Prime, PRISM_CORE_PROGRAM_ID);
     
     return {
-      vault: vault.toBase58(),
-      reserve: reserve.toBase58(),
-      lossBucket: lossBucket.toBase58(),
-      primeMint: primeMint.toBase58(),
+      vault: vault.toString(),
+      reserve: reserve.toString(),
+      lossBucket: lossBucket.toString(),
+      primeMint: primeMint.toString(),
     };
   }, [vaultId]);
 
   async function handleDeploy() {
-    if (!wallet) { toast.error('Connect wallet'); return; }
+    if (!wallet.connected) { toast.error('Connect wallet'); return; }
     const id = parseInt(vaultId);
     if (isNaN(id) || id < 0) { toast.error('Enter a valid vault ID'); return; }
 
     setCreating(true);
     try {
-      const adminKp = getAdminKeypair();
-      const { core } = buildPrograms(connection, adminKp);
-      const admin = adminKp.publicKey;
-      const [config] = getConfigPda(PRISM_CORE_PROGRAM_ID);
-      const [vault] = getVaultPda(id, PRISM_CORE_PROGRAM_ID);
-      const [reserve] = getVaultReservePda(vault, PRISM_CORE_PROGRAM_ID);
-      const [lossBucket] = getLossBucketPda(vault, PRISM_CORE_PROGRAM_ID);
-
-      const existing = await core.account.vault.fetchNullable(vault);
-      if (existing) {
-        toast.error(`Vault #${id} already exists`);
-        setCreating(false);
-        return;
-      }
-
-      addLog(`Initializing Market Infrastructure for Vault #${id}...`);
-      
-      // 1. Initialize Vault
-      await core.methods
-        .initializeVault(id)
-        .accounts({ admin, config, vault, systemProgram: SystemProgram.programId })
-        .rpc({ commitment: 'confirmed' });
-      addLog(`✓ Vault #${id} context initialized`);
-
-      // 2. Initialize Reserves
-      await core.methods
-        .initializeVaultReserves()
-        .accounts({
-          admin, config, vault, usdcMint: USDC_MINT,
-          vaultUsdcReserve: reserve, tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc({ commitment: 'confirmed' });
-      addLog(`✓ Institutional reserve finalized`);
-
-      // 3. Initialize Loss Bucket
-      await core.methods
-        .initializeVaultLossBucket()
-        .accounts({
-          admin, config, vault, usdcMint: USDC_MINT,
-          lossBucket, tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc({ commitment: 'confirmed' });
-      addLog(`✓ Risk-absorption bucket initialized`);
-
-      // 4. Initialize Tranches
-      const trancheConfigs = [
-        { kind: TrancheKind.Prime, apy: Math.round(parseFloat(primeApy) * 100), label: 'Prime' },
-        { kind: TrancheKind.Core,  apy: Math.round(parseFloat(coreApy) * 100),  label: 'Core'  },
-        { kind: TrancheKind.Alpha, apy: Math.round(parseFloat(alphaApy) * 100), label: 'Alpha' },
-      ];
-
-      for (const t of trancheConfigs) {
-        const [tranchePda] = getTranchePda(vault, t.kind, PRISM_CORE_PROGRAM_ID);
-        const [mintPda] = getTrancheMintPda(vault, t.kind, PRISM_CORE_PROGRAM_ID);
-        await core.methods
-          .initializeTranche(t.kind, t.apy)
-          .accounts({
-            admin, config, vault,
-            tranche: tranchePda, trancheMint: mintPda,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            systemProgram: SystemProgram.programId,
-            rent: SYSVAR_RENT_PUBKEY,
-          })
-          .rpc({ commitment: 'confirmed' });
-        addLog(`✓ ${t.label} instrument finalized (${t.apy / 100}%)`);
-      }
-
-      toast.success(`Market Protocol for Vault #${id} deployed`);
-      router.push('/admin/vaults');
+      throw new Error('Not yet migrated to Stellar — use the simulation panel instead.');
     } catch (e: any) {
       const msg = e.message || String(e);
       addLog(`✗ Infrastructure deployment failed: ${msg}`);
@@ -450,7 +370,7 @@ export default function NewVaultPage() {
 
                    <button
                      onClick={handleDeploy}
-                     disabled={creating || !wallet || !vaultId}
+                     disabled={creating || !wallet.connected || !vaultId}
                      className="group relative w-full overflow-hidden rounded-2xl bg-white px-6 py-5 text-sm font-bold text-black transition-all hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-20 shadow-[0_0_40px_rgba(255,255,255,0.05)]"
                    >
                      <div className="flex items-center justify-center gap-3">
