@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "skills": {
+    "defi-protocol-templates": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/blockchain-web3/skills/defi-protocol-templates/SKILL.md",
+      "computedHash": "bfb56b8fd2ee13a0407c4832d074f334588b5164696b6d56257eadea47d3a98a"
+    },
+    "ika-move": {
+      "source": "dwallet-labs/ika",
+      "sourceType": "github",
+      "skillPath": "skills/ika-move/SKILL.md",
+      "computedHash": "569784da7809e576a243dda4f7a2647153a739dbe1d8c105f6c39d7adb96d8c6"
+    },
+    "ika-sdk": {
+      "source": "dwallet-labs/ika",
+      "sourceType": "github",
+      "skillPath": "skills/ika-sdk/SKILL.md",
+      "computedHash": "4fa148f8e6f1598b51ecfc9f7e052f95dcb9654ddfa2a29c1d828e0337ea2761"
+    },
+    "remotion-best-practices": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion/SKILL.md",
+      "computedHash": "006f8413941b59eff54a7ce64851b8a2fb79e7a3a5f1a895e97a48f01482553d"
+    },
+    "solana-anchor-claude-skill": {
+      "source": "quiknode-labs/solana-anchor-claude-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "f86374de3755e6cefa4c34c1c855d3d3fdac7c3a34ed4d2f10e49d303d6cb03b"
+    },
+    "solana-dev": {
+      "source": "solana-foundation/solana-dev-skill",
+      "sourceType": "github",
+      "skillPath": "skill/SKILL.md",
+      "computedHash": "cf18000b305aa19f38eac8f32d3f427bc29ed6f9896b6a5f81d1f8c125e00271"
+    }
+  }
+}

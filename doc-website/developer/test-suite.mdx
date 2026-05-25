@@ -1,0 +1,293 @@
+---
+title: Test Suite
+description: Run the PRISM Anchor test suite locally. Coverage by file, four financial invariants, telemetry layers, and devnet smoke testing.
+---
+
+# Test Suite
+
+PRISM ships a Mocha + Chai integration suite that exercises every instruction end-to-end against `solana-test-validator`. Tests are not a checkbox — they are the primary defense against silent capital corruption in a multi-tranche credit system.
+
+The most recent localnet run is **25 passing in ~34 seconds**, plus Rust unit tests for the Q64.64 math module.
+
+## Coverage Summary
+
+| Suite | Tests | Focus | File |
+| --- | --- | --- | --- |
+| `prism-core` | 14 | Vault lifecycle, deposits, yield waterfall, default cascade, withdraw | `tests/prism-core.ts` |
+| `prism-amm` | 6 | Pool initialization, add/remove liquidity, swap pricing, slippage | `tests/prism-amm.ts` |
+| `ika-collateral` | 5 | Attach → verify (real ed25519 precompile) → disburse → repay → release / liquidate | `tests/ika-collateral.ts` |
+| Q64.64 math | Embedded | NAV, deposit shares, withdraw payout, edge cases | `programs/prism-core/src/math/q.rs` |
+
+Every TypeScript test asserts on-chain state down to the 6th decimal of USDC. Test pass criteria is mathematical equality, not just "transaction succeeded."
+
+## Run Locally
+
+<Steps>
+  <Step title="Install the toolchain">
+    Required versions:
+    - Anchor 0.30.1
+    - Solana CLI 1.18.x
+    - Node 20+
+    - Yarn 1.22+
+
+    See the [Anchor install guide](https://www.anchor-lang.com/docs/installation) for OS-specific setup.
+  </Step>
+
+  <Step title="Start a clean local validator">
+    ```bash
+    solana-test-validator --reset
+    ```
+
+    The `--reset` flag wipes all prior state. Leave this running in a separate terminal. `anchor test` will start its own validator if you skip this step, but a long-lived validator is faster across iterations.
+  </Step>
+
+  <Step title="Run the full suite">
+    ```bash
+    cd contracts
+    anchor build         # one-time: build both programs
+    yarn test            # full suite, ~30 s
+    ```
+
+    `anchor test` builds, deploys, and runs Mocha against a fresh validator. For iterative work, skip the rebuild:
+
+    ```bash
+    yarn test:skip-build
+    ```
+  </Step>
+
+  <Step title="Run a single file or test">
+    ```bash
+    # Single file
+    yarn ts-mocha -p ./tsconfig.json -t 1000000 tests/prism-core.ts
+    yarn ts-mocha -p ./tsconfig.json -t 1000000 tests/prism-amm.ts
+    yarn ts-mocha -p ./tsconfig.json -t 1000000 tests/ika-collateral.ts
+
+    # Single test by name
+    yarn ts-mocha -p ./tsconfig.json -t 1000000 tests/prism-core.ts \
+      --grep "default cascade wipes Alpha"
+    ```
+
+    The `-t 1000000` timeout is generous — Solana RPC calls and program loads can be slow on cold starts.
+  </Step>
+
+  <Step title="Run Rust unit tests">
+    ```bash
+    cd contracts
+    cargo test --manifest-path programs/prism-core/Cargo.toml
+    ```
+
+    These exercise the Q64.64 math module in isolation — `compute_nav_q`, `deposit_shares`, `withdraw_payout`, and the rounding edge cases.
+  </Step>
+</Steps>
+
+## What's Validated
+
+### The Four Invariants
+
+Every test asserts these four invariants on every state transition:
+
+| Invariant | Check | Why it matters |
+| --- | --- | --- |
+| **Capital preservation** | `Σreserves + Σloans + Σloss_bucket == Σdeposits + Σinterest` | No phantom USDC created or destroyed across the system |
+| **NAV consistency** | `nav_per_share_q == (total_assets × Q64_ONE) / total_supply` | Off-chain NAV calculation always matches on-chain state |
+| **Waterfall integrity** | Prime fills to its target before any yield reaches Core | Junior tranches cannot front-run senior payouts |
+| **Risk priority** | Alpha and Core deplete to zero before any loss touches Prime | Subordination is enforced — Prime protection is real |
+
+A test passes only if all four hold to the 6th decimal of USDC after the operation.
+
+### `prism-core` Test Cases
+
+```text
+SETUP
+  ✓ initialize_global_config succeeds with admin
+  ✓ initialize_vault creates reserve and loss bucket
+  ✓ initialize_three_tranches with correct APY
+  ✓ initialize_loan with correct borrower
+
+DEPOSITS
+  ✓ first deposit at NAV 1.0 mints 1:1
+  ✓ subsequent deposit after yield accounts for new NAV
+  ✓ deposit into paused vault fails (VaultPaused)
+  ✓ deposit into wiped tranche fails (TrancheWipedNoDepositsAllowed)
+
+YIELD
+  ✓ yield distributes per waterfall, exact NAVs match docs §4.3
+  ✓ yield pulls USDC from borrower ATA atomically
+  ✓ yield with unauthorized caller fails (Unauthorized)
+
+DEFAULT CASCADE
+  ✓ small loss wipes Alpha only
+  ✓ medium loss cascades Alpha → Core (matches docs §4.5)
+  ✓ huge loss cascades Alpha → Core → Prime
+  ✓ loss bucket equals loss_amount input after default
+  ✓ reserve equals sum(tranche.total_assets) after default
+
+WITHDRAWS
+  ✓ withdraw at NAV returns correct USDC
+  ✓ withdraw post-default Alpha returns 0 (intentional)
+```
+
+### `prism-amm` Test Cases
+
+```text
+✓ initialize_pool creates reserves and LP mint
+✓ first add_liquidity sets initial price (geometric mean - MIN_LIQUIDITY)
+✓ subsequent add_liquidity matches existing ratio
+✓ swap constant-product invariant (k unchanged within fee)
+✓ swap slippage protection enforces min_amount_out
+✓ remove_liquidity returns proportional reserves
+```
+
+### `ika-collateral` Test Cases
+
+```text
+✓ attach_ika_collateral creates Pending PDA
+✓ verify_ika_collateral with real ed25519 precompile transitions Pending → Locked
+✓ disburse_loan gated on Locked collateral succeeds
+✓ release_ika_collateral after Repaid loan transitions Locked → Released
+✓ liquidate_ika_collateral after vault Default transitions Locked → Liquidated
+```
+
+The IKA suite exercises Solana's **native ed25519 precompile** and the **81-byte oracle attestation message format**. The Rust on-chain layout in `verify_ika_collateral.rs` and the TypeScript helper `buildAttestationMessage` produce byte-identical output, proven by the suite passing.
+
+## Telemetry Layers
+
+Every test prints a structured trace so you can audit capital flow without reading transaction logs:
+
+### Layer 1: Narrative
+
+```text
+════════════════════════════════════════════════
+ Step 5: Deposit (Prime, 1,000 USDC)
+════════════════════════════════════════════════
+  Description: First Prime depositor enters at NAV 1.0
+  Walkthrough:  USDC transfers user → vault reserve
+                shares minted 1:1 (first deposit rule)
+                Tranche.total_assets and total_supply both += 1,000
+                NAV stays at 1.0 (numerator and denominator scale together)
+```
+
+### Layer 2: PDAs and parameters
+
+```text
+► Calling: deposit [prism-core]
+  🔑 User:           4Pq...8Cm (lp_prime keypair)
+  🔑 Vault PDA:      8TDuRCL...UPYH
+  🔑 Tranche PDA:    9Z2...mF7 (Prime, kind=0)
+  🔑 Tranche Mint:   GhT...Aw9 (pPRIME)
+  🔑 Vault Reserve:  4cb...3X1
+  Params:            kind=0, usdc_amount=1_000_000_000
+```
+
+### Layer 3: Balance deltas
+
+```text
+💰 User USDC:        100.000000 → 99.000000  (-1.000000)
+💰 User pPRIME:        0.000000 → 1.000000   (+1.000000)
+💰 Vault Reserve:      0.000000 → 1.000000   (+1.000000)
+📈 Prime NAV:          —        → 1.000000
+✓ Invariants: capital preservation, NAV consistency, waterfall integrity
+```
+
+This three-layer trace is what catches silent failures — when a transaction succeeds but the math is subtly wrong.
+
+## Debugging Failed Tests
+
+| Failure | Likely cause | Fix |
+| --- | --- | --- |
+| `Stack overflow (os error 2)` | Anchor account too large for stack | Wrap in `Box<Account<...>>` |
+| `ConstraintSeeds` | PDA seeds in test don't match Rust | Re-derive using SDK helpers, never hand-hash |
+| `ConstraintHasOne` | Wrong signer for an admin instruction | Check `config.admin` matches your test's admin keypair |
+| `BorrowerMismatch` | Wrong borrower for `accrue_yield` or `repay_loan` | Use the exact pubkey stored on the loan |
+| `EmptyTrancheNav` | Withdraw or deposit on a tranche before init | Initialize tranche first |
+| `OracleSignatureInvalid` | Test oracle key doesn't match the registered key | Re-attach with the correct key |
+
+If invariants fail but instructions succeed, you have a real correctness bug — capture the failing test inputs and bisect the math.
+
+## CI Integration
+
+Run the suite in GitHub Actions or any CI provider:
+
+```yaml
+# .github/workflows/test.yml (sketch)
+name: Anchor Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Solana
+        run: |
+          sh -c "$(curl -sSfL https://release.solana.com/v1.18.17/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+      - name: Install Anchor
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+          avm install 0.30.1
+          avm use 0.30.1
+      - name: Run tests
+        run: |
+          cd contracts
+          yarn install --frozen-lockfile
+          anchor build
+          yarn test
+```
+
+Anchor's test runner brings up its own `solana-test-validator` and tears it down on exit — no extra orchestration needed.
+
+## Adding New Tests
+
+The harness exposes helpers in `tests/_helpers.ts` (or inline) for common setup: airdrop, mint USDC, derive PDAs, compute expected NAVs. Pattern for a new test:
+
+```typescript
+it('first Core depositor at NAV 1.0', async () => {
+  const before = await snapshot(lpCore, TrancheKind.Core);
+
+  await program.methods
+    .deposit(TrancheKind.Core, new BN(500 * 1_000_000))
+    .accounts({ /* ... */ })
+    .signers([lpCore])
+    .rpc();
+
+  const after = await snapshot(lpCore, TrancheKind.Core);
+
+  // Hardcoded expected values — math correctness, not "transaction succeeded"
+  expect(after.trancheTotalAssets.toString()).to.equal('500000000');
+  expect(after.trancheTotalSupply.toString()).to.equal('500000000');
+  expect(after.navPerShareQ.toString()).to.equal(Q64_ONE.toString());
+
+  // Always assert invariants
+  assertReserveInvariant(after);
+});
+```
+
+Hardcode expected NAVs from the docs (`§4.3` for yield, `§4.5` for default cascade) — math correctness is the highest-risk failure mode.
+
+## Devnet Smoke Test
+
+For an end-to-end sanity check against the deployed devnet binary, walk the manual test plan in `docs/ika-frontend-test-plan.md`. It exercises:
+
+1. Loan application via `localStorage` queue
+2. On-chain origination through admin panel
+3. IKA collateral attach (Pending status)
+4. Verify with the local test oracle (Pending → Locked)
+5. Disburse against locked collateral
+6. Repay loan in full (state → `Repaid`)
+7. Release collateral (Locked → Released)
+
+Localnet correctness is strong evidence that the deployed binary is correct (same source, same compiler), but the smoke test confirms the wallet adapter, RPC, and frontend all wire together end-to-end on real devnet infrastructure.
+
+## What's Next
+
+<CardGroup cols={2}>
+  <Card title="Connect to Devnet" icon="plug" href="/developer/connect">
+    Wire the SDK to a Solana RPC.
+  </Card>
+  <Card title="Deployed Addresses" icon="map-pin" href="/developer/addresses">
+    Program IDs, PDAs, and tokens.
+  </Card>
+</CardGroup>

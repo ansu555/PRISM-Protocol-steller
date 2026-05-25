@@ -1,0 +1,58 @@
+---
+title: Risk & Market Layer
+---
+
+# Risk & Market Layer
+
+The Risk & Market Layer provides liquidity and price discovery for PRISM credit positions.
+
+PRISM separates accounting value from market value. Tranche NAV is determined by vault state. Market price is determined by traders.
+
+## Secondary Markets
+
+Each tranche token can be paired with USDC in a constant-product AMM pool.
+
+Supported markets:
+
+| Market | Purpose |
+| --- | --- |
+| `pPRIME / USDC` | Low-risk tranche liquidity |
+| `pCORE / USDC` | Intermediate-risk tranche liquidity |
+| `pALPHA / USDC` | First-loss tranche liquidity |
+
+These markets allow users to exit or reposition without waiting for vault withdrawal flows.
+
+## Pricing Mechanism
+
+Market prices are determined by:
+
+- Supply and demand.
+- Risk perception.
+- Expected future cash flows.
+- Realized defaults.
+- Liquidity depth.
+
+PRISM does not force AMM price to equal NAV. The difference between those two values is useful information.
+
+## NAV vs Market Price
+
+The protocol separates:
+
+- **Intrinsic value:** NAV, based on tranche assets and token supply.
+- **Market price:** AMM price, based on pool reserves and trading activity.
+
+This enables real-time risk interpretation.
+
+For example, if pALPHA still has positive NAV but trades at a heavy discount, the market is expressing concern about future losses or insufficient yield.
+
+## Why This Matters
+
+Traditional credit marks can lag reality. PRISM makes pricing dynamic. When a default event occurs, vault NAV changes deterministically, and AMM prices can react immediately as traders reassess each tranche.
+
+That creates a visible feedback loop:
+
+1. Credit event occurs.
+2. Loss cascade updates NAV.
+3. Traders react.
+4. Market price moves.
+5. Dashboard shows both accounting value and market sentiment.

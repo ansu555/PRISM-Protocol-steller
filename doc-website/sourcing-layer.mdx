@@ -1,0 +1,58 @@
+---
+title: Sourcing Layer
+---
+
+# Sourcing Layer
+
+The Sourcing Layer is responsible for introducing credit into PRISM.
+
+In production, this layer can connect to real originators, real-world assets, collateral networks, borrower interfaces, and institutional credit pipelines. In the current implementation, the layer is intentionally narrow so the core mechanics can be demonstrated clearly.
+
+## Responsibilities
+
+The Sourcing Layer handles:
+
+- Credit origination.
+- Capital intake.
+- Borrower interface design.
+- Yield source integration.
+- Future collateral and identity integrations.
+
+## Current Implementation
+
+The first implementation uses on-chain vault-based credit issuance.
+
+Yield is injected programmatically by authorized accounts. This allows the demo to show how a borrower payment or coupon enters the system and gets distributed through the waterfall without depending on off-chain underwriting during the initial build.
+
+The current design prioritizes:
+
+- Clean vault accounting.
+- Deterministic demo flows.
+- Fast iteration on devnet.
+- Transparent yield and default simulation.
+
+## Future Extensions
+
+PRISM is designed to support broader credit sourcing without changing the core waterfall model.
+
+Future extensions may include:
+
+- Real-world asset originators.
+- Institutional borrower onboarding.
+- Cross-chain collateral via MPC networks.
+- On-chain or off-chain borrower risk scores.
+- Credit facility management.
+- Oracle-triggered borrower payment verification.
+
+## Interface With The Core Protocol
+
+The Sourcing Layer should pass only validated financial events into the Core Protocol Layer.
+
+Examples:
+
+- "This vault received 100 USDC of yield."
+- "This credit pool realized a 6,500 USDC loss."
+- "This borrower has repaid principal."
+
+The Core Protocol Layer then decides how those events affect tranche NAV and user redemption value.
+

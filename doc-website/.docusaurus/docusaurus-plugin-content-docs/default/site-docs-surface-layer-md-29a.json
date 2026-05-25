@@ -1,0 +1,28 @@
+{
+  "id": "surface-layer",
+  "title": "Surface Layer",
+  "description": "The Surface Layer is the user-facing interface for PRISM.",
+  "source": "@site/docs/surface-layer.md",
+  "sourceDirName": ".",
+  "slug": "/surface-layer",
+  "permalink": "/surface-layer",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 7,
+  "frontMatter": {
+    "sidebar_position": 7,
+    "title": "Surface Layer",
+    "id": "surface-layer"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Integrity Layer",
+    "permalink": "/integrity-layer"
+  },
+  "next": {
+    "title": "Financial Model",
+    "permalink": "/financial-model"
+  }
+}

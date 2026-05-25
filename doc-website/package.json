@@ -1,0 +1,28 @@
+{
+  "name": "doc-website",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "mint dev",
+    "start": "mint dev",
+    "build": "rm -rf build export.zip && mint export --output export.zip && mkdir -p build && unzip -q export.zip -d build",
+    "validate": "mint validate",
+    "broken-links": "mint broken-links",
+    "a11y": "mint a11y",
+    "export": "mint export"
+  },
+  "devDependencies": {
+    "mint": "^4.2.536"
+  },
+  "overrides": {
+    "@mintlify/cli": {
+      "react": "19.2.4"
+    },
+    "@mintlify/previewing": {
+      "react": "19.2.4"
+    }
+  },
+  "engines": {
+    "node": ">=20.17.0"
+  }
+}

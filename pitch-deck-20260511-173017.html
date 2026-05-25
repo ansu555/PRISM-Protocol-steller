@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PRISM Protocol - Pitch Deck</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&amp;family=Instrument+Serif&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #08070d;
+      --bg-1: #0d0a14;
+      --bg-2: #100d18;
+      --surface-1: rgba(255,255,255,0.035);
+      --surface-2: rgba(255,255,255,0.06);
+      --surface-3: rgba(255,255,255,0.085);
+      --border-1: rgba(255,255,255,0.06);
+      --border-2: rgba(255,255,255,0.11);
+      --border-3: rgba(255,255,255,0.16);
+      --text: #fff;
+      --text-2: rgba(255,255,255,0.66);
+      --text-3: rgba(255,255,255,0.42);
+      --text-4: rgba(255,255,255,0.24);
+
+      --pink: #ec4899;
+      --purple: #a855f7;
+      --violet: #8b5cf6;
+      --prime: #5a8aa6;
+      --core: #d99728;
+      --alpha: #c95636;
+      --emerald: #34d399;
+      --rose: #fb7185;
+      --amber: #fbbf24;
+
+      --font-sans: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-serif: 'Instrument Serif', 'Times New Roman', serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .deck { position: fixed; inset: 0; }
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 64px 88px 72px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .45s cubic-bezier(.16,1,.3,1);
+      background: var(--bg);
+      overflow: hidden;
+    }
+    .slide.active { opacity: 1; pointer-events: auto; }
+    .slide::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(128deg, rgba(236,72,153,0.14) 0%, rgba(236,72,153,0.045) 28%, transparent 54%),
+        linear-gradient(312deg, rgba(90,138,166,0.12) 0%, rgba(168,85,247,0.05) 34%, transparent 58%),
+        linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.008) 42%, transparent 100%);
+    }
+    .slide::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: .28;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+    .slide-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      gap: 26px;
+    }
+    .slide.active .ani { animation: rise .55s cubic-bezier(.16,1,.3,1) both; }
+    .slide.active .ani:nth-child(1) { animation-delay: 0s; }
+    .slide.active .ani:nth-child(2) { animation-delay: .07s; }
+    .slide.active .ani:nth-child(3) { animation-delay: .14s; }
+    .slide.active .ani:nth-child(4) { animation-delay: .21s; }
+    .slide.active .ani:nth-child(5) { animation-delay: .28s; }
+    .slide.active .ani:nth-child(6) { animation-delay: .35s; }
+    .slide.active .ani:nth-child(7) { animation-delay: .42s; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .display {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-weight: 400;
+      letter-spacing: -2px;
+      line-height: .95;
+    }
+    .h-hero { font-size: clamp(76px, 9.4vw, 152px); }
+    .h-big { font-size: clamp(56px, 6.2vw, 104px); }
+    .h-1 { font-size: clamp(42px, 4.8vw, 76px); }
+    .h-2 {
+      font-family: var(--font-sans);
+      font-size: clamp(28px, 2.6vw, 44px);
+      font-style: normal;
+      font-weight: 500;
+      letter-spacing: -1px;
+      line-height: 1.15;
+    }
+    .body { font-size: clamp(15px, 1.05vw, 19px); line-height: 1.55; color: var(--text-2); }
+    .body-sm { font-size: 13px; line-height: 1.55; color: var(--text-2); }
+    .mono { font-family: var(--font-mono); }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .32em;
+      color: var(--text-3);
+    }
+    .eyebrow-pink { color: rgba(236,72,153,.78); }
+    .eyebrow-emerald { color: rgba(52,211,153,.86); }
+    .tabular { font-variant-numeric: tabular-nums; }
+
+    .dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 8px rgba(52,211,153,.6);
+      animation: pulse 2s ease-in-out infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+    .card {
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      border-radius: 14px;
+      padding: 22px 24px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      position: relative;
+    }
+    .card-soft {
+      background: var(--surface-1);
+      border: 1px solid var(--border-1);
+      border-radius: 14px;
+      padding: 22px 24px;
+      position: relative;
+    }
+    .card-accent { overflow: hidden; }
+    .card-accent::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--pink);
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--text-2);
+    }
+    .pill-pink { color: var(--pink); border-color: rgba(236,72,153,.25); background: rgba(236,72,153,.06); }
+    .pill-emerald { color: var(--emerald); border-color: rgba(52,211,153,.25); background: rgba(52,211,153,.06); }
+    .pill-amber { color: var(--amber); border-color: rgba(251,191,36,.22); background: rgba(251,191,36,.05); }
+    .divider { height: 1px; background: var(--border-1); margin: 4px 0; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+
+    .stat-num {
+      font-family: var(--font-mono);
+      font-size: 38px;
+      font-weight: 500;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+    .stat-num-lg {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-size: 72px;
+      line-height: 1;
+      letter-spacing: -2px;
+    }
+    .market-metrics {
+      display: grid;
+      grid-template-columns: 1.1fr 1.1fr .8fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+    .market-metric {
+      min-height: 128px;
+      padding: 22px 24px 20px;
+      border-radius: 14px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025)),
+        var(--surface-1);
+      border: 1px solid var(--border-2);
+      position: relative;
+      overflow: hidden;
+    }
+    .market-metric::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 2px;
+      background: var(--accent, var(--pink));
+      opacity: .78;
+    }
+    .market-value {
+      font-family: var(--font-mono);
+      font-size: clamp(38px, 4.2vw, 64px);
+      font-weight: 600;
+      letter-spacing: -2px;
+      line-height: .92;
+      color: var(--accent, var(--text));
+      font-variant-numeric: tabular-nums;
+    }
+    .market-label {
+      margin-top: 12px;
+      max-width: 220px;
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.25;
+      color: var(--text-2);
+      letter-spacing: 0;
+    }
+    .source {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--text-4);
+    }
+    .waterfall {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .flow-line {
+      padding: 16px 18px;
+      border-radius: 12px;
+      background: var(--surface-1);
+      border: 1px solid var(--border-1);
+    }
+    .tranche-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+    .tranche-card {
+      padding: 28px 24px;
+      border-radius: 14px;
+      background: var(--surface-1);
+      border: 1px solid var(--border-1);
+      position: relative;
+      overflow: hidden;
+    }
+    .tranche-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+    .tranche-prime::before { background: var(--prime); }
+    .tranche-core::before { background: var(--core); }
+    .tranche-alpha::before { background: var(--alpha); }
+    .bar-row { display: grid; grid-template-columns: 90px 1fr 96px; gap: 18px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border-1); }
+    .bar-row:last-child { border-bottom: 0; }
+    .bar-label { font-family: var(--font-mono); font-size: 12px; letter-spacing: .18em; text-transform: uppercase; }
+    .bar-track { height: 14px; border-radius: 4px; background: var(--surface-1); overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; }
+    .bar-num { font-family: var(--font-mono); font-size: 13px; text-align: right; letter-spacing: .04em; }
+    .feature-tile {
+      padding: 22px;
+      border-radius: 14px;
+      background: var(--surface-1);
+      border: 1px solid var(--border-1);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 142px;
+    }
+    .feature-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--pink);
+    }
+    .comparison {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 14px;
+      border: 1px solid var(--border-1);
+      background: var(--surface-1);
+    }
+    .comparison th,
+    .comparison td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--border-1);
+      font-size: 12px;
+      color: var(--text-2);
+      text-align: left;
+      vertical-align: top;
+    }
+    .comparison th {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--text-3);
+    }
+    .comparison tr:last-child td { border-bottom: 0; }
+    .comparison .highlight td {
+      background: rgba(236,72,153,.055);
+      color: var(--text);
+    }
+    .check { color: var(--emerald); font-family: var(--font-mono); }
+    .warn { color: var(--amber); font-family: var(--font-mono); }
+    .no { color: var(--text-4); font-family: var(--font-mono); }
+
+    .progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      z-index: 100;
+      background: rgba(255,255,255,.03);
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--pink), var(--purple));
+      transition: width .35s cubic-bezier(.16,1,.3,1);
+    }
+    .brand-mark {
+      position: fixed;
+      top: 22px;
+      left: 28px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text);
+      letter-spacing: .32em;
+      text-transform: uppercase;
+    }
+    .brand-mark .logo {
+      width: 44px;
+      height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .brand-mark .logo img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 18px rgba(236,72,153,0.55)) drop-shadow(0 0 8px rgba(168,85,247,0.35)); }
+    .prism-mark { display: inline-block; }
+    .prism-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    .nav {
+      position: fixed;
+      bottom: 24px;
+      right: 28px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-3);
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      background: rgba(0,0,0,.6);
+      border: 1px solid var(--border-2);
+      border-radius: 999px;
+      padding: 8px 14px;
+      backdrop-filter: blur(8px);
+    }
+    .nav button {
+      all: unset;
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: var(--text-2);
+      transition: color .15s, background .15s;
+    }
+    .nav button:hover { color: var(--text); background: var(--surface-2); }
+    .notes {
+      position: fixed;
+      bottom: 24px;
+      left: 28px;
+      z-index: 100;
+      max-width: 560px;
+      max-height: 240px;
+      overflow-y: auto;
+      background: rgba(0,0,0,.86);
+      border: 1px solid var(--border-2);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.55;
+      color: var(--text-2);
+      display: none;
+    }
+    .notes-on .notes { display: block; }
+    .notes b { color: var(--pink); font-weight: 500; }
+
+    @media (max-height: 760px) {
+      .slide { padding: 44px 64px 56px; }
+      .slide-inner { gap: 18px; }
+      .feature-tile { min-height: 118px; }
+    }
+    @media print {
+      html, body { overflow: visible; height: auto; background: white; color: black; }
+      .nav, .notes, .progress, .brand-mark { display: none !important; }
+      .slide { position: relative; opacity: 1 !important; pointer-events: auto !important; page-break-after: always; height: 100vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress"><div class="progress-bar" id="progressBar" style="width: 10%"></div></div>
+
+  <div class="brand-mark">
+    <span class="logo">
+      <img src="public/logos/prism-mark.png" alt="PRISM" />
+    </span>
+    <span>PRISM Protocol</span>
+  </div>
+
+  <div class="nav" id="nav">
+    <button onclick="prev()">&larr;</button>
+    <span><span id="cur">1</span> / <span id="total">10</span></span>
+    <button onclick="next()">&rarr;</button>
+  </div>
+
+  <div class="notes" id="notes"></div>
+
+  <div class="deck" id="deck">
+
+    <section class="slide active" data-notes="<b>Hook + product proof.</b> First 5 seconds: judges see the wordmark AND a real screenshot of the deployed app. No 'is this a mockup?' question survives this slide. The Mission Control panel sits on the right, slightly rotated, with a pink/purple glow &mdash; it&rsquo;s decorative, not the focal point, but it kills the &lsquo;just an idea&rsquo; objection before it forms.">
+      <div class="slide-inner" style="justify-content: center; align-items: flex-start; max-width: 60%;">
+        <div class="ani" style="display: flex; align-items: center; gap: 12px;">
+          <span class="dot" style="background: var(--pink); box-shadow: 0 0 10px rgba(236,72,153,.6);"></span>
+          <span class="eyebrow eyebrow-pink">Solana credit markets &middot; demo-day deck</span>
+        </div>
+
+        <div class="ani" style="display: flex; align-items: center; gap: 24px; margin-top: -4px;">
+          <span class="prism-mark" style="width: 180px; height: 180px; filter: drop-shadow(0 0 100px rgba(236,72,153,0.6)) drop-shadow(0 0 50px rgba(168,85,247,0.45));">
+            <img src="public/logos/prism-mark.png" alt="PRISM" />
+          </span>
+          <h1 class="display h-hero" style="margin-top: 0;">PRISM<span style="color: var(--text-3);">.</span></h1>
+        </div>
+
+        <p class="h-2 ani" style="max-width: 640px; color: var(--text-2);">
+          Programmable structured credit. Pool capital, slice risk into Prime, Core, and Alpha,
+          then let markets price each layer in real time.
+        </p>
+
+        <div class="ani" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px;">
+          <span class="pill pill-pink">Risk is the product</span>
+          <span class="pill">Two Anchor Programs</span>
+          <span class="pill">SPL Tranche Tokens</span>
+          <span class="pill pill-emerald"><span class="dot" style="margin-right: 0; width: 5px; height: 5px;"></span>Live on devnet</span>
+        </div>
+
+        <div class="ani" style="margin-top: 36px; display: flex; gap: 48px; align-items: flex-end;">
+          <div>
+            <div class="eyebrow">One-liner</div>
+            <div class="mono" style="margin-top: 6px; font-size: 13px; color: var(--text-2);">CLO mechanics, native to Solana</div>
+          </div>
+          <div>
+            <div class="eyebrow">Hero demo</div>
+            <div class="mono" style="margin-top: 6px; font-size: 13px; color: var(--text-2);">A default hits Alpha first</div>
+          </div>
+          <div>
+            <div class="eyebrow">Stage</div>
+            <div class="mono" style="margin-top: 6px; font-size: 13px; color: var(--emerald);">Protocol deployed &middot; app built</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Floating product preview on the right -->
+      <div class="ani" style="
+        position: absolute;
+        right: -40px;
+        top: 50%;
+        width: 46%;
+        max-width: 720px;
+        transform: translateY(-50%) rotate(-2.5deg);
+        z-index: 1;
+        pointer-events: none;
+        filter:
+          drop-shadow(0 36px 64px rgba(0,0,0,0.55))
+          drop-shadow(0 0 100px rgba(236,72,153,0.18))
+          drop-shadow(0 0 60px rgba(168,85,247,0.12));
+      ">
+        <div style="border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.14); background: var(--bg-1);">
+          <img src="public/ui-dashboard.png" alt="PRISM Mission Control &mdash; live product preview"
+               style="width: 100%; display: block; object-fit: cover; object-position: top left;" />
+        </div>
+        <div class="mono" style="
+          position: absolute; bottom: -28px; right: 12px;
+          font-size: 9px; letter-spacing: .22em; text-transform: uppercase; color: var(--text-4);
+        ">
+          /dashboard &middot; prismprotocol.dev
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="<b>Problem objection prep.</b> If someone says Maple or Centrifuge already do credit, agree they prove demand. The gap is not lending itself; the gap is programmable risk selection, tranche tokens, and a native secondary market for each risk layer.">
+      <div class="slide-inner">
+        <div class="ani"><span class="eyebrow eyebrow-pink">The problem</span></div>
+
+        <h2 class="display h-big ani" style="max-width: 1240px;">
+          On-chain credit is growing.<br/>Risk is still stuck.
+        </h2>
+
+        <div class="divider ani" style="max-width: 80px; background: var(--pink); height: 2px;"></div>
+
+        <div class="grid-3 ani" style="margin-top: 8px;">
+          <div class="card card-accent">
+            <div class="eyebrow">Opaque</div>
+            <div class="h-2" style="font-size: 26px; margin-top: 14px;">LPs buy pool exposure.</div>
+            <p class="body-sm" style="margin-top: 12px;">They rarely choose the exact risk layer they want to own.</p>
+          </div>
+          <div class="card card-accent">
+            <div class="eyebrow">Illiquid</div>
+            <div class="h-2" style="font-size: 26px; margin-top: 14px;">Credit positions sit still.</div>
+            <p class="body-sm" style="margin-top: 12px;">Exit usually means redemption queues, maturity dates, or OTC negotiation.</p>
+          </div>
+          <div class="card card-accent">
+            <div class="eyebrow">Unprogrammable</div>
+            <div class="h-2" style="font-size: 26px; margin-top: 14px;">Waterfalls live off-chain.</div>
+            <p class="body-sm" style="margin-top: 12px;">Defaults are decided by documents, admins, and dashboards.</p>
+          </div>
+        </div>
+
+        <div class="market-metrics ani" style="margin-top: 20px;">
+          <div class="market-metric" style="--accent: var(--pink);">
+            <div class="market-value">$5.1B</div>
+            <div class="market-label">Tokenized private credit distributed</div>
+          </div>
+          <div class="market-metric" style="--accent: var(--text);">
+            <div class="market-value">$21.9B</div>
+            <div class="market-label">Credit assets represented</div>
+          </div>
+          <div class="market-metric" style="--accent: var(--prime);">
+            <div class="market-value">2,380</div>
+            <div class="market-label">On-chain credit assets</div>
+          </div>
+        </div>
+
+        <div class="source ani">Source: RWA.xyz private credit dashboard, accessed May 11, 2026</div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="<b>Why important.</b> This is the user's requested emphasis. The pitch: stablecoins gave us money on-chain, DEXs gave us liquid markets, RWA brought assets on-chain. The missing primitive is risk transformation. Without it, on-chain credit stays a wrapper. With it, credit becomes a market.">
+      <div class="slide-inner">
+        <div class="ani"><span class="eyebrow eyebrow-pink">Why this matters</span></div>
+
+        <h2 class="display h-1 ani" style="max-width: 1160px;">
+          The next DeFi unlock is not more yield.<br/><span style="color: var(--pink);">It is risk markets.</span>
+        </h2>
+
+        <div class="grid-4 ani" style="margin-top: 8px;">
+          <div class="card-soft">
+            <div class="stat-num tabular" style="color: var(--emerald); font-size: 44px;">$5.85B</div>
+            <div class="eyebrow" style="margin-top: 10px;">Solana DeFi TVL</div>
+            <p class="body-sm" style="margin-top: 10px;">Capital already lives where PRISM settles.</p>
+          </div>
+          <div class="card-soft">
+            <div class="stat-num tabular" style="color: var(--pink); font-size: 44px;">$14.43B</div>
+            <div class="eyebrow" style="margin-top: 10px;">Solana stablecoins</div>
+            <p class="body-sm" style="margin-top: 10px;">USDC liquidity can fund credit vaults.</p>
+          </div>
+          <div class="card-soft">
+            <div class="stat-num tabular" style="color: var(--purple); font-size: 44px;">$43.46B</div>
+            <div class="eyebrow" style="margin-top: 10px;">30d Solana DEX volume</div>
+            <p class="body-sm" style="margin-top: 10px;">Users already understand token markets.</p>
+          </div>
+          <div class="card-soft">
+            <div class="stat-num tabular" style="color: var(--amber); font-size: 44px;">$44.27B</div>
+            <div class="eyebrow" style="margin-top: 10px;">DeFi lending TVL</div>
+            <p class="body-sm" style="margin-top: 10px;">Lending works. Risk slicing is missing.</p>
+          </div>
+        </div>
+
+        <div class="ani" style="margin-top: 22px; padding: 26px 30px; border-radius: 14px; background: rgba(236,72,153,.045); border: 1px solid rgba(236,72,153,.18);">
+          <div class="eyebrow eyebrow-pink">The core bet</div>
+          <p class="h-2" style="font-size: 34px; margin-top: 10px; max-width: 1080px;">
+            When credit risk becomes an SPL token, every wallet can hold it,
+            every AMM can price it, and every protocol can build on it.
+          </p>
+        </div>
+
+        <div class="source ani">Sources: DeFiLlama chains, protocols, stablecoins, and Solana DEX volume APIs, accessed May 11, 2026</div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="<b>Why Now.</b> Sequoia's most-skipped slide and the one judges remember. Three things shipped this year that make on-chain risk markets possible: RWA tokenization passed the credibility threshold, MPC + FHE infra became developer-usable, and Solana hit the cost floor where per-LP NAV math is trivial. Push back if asked 'crypto has been growing for years' — these three specific unlocks all landed inside 2025.">
+      <div class="slide-inner">
+        <div class="ani"><span class="eyebrow eyebrow-pink">Why now</span></div>
+
+        <h2 class="display h-1 ani" style="max-width: 1060px;">
+          The infrastructure for on-chain risk markets<br/>only finished shipping <span style="color: var(--pink); font-style: italic;">this year</span>.
+        </h2>
+
+        <div class="divider ani" style="max-width: 80px; background: var(--pink); height: 2px;"></div>
+
+        <div class="grid-3 ani" style="margin-top: 4px;">
+          <div class="card card-accent" style="border-color: rgba(236,72,153,0.20);">
+            <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--pink);"></div>
+            <div class="eyebrow eyebrow-pink">Market shift</div>
+            <div class="h-2" style="font-size: 24px; margin-top: 14px; line-height: 1.2;">RWA crossed the credibility line.</div>
+            <p class="body-sm" style="margin-top: 12px;">Tokenized treasuries became table-stakes in 2025. The next layer up is not collateral, not stables — it is tradeable credit.</p>
+          </div>
+          <div class="card card-accent" style="border-color: rgba(168,85,247,0.22);">
+            <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--purple);"></div>
+            <div class="eyebrow" style="color: var(--purple);">Tech unlock</div>
+            <div class="h-2" style="font-size: 24px; margin-top: 14px; line-height: 1.2;">MPC and FHE became usable.</div>
+            <p class="body-sm" style="margin-top: 12px;">IKA dWallets ship cross-chain custody. Encrypt ships FHE proofs. Both arrived inside the last 12 months — credit needed both to work on-chain.</p>
+          </div>
+          <div class="card card-accent" style="border-color: rgba(52,211,153,0.22);">
+            <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--emerald);"></div>
+            <div class="eyebrow" style="color: var(--emerald);">Cost floor</div>
+            <div class="h-2" style="font-size: 24px; margin-top: 14px; line-height: 1.2;">Per-LP NAV math is finally affordable.</div>
+            <p class="body-sm" style="margin-top: 12px;">EVM gas killed structured-credit primitives. Sub-cent Solana fees mean every yield event and loss cascade can settle on-chain.</p>
+          </div>
+        </div>
+
+        <div class="ani" style="margin-top: 16px; padding: 18px 22px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border-1); display: flex; gap: 28px; align-items: baseline; flex-wrap: wrap;">
+          <div style="font-family: var(--font-serif); font-style: italic; font-size: 22px; color: var(--text); flex: 1; min-width: 360px;">
+            Stablecoins put money on-chain. DEXs put liquidity on-chain.<br/>
+            <span style="color: var(--pink);">PRISM puts risk transformation on-chain.</span>
+          </div>
+          <div class="mono" style="font-size: 11px; color: var(--text-3); letter-spacing: .18em;">The missing primitive</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="<b>What we built &mdash; in plain English.</b> PRISM = Programmable Risk &amp; Income Structured Markets. One credit vault that takes in USDC, lends it to vetted borrowers, splits returns and losses across three risk layers. LPs pick the layer that matches their appetite &mdash; how much risk they take, how much income they earn. The protocol does the math, the chain does the settlement, the market prices the rest.">
+      <div class="slide-inner">
+        <div class="ani"><span class="eyebrow eyebrow-pink">What we built</span></div>
+
+        <h2 class="display h-1 ani" style="max-width: 1100px;">
+          One credit vault. Three risk layers.<br/>
+          <span style="color: var(--text-3);">Pick what matches your appetite.</span>
+        </h2>
+
+        <div class="divider ani" style="max-width: 80px; background: var(--pink); height: 2px;"></div>
+
+        <div class="ani" style="margin-top: 2px; padding: 24px 28px; border-radius: 14px; background: linear-gradient(135deg, rgba(236,72,153,0.06), rgba(168,85,247,0.04)); border: 1px solid rgba(236,72,153,0.18);">
+          <div class="eyebrow eyebrow-pink">Programmable Risk &amp; Income &middot; Structured Markets</div>
+          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; margin-top: 14px;">
+            <div>
+              <div class="display" style="font-size: 56px; line-height: 1; color: var(--pink);">P</div>
+              <div class="mono" style="font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--text); margin-top: 8px;">Programmable</div>
+              <div class="body-sm" style="margin-top: 6px; font-size: 12px;">Waterfall &amp; cascade run in code, not committees.</div>
+            </div>
+            <div>
+              <div class="display" style="font-size: 56px; line-height: 1; color: var(--pink);">R</div>
+              <div class="mono" style="font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--text); margin-top: 8px;">Risk</div>
+              <div class="body-sm" style="margin-top: 6px; font-size: 12px;">What you take &mdash; first-loss if Alpha, last-loss if Prime.</div>
+            </div>
+            <div>
+              <div class="display" style="font-size: 56px; line-height: 1; color: var(--pink);">I</div>
+              <div class="mono" style="font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--text); margin-top: 8px;">Income</div>
+              <div class="body-sm" style="margin-top: 6px; font-size: 12px;">What you earn &mdash; first-paid if Prime, last-paid if Alpha.</div>
+            </div>
+            <div>
+              <div class="display" style="font-size: 56px; line-height: 1; color: var(--pink);">S</div>
+              <div class="mono" style="font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--text); margin-top: 8px;">Structured</div>
+              <div class="body-sm" style="margin-top: 6px; font-size: 12px;">Tranches, waterfall, cascade &mdash; real CLO mechanics.</div>
+            </div>
+            <div>
+              <div class="display" style="font-size: 56px; line-height: 1; color: var(--pink);">M</div>
+              <div class="mono" style="font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--text); margin-top: 8px;">Markets</div>
+              <div class="body-sm" style="margin-top: 6px; font-size: 12px;">Each layer trades live on its own AMM.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-3 ani" style="margin-top: 2px;">
+          <div class="card-soft">
+            <div class="eyebrow" style="color: var(--emerald);">In one line</div>
+            <p class="body-sm" style="margin-top: 12px; color: var(--text); font-size: 15px;">
+              We took the mechanics of a real-world credit fund, replaced the lawyers and Excel with two Solana programs, and turned the resulting risk layers into SPL tokens anyone can hold, trade, or build with.
+            </p>
+          </div>
+          <div class="card-soft">
+            <div class="eyebrow" style="color: var(--pink);">For LPs</div>
+            <p class="body-sm" style="margin-top: 12px;">
+              Pick your risk: stable yield, balanced, or high-upside. Deposit USDC, get tranche tokens. Yield accrues into the token's NAV; you exit any time at the current price &mdash; either through the vault or the AMM.
+            </p>
+          </div>
+          <div class="card-soft">
+            <div class="eyebrow" style="color: var(--purple);">For borrowers</div>
+            <p class="body-sm" style="margin-top: 12px;">
+              Apply, attach cross-chain collateral via IKA dWallets, get USDC disbursed on Solana. Repay in USDC or fiat through Dodo. Default risk is absorbed by the Alpha tranche first.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="<b>Solution.</b> Do not over-explain. The product is a risk selector, not another lending UI. People deposit into the tranche they understand: Prime wants protection, Alpha sells protection, Core sits between them.">
+      <div class="slide-inner">
+        <div class="ani"><span class="eyebrow eyebrow-pink">How the layers work</span></div>
+
+        <h2 class="display h-1 ani" style="max-width: 1100px;">
+          Three tranches. One waterfall.<br/>Markets price the rest.
+        </h2>
+
+        <div class="tranche-row ani" style="margin-top: 14px;">
+          <div class="tranche-card tranche-prime">
+            <div class="eyebrow" style="color: var(--prime);">Prime</div>
+            <div class="display" style="font-size: 58px; line-height: 1; margin-top: 16px;">5<span style="color: var(--text-3); font-size: 30px;">%</span></div>
+            <div class="eyebrow" style="margin-top: 4px;">Target APY</div>
+            <p class="body-sm" style="margin-top: 18px;">Paid first in yield. Absorbs losses last.</p>
+            <div class="mono" style="font-size: 11px; color: var(--text-4); margin-top: 14px; letter-spacing: .12em;">pPRIME · SPL</div>
+          </div>
+          <div class="tranche-card tranche-core">
+            <div class="eyebrow" style="color: var(--core);">Core</div>
+            <div class="display" style="font-size: 58px; line-height: 1; margin-top: 16px;">8<span style="color: var(--text-3); font-size: 30px;">%</span></div>
+            <div class="eyebrow" style="margin-top: 4px;">Target APY</div>
+            <p class="body-sm" style="margin-top: 18px;">Middle risk. Balanced yield and loss exposure.</p>
+            <div class="mono" style="font-size: 11px; color: var(--text-4); margin-top: 14px; letter-spacing: .12em;">pCORE · SPL</div>
+          </div>
+          <div class="tranche-card tranche-alpha">
+            <div class="eyebrow" style="color: var(--alpha);">Alpha</div>
+            <div class="display" style="font-size: 58px; line-height: 1; margin-top: 16px;">15<span style="color: var(--text-3); font-size: 30px;">%</span></div>
+            <div class="eyebrow" style="margin-top: 4px;">Target APY</div>
+            <p class="body-sm" style="margin-top: 18px;">First-loss capital. Highest yield, highest risk.</p>
+            <div class="mono" style="font-size: 11px; color: var(--text-4); margin-top: 14px; letter-spacing: .12em;">pALPHA · SPL</div>
+          </div>
+        </div>
+
+        <div class="waterfall ani" style="margin-top: 16px;">
+          <div class="flow-line">
+            <div class="eyebrow eyebrow-emerald">Yield waterfall</div>
+            <div class="mono" style="margin-top: 10px; font-size: 16px; color: var(--text);">
+              <span style="color: var(--prime);">Prime</span>
+              <span style="color: var(--text-3); margin: 0 12px;">-&gt;</span>
+              <span style="color: var(--core);">Core</span>
+              <span style="color: var(--text-3); margin: 0 12px;">-&gt;</span>
+              <span style="color: var(--alpha);">Alpha</span>
+            </div>
+          </div>
+          <div class="flow-line">
+            <div class="eyebrow" style="color: var(--rose);">Loss cascade</div>
+            <div class="mono" style="margin-top: 10px; font-size: 16px; color: var(--text);">
+              <span style="color: var(--alpha);">Alpha</span>
+              <span style="color: var(--text-3); margin: 0 12px;">-&gt;</span>
+              <span style="color: var(--core);">Core</span>
+              <span style="color: var(--text-3); margin: 0 12px;">-&gt;</span>
+              <span style="color: var(--prime);">Prime</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="<b>Hero moment.</b> This should be the most memorable slide. A 6,500 USDC credit event hits the vault. Alpha goes to zero, Core absorbs the remaining hit, Prime survives. Killer line: losses do not disappear; they move.">
+      <div class="slide-inner">
+        <div class="ani"><span class="eyebrow eyebrow-pink">The hero moment</span></div>
+
+        <h2 class="display h-1 ani" style="max-width: 1120px;">
+          Losses do not disappear.<br/><span style="color: var(--rose);">They move.</span>
+        </h2>
+
+        <div class="grid-2 ani" style="margin-top: 10px; gap: 32px;">
+          <div class="card" style="background: var(--surface-1);">
+            <div class="eyebrow">Before · capital preserved per tranche</div>
+            <div style="margin-top: 14px;">
+              <div class="bar-row">
+                <div class="bar-label" style="color: var(--prime);">Prime</div>
+                <div class="bar-track"><div class="bar-fill" style="width: 100%; background: var(--prime);"></div></div>
+                <div class="bar-num" style="color: var(--emerald);">1.00411</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label" style="color: var(--core);">Core</div>
+                <div class="bar-track"><div class="bar-fill" style="width: 100%; background: var(--core);"></div></div>
+                <div class="bar-num" style="color: var(--emerald);">1.00987</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label" style="color: var(--alpha);">Alpha</div>
+                <div class="bar-track"><div class="bar-fill" style="width: 100%; background: var(--alpha);"></div></div>
+                <div class="bar-num" style="color: var(--emerald);">1.00290</div>
+              </div>
+            </div>
+            <div class="mono" style="margin-top: 14px; font-size: 11px; color: var(--text-3); letter-spacing: .12em;">All three healthy · Vault TVL 19,500 USDC</div>
+          </div>
+
+          <div class="card" style="background: var(--surface-1); border-color: rgba(251,113,133,.20); box-shadow: 0 0 30px rgba(251,113,133,.04);">
+            <div class="eyebrow" style="color: var(--rose);">After · 6,500 USDC default</div>
+            <div style="margin-top: 14px;">
+              <div class="bar-row">
+                <div class="bar-label" style="color: var(--prime);">Prime</div>
+                <div class="bar-track"><div class="bar-fill" style="width: 100%; background: var(--prime);"></div></div>
+                <div class="bar-num" style="color: var(--emerald);">1.00411 &#10003;</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label" style="color: var(--core);">Core</div>
+                <div class="bar-track"><div class="bar-fill" style="width: 67.3%; background: var(--core);"></div></div>
+                <div class="bar-num" style="color: var(--amber);">0.6798</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label" style="color: var(--alpha);">Alpha</div>
+                <div class="bar-track"><div class="bar-fill" style="width: 1%; background: var(--rose);"></div></div>
+                <div class="bar-num" style="color: var(--rose);">0.0000</div>
+              </div>
+            </div>
+            <div class="mono" style="margin-top: 14px; font-size: 11px; color: var(--rose); letter-spacing: .12em;">Loss bucket · 6,500 USDC quarantined</div>
+          </div>
+        </div>
+
+        <div class="grid-3 ani" style="margin-top: 16px;">
+          <div class="card-soft">
+            <div class="eyebrow" style="color: var(--emerald);">Prime investor</div>
+            <div class="mono tabular" style="font-size: 24px; margin-top: 6px; color: var(--emerald);">+$20.55</div>
+            <div class="mono" style="font-size: 11px; color: var(--text-3); margin-top: 4px;">protected</div>
+          </div>
+          <div class="card-soft">
+            <div class="eyebrow" style="color: var(--amber);">Core investor</div>
+            <div class="mono tabular" style="font-size: 24px; margin-top: 6px; color: var(--amber);">-$960.60</div>
+            <div class="mono" style="font-size: 11px; color: var(--text-3); margin-top: 4px;">partial hit</div>
+          </div>
+          <div class="card-soft">
+            <div class="eyebrow" style="color: var(--rose);">Alpha investor</div>
+            <div class="mono tabular" style="font-size: 24px; margin-top: 6px; color: var(--rose);">-$2,000</div>
+            <div class="mono" style="font-size: 11px; color: var(--text-3); margin-top: 4px;">first loss</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="<b>Best case &mdash; the inverse moment.</b> When borrowers perform, the waterfall fully funds every target APY and Alpha takes home the most. This is what makes Alpha worth holding &mdash; first to lose when things go wrong, first to win when things go right. Pause on the contrast: same primitive, inverted outcome.">
+      <div class="slide-inner">
+        <div class="ani"><span class="eyebrow eyebrow-emerald"><span class="dot"></span>Best case &middot; no defaults</span></div>
+
+        <h2 class="display h-1 ani" style="max-width: 1180px;">
+          When credit performs,<br/>
+          <span style="color: var(--emerald);">Alpha is rewarded most.</span>
+        </h2>
+
+        <div class="grid-2 ani" style="margin-top: 10px; gap: 32px;">
+          <div class="card" style="background: var(--surface-1);">
+            <div class="eyebrow">At deposit · year 0</div>
+            <div style="margin-top: 14px;">
+              <div class="bar-row">
+                <div class="bar-label" style="color: var(--prime);">Prime</div>
+                <div class="bar-track"><div class="bar-fill" style="width: 100%; background: var(--prime);"></div></div>
+                <div class="bar-num">1.00000</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label" style="color: var(--core);">Core</div>
+                <div class="bar-track"><div class="bar-fill" style="width: 100%; background: var(--core);"></div></div>
+                <div class="bar-num">1.00000</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label" style="color: var(--alpha);">Alpha</div>
+                <div class="bar-track"><div class="bar-fill" style="width: 100%; background: var(--alpha);"></div></div>
+                <div class="bar-num">1.00000</div>
+              </div>
+            </div>
+            <div class="mono" style="margin-top: 14px; font-size: 11px; color: var(--text-3); letter-spacing: .12em;">Vault TVL · 19,500 USDC · all at par</div>
+          </div>
+
+          <div class="card" style="background: var(--surface-1); border-color: rgba(52,211,153,.22); box-shadow: 0 0 30px rgba(52,211,153,.05);">
+            <div class="eyebrow" style="color: var(--emerald);">After year 1 · no defaults</div>
+            <div style="margin-top: 14px;">
+              <div class="bar-row">
+                <div class="bar-label" style="color: var(--prime);">Prime</div>
+                <div class="bar-track"><div class="bar-fill" style="width: 35%; background: var(--prime);"></div></div>
+                <div class="bar-num" style="color: var(--emerald);">1.05 &uarr;</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label" style="color: var(--core);">Core</div>
+                <div class="bar-track"><div class="bar-fill" style="width: 56%; background: var(--core);"></div></div>
+                <div class="bar-num" style="color: var(--emerald);">1.08 &uarr;</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label" style="color: var(--alpha);">Alpha</div>
+                <div class="bar-track"><div class="bar-fill" style="width: 100%; background: var(--alpha);"></div></div>
+                <div class="bar-num" style="color: var(--emerald);">1.15 &uarr;</div>
+              </div>
+            </div>
+            <div class="mono" style="margin-top: 14px; font-size: 11px; color: var(--emerald); letter-spacing: .12em;">Yield distributed · 1,610 USDC · +8.26% blended</div>
+          </div>
+        </div>
+
+        <div class="grid-3 ani" style="margin-top: 16px;">
+          <div class="card-soft">
+            <div class="eyebrow" style="color: var(--emerald);">Prime investor · $5K</div>
+            <div class="mono tabular" style="font-size: 24px; margin-top: 6px; color: var(--emerald);">+$250.00</div>
+            <div class="mono" style="font-size: 11px; color: var(--text-3); margin-top: 4px;">+5.00% &middot; target met</div>
+          </div>
+          <div class="card-soft">
+            <div class="eyebrow" style="color: var(--emerald);">Core investor · $3K</div>
+            <div class="mono tabular" style="font-size: 24px; margin-top: 6px; color: var(--emerald);">+$240.00</div>
+            <div class="mono" style="font-size: 11px; color: var(--text-3); margin-top: 4px;">+8.00% &middot; target met</div>
+          </div>
+          <div class="card-soft" style="border-color: rgba(52,211,153,.30); background: rgba(52,211,153,.05);">
+            <div class="eyebrow" style="color: var(--emerald);">Alpha investor · $2K</div>
+            <div class="mono tabular" style="font-size: 24px; margin-top: 6px; color: var(--emerald);">+$300.00</div>
+            <div class="mono" style="font-size: 11px; color: var(--emerald); margin-top: 4px;">+15.00% &middot; <b>highest return</b></div>
+          </div>
+        </div>
+
+        <div class="ani" style="margin-top: 8px; font-family: var(--font-serif); font-style: italic; font-size: 18px; color: var(--text-2); border-left: 2px solid var(--emerald); padding-left: 18px;">
+          Same primitive. Inverted outcome. Alpha is paid <i>last</i> &mdash; which means in a good year, the waterfall fills Prime and Core to their targets first, then everything that's left flows down to Alpha.
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="<b>Live product.</b> Mentor's advice: show, don't describe. Two real screenshots from the deployed app &mdash; Mission Control (the dashboard) and Liquidity Hub (the trade terminal). The route ribbon at the bottom proves all six surfaces are wired, but let the visuals do the work. If asked &ldquo;is this a mockup?&rdquo; &mdash; the answer is the live URL.">
+      <div class="slide-inner">
+        <div class="ani" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+          <span class="eyebrow eyebrow-pink">Live product &middot; deployed at prismprotocol.dev</span>
+          <span class="pill pill-emerald"><span class="dot" style="margin-right: 0; width: 5px; height: 5px;"></span>Devnet · live</span>
+        </div>
+
+        <h2 class="display h-1 ani">Five surfaces. One credit primitive.</h2>
+
+        <!-- Two hero screenshots side by side -->
+        <div class="ani" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; min-height: 0; flex: 1;">
+
+          <!-- Mission Control -->
+          <figure style="margin: 0; display: flex; flex-direction: column; gap: 10px; min-height: 0;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div class="mono" style="font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--text);">/dashboard</div>
+              <div class="mono" style="font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--text-3);">Mission Control &middot; portfolio + tranches</div>
+            </div>
+            <div style="border-radius: 10px; overflow: hidden; border: 1px solid var(--border-2); box-shadow: 0 18px 48px rgba(0,0,0,0.45), 0 0 80px rgba(236,72,153,0.10); flex: 1; display: flex; background: var(--bg-1);">
+              <img src="public/ui-dashboard.png" alt="PRISM Mission Control &mdash; portfolio dashboard"
+                   style="width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block;" />
+            </div>
+          </figure>
+
+          <!-- Liquidity Hub -->
+          <figure style="margin: 0; display: flex; flex-direction: column; gap: 10px; min-height: 0;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div class="mono" style="font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--text);">/trade</div>
+              <div class="mono" style="font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--text-3);">Liquidity Hub &middot; tranche AMM</div>
+            </div>
+            <div style="border-radius: 10px; overflow: hidden; border: 1px solid var(--border-2); box-shadow: 0 18px 48px rgba(0,0,0,0.45), 0 0 80px rgba(168,85,247,0.10); flex: 1; display: flex; background: var(--bg-1);">
+              <img src="public/ui-trade.png" alt="PRISM Liquidity Hub &mdash; AMM execution terminal"
+                   style="width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block;" />
+            </div>
+          </figure>
+
+        </div>
+
+        <!-- Route strip: proves breadth of surfaces -->
+        <div class="ani" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;">
+          <div class="card-soft" style="padding: 10px 12px; border-color: rgba(236,72,153,0.22); background: rgba(236,72,153,0.04);">
+            <div class="mono" style="font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: var(--pink);">/dashboard</div>
+            <div class="mono" style="font-size: 9px; color: var(--text-3); margin-top: 4px; letter-spacing: .1em;">Mission Control</div>
+          </div>
+          <div class="card-soft" style="padding: 10px 12px;">
+            <div class="mono" style="font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: var(--text);">/earn</div>
+            <div class="mono" style="font-size: 9px; color: var(--text-3); margin-top: 4px; letter-spacing: .1em;">LP marketplace</div>
+          </div>
+          <div class="card-soft" style="padding: 10px 12px; border-color: rgba(168,85,247,0.22); background: rgba(168,85,247,0.04);">
+            <div class="mono" style="font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: var(--purple);">/trade</div>
+            <div class="mono" style="font-size: 9px; color: var(--text-3); margin-top: 4px; letter-spacing: .1em;">Liquidity Hub</div>
+          </div>
+          <div class="card-soft" style="padding: 10px 12px;">
+            <div class="mono" style="font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: var(--text);">/borrow</div>
+            <div class="mono" style="font-size: 9px; color: var(--text-3); margin-top: 4px; letter-spacing: .1em;">Borrower facility</div>
+          </div>
+          <div class="card-soft" style="padding: 10px 12px;">
+            <div class="mono" style="font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: var(--text);">/admin</div>
+            <div class="mono" style="font-size: 9px; color: var(--text-3); margin-top: 4px; letter-spacing: .1em;">Vault ops</div>
+          </div>
+          <div class="card-soft" style="padding: 10px 12px;">
+            <div class="mono" style="font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: var(--text);">/terminal</div>
+            <div class="mono" style="font-size: 9px; color: var(--text-3); margin-top: 4px; letter-spacing: .1em;">Analytics</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="<b>Partners as dependencies, not sponsors.</b> Frame each one by what it solves in the product. IKA replaces a Solana&harr;BTC bridge we'd otherwise have to build and custody. Encrypt lets defaults fire without exposing borrower repayment history. Cloak shields per-LP payouts so institutions can participate without doxxing positions. Dune SIM indexes our events so we don't run a subgraph with reorg handling. Dodo turns Indian SME fiat into on-chain USDC so the borrower flow actually closes. Skip prize numbers entirely &mdash; the point is necessity, not opportunism.">
+      <div class="slide-inner">
+        <div class="ani"><span class="eyebrow eyebrow-pink">The stack · what we plug into &amp; why</span></div>
+
+        <h2 class="display h-1 ani">Five dependencies.<br/>Each replacing months of work.</h2>
+
+        <div class="ani partner-grid" style="margin-top: 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;">
+
+          <!-- Solana base layer (spans 2) -->
+          <div class="partner" style="grid-column: span 2; display: flex; flex-direction: row; align-items: center; gap: 18px; padding: 18px 22px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border-1); min-height: 124px;">
+            <img src="public/logos/solana-logo.png" alt="Solana" style="height: 48px; width: 48px; object-fit: contain; flex-shrink: 0;" />
+            <div style="flex: 1;">
+              <div class="mono" style="font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--text);">Solana &middot; Anchor</div>
+              <div class="body-sm" style="font-size: 12px; margin-top: 6px; line-height: 1.45;">Base layer for the credit engine and AMM. Sub-cent fees make per-LP NAV math affordable; Ed25519 precompile makes oracle verification one instruction.</div>
+              <div class="mono" style="font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--text-4); margin-top: 6px;">prism_core &middot; prism_amm</div>
+            </div>
+          </div>
+
+          <!-- Stats block (spans 2) -->
+          <div style="grid-column: span 2; padding: 18px 22px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border-1); display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: center; min-height: 124px;">
+            <div>
+              <div class="stat-num" style="color: var(--text); font-size: 30px;">25/25</div>
+              <div class="mono" style="font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--text-3); margin-top: 6px;">Anchor tests passing</div>
+            </div>
+            <div>
+              <div class="stat-num" style="color: var(--text); font-size: 30px;">5</div>
+              <div class="mono" style="font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--text-3); margin-top: 6px;">Dependencies wired end-to-end</div>
+            </div>
+          </div>
+
+          <!-- IKA -->
+          <div class="partner" style="border-color: rgba(236,72,153,0.30); background: rgba(236,72,153,0.05); padding: 20px 18px; border-radius: 12px; border-width: 1px; border-style: solid; display: flex; flex-direction: column; gap: 8px; min-height: 196px;">
+            <img src="public/logos/ika-logo.png" alt="IKA" style="height: 32px; width: 32px; object-fit: contain;" />
+            <div class="mono" style="font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--pink); margin-top: 4px;">IKA Network</div>
+            <div class="body-sm" style="font-size: 11.5px; line-height: 1.45;">
+              Borrowers lock native BTC or ETH in an IKA dWallet; oracle attests, Solana verifies, loan disburses.
+            </div>
+            <div class="mono" style="font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--text-3); margin-top: auto; border-top: 1px solid var(--border-1); padding-top: 8px;">Solves: cross-chain collateral without a custodial bridge</div>
+          </div>
+
+          <!-- Encrypt -->
+          <div class="partner" style="padding: 20px 18px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border-1); display: flex; flex-direction: column; gap: 8px; min-height: 196px;">
+            <img src="public/logos/encrypt-logo.png" alt="Encrypt" style="height: 32px; width: 32px; object-fit: contain;" />
+            <div class="mono" style="font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--text); margin-top: 4px;">Encrypt</div>
+            <div class="body-sm" style="font-size: 11.5px; line-height: 1.45;">
+              FHE oracle proves a loan is in default homomorphically &mdash; never reveals the borrower's balance sheet.
+            </div>
+            <div class="mono" style="font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--text-3); margin-top: auto; border-top: 1px solid var(--border-1); padding-top: 8px;">Solves: confidential default proofs for institutional credit</div>
+          </div>
+
+          <!-- Cloak -->
+          <div class="partner" style="padding: 20px 18px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border-1); display: flex; flex-direction: column; gap: 8px; min-height: 196px;">
+            <img src="public/logos/cloak-logo.png" alt="Cloak" style="height: 32px; object-fit: contain; object-position: left center;" />
+            <div class="mono" style="font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--text); margin-top: 4px;">Cloak</div>
+            <div class="body-sm" style="font-size: 11.5px; line-height: 1.45;">
+              Per-LP yield payouts route through a shielded batch; viewing keys let each LP audit only their slice.
+            </div>
+            <div class="mono" style="font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--text-3); margin-top: auto; border-top: 1px solid var(--border-1); padding-top: 8px;">Solves: privacy on cash flows without losing auditability</div>
+          </div>
+
+          <!-- Dune SIM -->
+          <div class="partner" style="padding: 20px 18px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border-1); display: flex; flex-direction: column; gap: 8px; min-height: 196px;">
+            <img src="public/logos/sim-logo.png" alt="Dune SIM" style="height: 32px; width: 32px; object-fit: contain;" />
+            <div class="mono" style="font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--text); margin-top: 4px;">Dune SIM</div>
+            <div class="body-sm" style="font-size: 11.5px; line-height: 1.45;">
+              Subscribes to every Anchor event &mdash; deposits, yield, swaps, losses &mdash; and feeds the live dashboard ticker.
+            </div>
+            <div class="mono" style="font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--text-3); margin-top: auto; border-top: 1px solid var(--border-1); padding-top: 8px;">Solves: real-time indexing without running our own subgraph</div>
+          </div>
+
+          <!-- Dodo Payments (spans 2 for balance) -->
+          <div class="partner" style="grid-column: span 2; padding: 20px 22px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border-1); display: flex; flex-direction: row; align-items: center; gap: 18px; min-height: 120px;">
+            <img src="public/logos/dodo-logo.png" alt="Dodo Payments" style="height: 44px; width: 44px; object-fit: contain; flex-shrink: 0;" />
+            <div style="flex: 1;">
+              <div class="mono" style="font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--text);">Dodo Payments</div>
+              <div class="body-sm" style="font-size: 11.5px; line-height: 1.45; margin-top: 4px;">
+                Borrowers repay in local fiat &mdash; UPI, cards, bank transfer. Dodo settles USDC into the vault and handles tax + compliance.
+              </div>
+              <div class="mono" style="font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--text-3); margin-top: 6px;">Solves: fiat on-ramp for real-world borrower repayment</div>
+            </div>
+          </div>
+
+          <!-- Killer line block (spans 2) -->
+          <div style="grid-column: span 2; padding: 20px 24px; border-radius: 12px; background: rgba(236,72,153,0.05); border-left: 2px solid var(--pink); min-height: 120px; display: flex; align-items: center;">
+            <div style="font-family: var(--font-serif); font-style: italic; font-size: 18px; color: var(--text-2); line-height: 1.4;">
+              "Every external dependency sits <span style="color: var(--text);">exactly where</span> we would otherwise need to build infrastructure ourselves &mdash; and run it forever."
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="<b>Why Solana / crypto.</b> The answer cannot be generic transparency. The reason is composable risk tokens plus cheap state transitions plus native Ed25519 verification for external attestations. If you remove Solana, PRISM becomes a private fund admin tool.">
+      <div class="slide-inner">
+        <div class="ani"><span class="eyebrow eyebrow-pink">Why crypto · why Solana</span></div>
+
+        <h2 class="display h-1 ani" style="max-width: 1060px;">
+          Credit needs public settlement,<br/>not another private dashboard.
+        </h2>
+
+        <div class="grid-2 ani" style="margin-top: 10px;">
+          <div class="card" style="border-color: rgba(251,113,133,.20);">
+            <div class="eyebrow" style="color: var(--rose);">Without blockchain</div>
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 16px; margin-top: 18px;">
+              <li class="body-sm"><span class="no" style="font-size: 14px;">&#10007;</span>&nbsp;&nbsp;Risk lives in PDFs</li>
+              <li class="body-sm"><span class="no" style="font-size: 14px;">&#10007;</span>&nbsp;&nbsp;Transfers need intermediaries</li>
+              <li class="body-sm"><span class="no" style="font-size: 14px;">&#10007;</span>&nbsp;&nbsp;Defaults are admin discretion</li>
+              <li class="body-sm"><span class="no" style="font-size: 14px;">&#10007;</span>&nbsp;&nbsp;Secondary markets are OTC</li>
+            </ul>
+          </div>
+          <div class="card" style="border-color: rgba(52,211,153,.20); background: rgba(52,211,153,.035);">
+            <div class="eyebrow" style="color: var(--emerald);">With Solana</div>
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 16px; margin-top: 18px;">
+              <li class="body-sm"><span class="check" style="font-size: 14px;">&#10003;</span>&nbsp;&nbsp;Tranches are SPL assets</li>
+              <li class="body-sm"><span class="check" style="font-size: 14px;">&#10003;</span>&nbsp;&nbsp;Waterfalls settle in code</li>
+              <li class="body-sm"><span class="check" style="font-size: 14px;">&#10003;</span>&nbsp;&nbsp;Markets price risk live</li>
+              <li class="body-sm"><span class="check" style="font-size: 14px;">&#10003;</span>&nbsp;&nbsp;Attestations verify on-chain</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="grid-4 ani" style="margin-top: 18px;">
+          <div class="card-soft">
+            <div class="eyebrow">Composable</div>
+            <p class="body-sm" style="margin-top: 8px;">pTRANCHE tokens can plug into the rest of DeFi.</p>
+          </div>
+          <div class="card-soft">
+            <div class="eyebrow">Low cost</div>
+            <p class="body-sm" style="margin-top: 8px;">Frequent NAV and AMM updates become affordable.</p>
+          </div>
+          <div class="card-soft">
+            <div class="eyebrow">Fast finality</div>
+            <p class="body-sm" style="margin-top: 8px;">Risk can reprice as credit events happen.</p>
+          </div>
+          <div class="card-soft">
+            <div class="eyebrow">Ed25519</div>
+            <p class="body-sm" style="margin-top: 8px;">IKA, Encrypt, and Cloak attestations verify natively.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="<b>Competition objection prep.</b> Do not dunk on competitors. Maple, Centrifuge, Clearpool, Goldfinch, and Credix prove the market exists. PRISM's wedge is tranche-native, Solana-native, and market-priced risk.">
+      <div class="slide-inner">
+        <div class="ani"><span class="eyebrow eyebrow-pink">Market map</span></div>
+
+        <h2 class="display h-1 ani" style="max-width: 1100px;">
+          Credit protocols prove demand.<br/>PRISM makes risk tradable.
+        </h2>
+
+        <table class="comparison ani" style="margin-top: 8px;">
+          <thead>
+            <tr>
+              <th>Protocol</th>
+              <th>Current scale</th>
+              <th>Core model</th>
+              <th>PRISM wedge</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Maple</td>
+              <td>$2.15B TVL</td>
+              <td>Institutional lending pools</td>
+              <td>Not tranche-token secondary risk</td>
+            </tr>
+            <tr>
+              <td>Centrifuge</td>
+              <td>$1.63B TVL</td>
+              <td>RWA asset finance</td>
+              <td>Mostly non-Solana settlement</td>
+            </tr>
+            <tr>
+              <td>Clearpool TPOOL</td>
+              <td>$35.9M TVL</td>
+              <td>RWA / credit pools</td>
+              <td>Pool exposure, not waterfall AMMs</td>
+            </tr>
+            <tr>
+              <td>Goldfinch</td>
+              <td>$1.3M TVL</td>
+              <td>Borrower credit pools</td>
+              <td>No native Solana tranche market</td>
+            </tr>
+            <tr>
+              <td>Credix</td>
+              <td>$45K TVL · $10.7M borrowed</td>
+              <td>Solana RWA lending</td>
+              <td>Credit existed, liquidity did not</td>
+            </tr>
+            <tr class="highlight">
+              <td>PRISM</td>
+              <td>Devnet protocol</td>
+              <td>Structured credit risk tokens</td>
+              <td>Prime/Core/Alpha + AMM repricing</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="source ani">Source: DeFiLlama protocol APIs, accessed May 11, 2026. TVL is current API-reported TVL.</div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="<b>Traction objection prep.</b> The honest frame is shipped protocol, not revenue traction. If asked about users or TVL, say devnet today, mainnet pilot next. The proof is technical completeness: two programs, end-to-end demo, sponsor integrations, tests.">
+      <div class="slide-inner">
+        <div class="ani"><span class="eyebrow eyebrow-emerald"><span class="dot"></span>Shipped today</span></div>
+
+        <h2 class="display h-1 ani">Not a mockup.<br/>A working credit primitive.</h2>
+
+        <div class="grid-4 ani" style="margin-top: 10px;">
+          <div class="card-soft">
+            <div class="stat-num tabular" style="color: var(--pink); font-size: 44px;">2</div>
+            <div class="eyebrow" style="margin-top: 8px;">Anchor programs</div>
+            <p class="body-sm" style="margin-top: 10px;">prism_core and prism_amm deployed on devnet.</p>
+          </div>
+          <div class="card-soft">
+            <div class="stat-num tabular" style="color: var(--emerald); font-size: 44px;">25/25</div>
+            <div class="eyebrow" style="margin-top: 8px;">Tests passing</div>
+            <p class="body-sm" style="margin-top: 10px;">Core, AMM, IKA lifecycle, default paths.</p>
+          </div>
+          <div class="card-soft">
+            <div class="stat-num tabular" style="color: var(--purple); font-size: 44px;">18</div>
+            <div class="eyebrow" style="margin-top: 8px;">Instructions</div>
+            <p class="body-sm" style="margin-top: 10px;">Deposits, withdrawals, loans, defaults, swaps.</p>
+          </div>
+          <div class="card-soft">
+            <div class="stat-num tabular" style="color: var(--amber); font-size: 44px;">5</div>
+            <div class="eyebrow" style="margin-top: 8px;">Integrations</div>
+            <p class="body-sm" style="margin-top: 10px;">IKA, Encrypt, Cloak, Dune SIM, Dodo.</p>
+          </div>
+        </div>
+
+        <div class="grid-2 ani" style="margin-top: 12px; gap: 28px; align-items: stretch;">
+          <!-- LEFT: hero waitlist number -->
+          <div class="card" style="display: flex; flex-direction: column; justify-content: center; padding: 30px 32px; background: linear-gradient(135deg, rgba(236,72,153,0.09), rgba(168,85,247,0.04)); border-color: rgba(236,72,153,0.28); box-shadow: 0 0 60px rgba(236,72,153,0.06);">
+            <div class="eyebrow eyebrow-pink">Pre-launch demand &middot; live waitlist</div>
+            <div class="display" style="font-size: clamp(96px, 11vw, 156px); line-height: .92; color: var(--text); margin-top: 14px; letter-spacing: -3px;">
+              1,207
+            </div>
+            <div class="mono" style="font-size: 13px; letter-spacing: .14em; color: var(--text-2); margin-top: 14px; text-transform: uppercase;">
+              People joined the waitlist
+            </div>
+            <p class="body-sm" style="margin-top: 12px; color: var(--text-2);">
+              Zero marketing spend. Zero paid acquisition. One landing page, one thesis &mdash; and 1,207 people who want this enough to give us their email before we&rsquo;ve shipped a single deposit.
+            </p>
+            <div class="mono" style="font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--emerald); margin-top: 14px; display: flex; align-items: center; gap: 8px;">
+              <span class="dot"></span>
+              Counter updating live &middot; prismprotocol.dev
+            </div>
+          </div>
+
+          <!-- RIGHT: receipt stack -->
+          <div style="display: flex; flex-direction: column; gap: 12px; min-width: 0;">
+            <div class="card-soft" style="padding: 14px;">
+              <div class="eyebrow" style="margin-bottom: 10px; color: var(--text-3);">Database &middot; waitlist_subscribers table</div>
+              <img src="public/waitlist-count.png" alt="waitlist_subscribers · 1,207 rows · 560 kB"
+                   style="width: 100%; border-radius: 6px; display: block; border: 1px solid var(--border-1);" />
+            </div>
+            <div class="card-soft" style="padding: 14px; flex: 1; display: flex; flex-direction: column; min-height: 0;">
+              <div class="eyebrow" style="margin-bottom: 10px; color: var(--text-3); display: flex; justify-content: space-between; align-items: center;">
+                <span>Sample rows &middot; subscriber log</span>
+                <span style="color: var(--text-4); letter-spacing: .12em;">PII redacted in render</span>
+              </div>
+              <div style="flex: 1; min-height: 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-1); background: var(--bg-1);">
+                <img src="public/waitlist-rows.png" alt="waitlist subscribers · sample rows"
+                     style="width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block; filter: blur(2.5px) brightness(0.72) contrast(1.05); -webkit-filter: blur(2.5px) brightness(0.72) contrast(1.05);" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="<b>Team &mdash; founder/product fit.</b> Two Ackee Solana fellows on the on-chain side. A DeFi-trading-systems specialist on the credit engine. A research-paper-published demo polisher on the UI. The bios are not generic resumes &mdash; each person is paired with the exact PRISM surface their credentials map onto. If asked &ldquo;why this team&rdquo;: the same people who shipped trading agents, Ackee-grade Anchor programs, and award-winning hackathon UIs are now finishing the credit primitive that needs all three.">
+      <div class="slide-inner">
+        <div class="ani"><span class="eyebrow eyebrow-pink">Team &middot; founder/product fit</span></div>
+
+        <h2 class="display h-1 ani" style="max-width: 1140px;">
+          Four builders.<br/>
+          <span style="color: var(--pink);">Each one paired with the exact surface they&rsquo;ve already shipped.</span>
+        </h2>
+
+        <div class="ani" style="margin-top: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px;">
+
+          <!-- Member 1: Akash -->
+          <div style="display: flex; gap: 18px; padding: 22px; border-radius: 14px; background: var(--surface-1); border: 1px solid var(--border-1); position: relative; overflow: hidden;">
+            <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--pink);"></div>
+            <img src="public/pfps/akash.jpg" alt="Akash Chakraborty"
+                 style="width: 88px; height: 88px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border-2);" />
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;">
+                <div class="h-2" style="font-size: 20px; font-weight: 500; letter-spacing: -.4px;">Akash Chakraborty</div>
+                <div class="mono" style="font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--pink);">Frontend &middot; demo</div>
+              </div>
+              <div class="mono" style="font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--text-3); margin-top: 4px;">SDE &middot; Nightstar Partners &middot; institutional UI</div>
+              <div class="body-sm" style="font-size: 12px; line-height: 1.55; margin-top: 10px; color: var(--text-2);">
+                5&times; web3 hackathon winner across India and SEA &mdash; never lost a final he&rsquo;s reached. 2 published research papers on distributed systems &amp; on-chain risk modeling. Ships institutional trading UIs at Nightstar that surface 9-figure exposure without flinching. Built PRISM&rsquo;s entire app shell &mdash; dashboard, simulation harness, AMM terminal &mdash; solo, in ten days.
+              </div>
+            </div>
+          </div>
+
+          <!-- Member 2: Anik -->
+          <div style="display: flex; gap: 18px; padding: 22px; border-radius: 14px; background: var(--surface-1); border: 1px solid var(--border-1); position: relative; overflow: hidden;">
+            <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--purple);"></div>
+            <img src="public/pfps/anik.jpg" alt="Anik Das"
+                 style="width: 88px; height: 88px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border-2);" />
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;">
+                <div class="h-2" style="font-size: 20px; font-weight: 500; letter-spacing: -.4px;">Anik Das</div>
+                <div class="mono" style="font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--purple);">On-chain &middot; credit engine</div>
+              </div>
+              <div class="mono" style="font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--text-3); margin-top: 4px;">GSoC 2024 &middot; Trading systems engineer at DueDash</div>
+              <div class="body-sm" style="font-size: 12px; line-height: 1.55; margin-top: 10px; color: var(--text-2);">
+                7&times; hackathon winner &mdash; the deepest competitive record on the team. GSoC 2024 contributor on an open-source DeFi protocol. Currently ships intelligent trading agents and investor-flow routing at DueDash, where his code paths real deal capital between funds. NAV math, the waterfall, and the loss cascade in PRISM are entirely his &mdash; lamport-perfect against the locked spec.
+              </div>
+            </div>
+          </div>
+
+          <!-- Member 3: Eshan -->
+          <div style="display: flex; gap: 18px; padding: 22px; border-radius: 14px; background: var(--surface-1); border: 1px solid var(--border-1); position: relative; overflow: hidden;">
+            <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--emerald);"></div>
+            <img src="public/pfps/eshan.jpg" alt="Eshan Das"
+                 style="width: 88px; height: 88px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border-2);" />
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;">
+                <div class="h-2" style="font-size: 20px; font-weight: 500; letter-spacing: -.4px;">Eshan Das</div>
+                <div class="mono" style="font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--emerald);">Backend &middot; rails</div>
+              </div>
+              <div class="mono" style="font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--text-3); margin-top: 4px;">Ackee Solana fellow &middot; 2 startups shipped 0&rarr;production</div>
+              <div class="body-sm" style="font-size: 12px; line-height: 1.55; margin-top: 10px; color: var(--text-2);">
+                Ackee Solana fellow &mdash; one of ~30 selected globally per cohort, the same program that trained the Marinade and Mango core teams. 4&times; web3 hackathon winner, zero failed demos. Ran on-call infra at two prior startups through real production load. PRISM&rsquo;s oracle relays, Dune SIM indexer, and Dodo fiat rail all live in his services.
+              </div>
+            </div>
+          </div>
+
+          <!-- Member 4: Manobendra -->
+          <div style="display: flex; gap: 18px; padding: 22px; border-radius: 14px; background: var(--surface-1); border: 1px solid var(--border-1); position: relative; overflow: hidden;">
+            <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--amber);"></div>
+            <img src="public/pfps/manab.jpg" alt="Manobendra Mandal"
+                 style="width: 88px; height: 88px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border-2);" />
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;">
+                <div class="h-2" style="font-size: 20px; font-weight: 500; letter-spacing: -.4px;">Manobendra Mandal</div>
+                <div class="mono" style="font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--amber);">On-chain &middot; integrations</div>
+              </div>
+              <div class="mono" style="font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--text-3); margin-top: 4px;">Ackee Solana fellow &middot; Anchor + cross-chain MPC</div>
+              <div class="body-sm" style="font-size: 12px; line-height: 1.55; margin-top: 10px; color: var(--text-2);">
+                Backend Developer at a Stealth Startup &middot; 10&times; Hackathon Winner &middot; Full Stack Blockchain Developer. Co-architected prism_core, prism_amm, and the Ed25519-via-sysvar attestation pattern that wires IKA, Encrypt, and Cloak in a single instruction.
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Founder/product fit summary strip -->
+        <div class="ani" style="margin-top: 2px; padding: 16px 20px; border-radius: 12px; background: rgba(236,72,153,0.05); border-left: 2px solid var(--pink);">
+          <div style="font-family: var(--font-serif); font-style: italic; font-size: 17px; line-height: 1.45; color: var(--text-2);">
+            Two Ackee Solana fellows on-chain. A GSoC contributor routing real deal capital.<br/>
+            A research-published engineer shipping institutional trading UIs.<br/>
+            <span style="color: var(--text);">Every member is already shipping production code at named companies &mdash; PRISM is not the harder problem they&rsquo;ve solved.</span>
+          </div>
+        </div>
+
+        <div class="ani" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;">
+          <div class="card-soft" style="text-align: center; padding: 12px;">
+            <div class="stat-num" style="font-size: 24px; color: var(--text);">20+</div>
+            <div class="mono" style="font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--text-3); margin-top: 4px;">Hackathon wins</div>
+          </div>
+          <div class="card-soft" style="text-align: center; padding: 12px;">
+            <div class="stat-num" style="font-size: 24px; color: var(--text);">2</div>
+            <div class="mono" style="font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--text-3); margin-top: 4px;">Ackee Solana fellows</div>
+          </div>
+          <div class="card-soft" style="text-align: center; padding: 12px;">
+            <div class="stat-num" style="font-size: 24px; color: var(--text);">1</div>
+            <div class="mono" style="font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--text-3); margin-top: 4px;">GSoC '24 contributor</div>
+          </div>
+          <div class="card-soft" style="text-align: center; padding: 12px;">
+            <div class="stat-num" style="font-size: 24px; color: var(--text);">4/4</div>
+            <div class="mono" style="font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--text-3); margin-top: 4px;">Currently shipping SDEs</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="<b>Closing and ask.</b> Because the user did not specify a fundraise amount, this is framed as a demo-day/hackathon ask: track recognition plus pilot partners. If this becomes a VC deck, replace this with a concrete SAFE/grant amount and 6-month use of funds.">
+      <div class="slide-inner" style="justify-content: center;">
+        <div class="ani"><span class="eyebrow eyebrow-pink">The ask</span></div>
+
+        <h2 class="display h-big ani" style="max-width: 1280px;">
+          Help turn Solana credit<br/>from <span style="color: var(--text-3);">pools</span> into <span style="color: var(--pink);">markets</span>.
+        </h2>
+
+        <div class="grid-3 ani" style="margin-top: 24px;">
+          <div class="card-soft">
+            <div class="eyebrow">Near-term</div>
+            <div class="h-2" style="font-size: 26px; margin-top: 12px;">Win Frontier tracks</div>
+            <p class="body-sm" style="margin-top: 10px;">Use the demo to validate programmable risk as a Solana primitive.</p>
+          </div>
+          <div class="card-soft">
+            <div class="eyebrow">Pilot</div>
+            <div class="h-2" style="font-size: 26px; margin-top: 12px;">First credit vault</div>
+            <p class="body-sm" style="margin-top: 10px;">Partner with an originator to launch a sandboxed mainnet vault.</p>
+          </div>
+          <div class="card-soft">
+            <div class="eyebrow">Next milestone</div>
+            <div class="h-2" style="font-size: 26px; margin-top: 12px;">Risk API + audits</div>
+            <p class="body-sm" style="margin-top: 10px;">Harden contracts, publish SDK, onboard external LPs.</p>
+          </div>
+        </div>
+
+        <div class="divider ani" style="margin-top: 28px; max-width: 120px; background: var(--border-3);"></div>
+
+        <div class="ani" style="margin-top: 12px; display: flex; gap: 56px; align-items: flex-start; flex-wrap: wrap;">
+          <div>
+            <div class="eyebrow">Repo</div>
+            <div class="mono" style="font-size: 14px; margin-top: 8px; color: var(--text);">github.com/skyyycodes/PRISM-Protocol</div>
+          </div>
+          <div>
+            <div class="eyebrow">Demo</div>
+            <div class="mono" style="font-size: 14px; margin-top: 8px; color: var(--text);">prismprotocol.dev <span style="color: var(--text-4);">· devnet</span></div>
+          </div>
+          <div>
+            <div class="eyebrow">Programs</div>
+            <div class="mono" style="font-size: 14px; margin-top: 8px; color: var(--text);">prism_core · prism_amm</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const total = slides.length;
+    document.getElementById('total').textContent = total;
+    let idx = 0;
+
+    function show(i) {
+      idx = (i + total) % total;
+      slides.forEach((slide, k) => slide.classList.toggle('active', k === idx));
+      document.getElementById('cur').textContent = idx + 1;
+      document.getElementById('progressBar').style.width = ((idx + 1) / total * 100) + '%';
+      document.getElementById('notes').innerHTML = slides[idx].dataset.notes || '';
+    }
+
+    function next() { show(idx + 1); }
+    function prev() { show(idx - 1); }
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowRight' || event.key === ' ') {
+        event.preventDefault();
+        next();
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        prev();
+      } else if (event.key === 'n' || event.key === 'N') {
+        document.body.classList.toggle('notes-on');
+      }
+    });
+
+    document.getElementById('deck').addEventListener('click', (event) => {
+      if (event.target.closest('.nav') || event.target.closest('.notes')) return;
+      if (event.clientX > window.innerWidth / 2) next();
+      else prev();
+    });
+
+    show(0);
+  </script>
+</body>
+</html>

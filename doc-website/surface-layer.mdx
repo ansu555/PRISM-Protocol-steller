@@ -1,0 +1,61 @@
+---
+title: Surface Layer
+---
+
+# Surface Layer
+
+The Surface Layer is the user-facing interface for PRISM.
+
+It does not define financial truth. It reads protocol state, explains it clearly, and helps users make decisions based on risk preference.
+
+## Dashboard
+
+The dashboard displays:
+
+- NAV per tranche.
+- Vault allocation.
+- User positions.
+- Profit and loss.
+- AMM market price.
+- Difference between NAV and market price.
+- Credit event history.
+- Loss cascade visualization.
+
+## Strategy Interface
+
+PRISM can expose strategy presets for users who do not want to manually choose tranche weights.
+
+Example presets:
+
+| Strategy | Allocation Bias | User Intent |
+| --- | --- | --- |
+| Conservative | Prime-heavy | Lower-risk exposure |
+| Balanced | Prime + Core | Mixed yield and protection |
+| Aggressive | Alpha-heavy | Higher-risk 15% target yield |
+
+These presets are interface-level tools. They do not change the underlying protocol rules.
+
+## Position Readout
+
+For each user position, the Surface Layer should show:
+
+- Token balance.
+- Current NAV redemption value.
+- Estimated AMM exit value.
+- Unrealized gain or loss.
+- Exposure to future losses.
+- Position in the capital stack.
+
+## Demo Experience
+
+The main PRISM demo should make the financial mechanics visible:
+
+1. Deposit into a tranche.
+2. Accrue yield.
+3. Observe waterfall distribution.
+4. Trigger default.
+5. Watch the loss cascade.
+6. Observe AMM repricing.
+7. Withdraw or trade.
+
+The goal is not only to show transactions. The goal is to show credit risk becoming legible.

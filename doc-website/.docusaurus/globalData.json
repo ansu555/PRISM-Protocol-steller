@@ -1,0 +1,108 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Next",
+          "isLast": true,
+          "path": "/",
+          "mainDocId": "introduction",
+          "docs": [
+            {
+              "id": "compliance-posture",
+              "path": "/compliance-posture",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "core-operations",
+              "path": "/core-operations",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "core-protocol-layer",
+              "path": "/core-protocol-layer",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "edge-case-handling",
+              "path": "/edge-case-handling",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "financial-model",
+              "path": "/financial-model",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "glossary",
+              "path": "/glossary",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "integrity-layer",
+              "path": "/integrity-layer",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "introduction",
+              "path": "/",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "market-design",
+              "path": "/market-design",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "risk-market-layer",
+              "path": "/risk-market-layer",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "roadmap",
+              "path": "/roadmap",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "security-controls",
+              "path": "/security-controls",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "sourcing-layer",
+              "path": "/sourcing-layer",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "surface-layer",
+              "path": "/surface-layer",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "system-architecture",
+              "path": "/system-architecture",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "token-model",
+              "path": "/token-model",
+              "sidebar": "docsSidebar"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "docsSidebar": {
+              "link": {
+                "path": "/",
+                "label": "introduction"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  }
+}

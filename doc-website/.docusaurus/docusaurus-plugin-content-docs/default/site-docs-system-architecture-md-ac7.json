@@ -1,0 +1,28 @@
+{
+  "id": "system-architecture",
+  "title": "System Architecture",
+  "description": "PRISM is organized into five architectural domains. Each domain has a separate responsibility so the protocol can reason cleanly about credit sourcing, deterministic accounting, market pricing, integrity, and user-facing interaction.",
+  "source": "@site/docs/system-architecture.md",
+  "sourceDirName": ".",
+  "slug": "/system-architecture",
+  "permalink": "/system-architecture",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "System Architecture",
+    "id": "system-architecture"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Introduction",
+    "permalink": "/"
+  },
+  "next": {
+    "title": "Sourcing Layer",
+    "permalink": "/sourcing-layer"
+  }
+}

@@ -1,0 +1,64 @@
+---
+title: Edge Case Handling
+---
+
+# Edge Case Handling
+
+Credit protocols need explicit behavior for edge cases. PRISM defines these cases so vault state remains deterministic and understandable.
+
+## First Deposit
+
+When a tranche has zero supply, there is no existing NAV denominator.
+
+Rule:
+
+```text
+shares_minted = usdc_deposited
+```
+
+The first depositor establishes the initial 1:1 relationship between tranche assets and tranche supply.
+
+## Total Wipeout
+
+If a tranche's assets reach zero, its NAV becomes zero.
+
+Rule:
+
+```text
+if total_assets == 0:
+  NAV = 0
+```
+
+Tokens can still exist after a wipeout, but they retain no redemption value unless the protocol explicitly supports recapitalization logic.
+
+## Post-Wipe Deposit Restrictions
+
+Deposits are blocked into a tranche with:
+
+- `NAV = 0`
+- non-zero supply
+
+This prevents new depositors from being minted into a broken accounting state where outstanding worthless tokens still exist.
+
+## Rounding
+
+All fixed-point math should use deterministic rounding rules.
+
+Rounding behavior must be:
+
+- Reproducible.
+- Conservative.
+- Consistent across deposit, withdrawal, yield, and loss calculations.
+
+## Insufficient Reserve
+
+Withdrawals must not transfer more USDC than the vault reserve can support.
+
+If reserve reconciliation fails, the operation should revert rather than silently underpaying the user.
+
+## Loss Greater Than Vault Assets
+
+If a submitted loss exceeds total vault assets, the protocol caps realized loss at available assets and wipes all tranches.
+
+The remaining off-chain loss is outside the vault's recoverable accounting domain.
+

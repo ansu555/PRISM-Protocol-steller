@@ -1,0 +1,61 @@
+---
+title: Market Design
+---
+
+# Market Design
+
+PRISM uses constant-product AMMs to provide liquidity for tranche tokens.
+
+## AMM Structure
+
+Each tranche token can trade against USDC.
+
+```text
+x * y = k
+```
+
+Where:
+
+- `x` is the tranche token reserve.
+- `y` is the USDC reserve.
+- `k` is the invariant.
+
+When a user swaps into the pool, reserves update and price changes according to the invariant.
+
+## Liquidity
+
+Pools are seeded with:
+
+- USDC.
+- The corresponding tranche token.
+
+Fees accrue to liquidity providers.
+
+In the early demo implementation, liquidity may be admin-seeded so the market can be shown clearly without relying on external LP participation.
+
+## Price Discovery
+
+AMM price is a live expression of trader behavior.
+
+Traders may buy or sell based on:
+
+- Current NAV.
+- Expected future yield.
+- Expected future defaults.
+- Relative safety of tranche primeity.
+- Liquidity and slippage.
+
+## Market Reaction After Default
+
+After a default, NAV changes first through deterministic accounting. Then traders can react.
+
+Example:
+
+1. Alpha is wiped.
+2. Core NAV falls.
+3. Prime NAV may remain protected.
+4. AMM traders sell junior tranches.
+5. Market prices move below or above NAV depending on expectations.
+
+This is the key distinction between a static dashboard and a live credit market.
+

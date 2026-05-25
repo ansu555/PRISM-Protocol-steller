@@ -1,0 +1,28 @@
+{
+  "id": "market-design",
+  "title": "Market Design",
+  "description": "PRISM uses constant-product AMMs to provide liquidity for tranche tokens.",
+  "source": "@site/docs/market-design.md",
+  "sourceDirName": ".",
+  "slug": "/market-design",
+  "permalink": "/market-design",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 12,
+  "frontMatter": {
+    "sidebar_position": 12,
+    "title": "Market Design",
+    "id": "market-design"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Token Model",
+    "permalink": "/token-model"
+  },
+  "next": {
+    "title": "Edge Case Handling",
+    "permalink": "/edge-case-handling"
+  }
+}

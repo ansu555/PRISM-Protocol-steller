@@ -1,0 +1,25 @@
+{
+  "id": "introduction",
+  "title": "Introduction",
+  "description": "PRISM stands for Programmable Risk & Income Structured Markets.",
+  "source": "@site/docs/introduction.md",
+  "sourceDirName": ".",
+  "slug": "/",
+  "permalink": "/",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1,
+    "slug": "/",
+    "title": "Introduction",
+    "id": "introduction"
+  },
+  "sidebar": "docsSidebar",
+  "next": {
+    "title": "System Architecture",
+    "permalink": "/system-architecture"
+  }
+}

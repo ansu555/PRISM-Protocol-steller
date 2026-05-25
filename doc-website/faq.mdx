@@ -1,0 +1,89 @@
+---
+title: FAQ
+---
+
+# Frequently Asked Questions
+
+## Tokens
+
+### Why does PRISM tokenize tranches instead of individual loans?
+
+A per-loan token model creates one fragmented market per loan — each with a separate buyer, separate due-diligence requirement, and thin standalone liquidity. A tranche token model creates three deep markets per vault, each representing a slice of risk across the loans the vault holds. Risk diversifies at the pool level. Liquidity concentrates at the tranche level.
+
+This is the same structural pattern that traditional structured credit (CDOs, CLOs) uses to make pooled credit exposure tradable.
+
+See [Token Model](./token-model) for the full breakdown.
+
+### Is there a PRISM governance or protocol token?
+
+No. PRISM remains tokenless until a clear utility — most likely an insurance backstop tranche — emerges in a later phase. The only tokens the protocol issues are the three tranche tokens (`pPRIME`, `pCORE`, `pALPHA`) and AMM liquidity-provider tokens.
+
+### What happens if I buy `pCORE` on the AMM at a price different from NAV?
+
+The vault redeems tranche tokens at NAV regardless of what you paid for them on the secondary market. If you bought at a discount, withdrawal pays NAV (which may be more than your entry price). If you bought at a premium, withdrawal still pays NAV (which may be less than your entry price). The protocol does not remember trade history.
+
+This is why NAV vs market price divergence is informative — it expresses what traders expect about future cash flows, not what the protocol owes.
+
+## Risk and Cash Flows
+
+### What's the difference between NAV and market price?
+
+NAV is intrinsic accounting: assets divided by supply, recomputed every time yield arrives or a loss is applied. Market price is what AMM traders are willing to pay right now. NAV is set by the protocol. Market price is set by sentiment.
+
+Divergence between the two tells you something. A persistent discount on `pCORE` after a partial default may signal that traders expect more losses. A persistent premium on `pPRIME` may signal flight to safety from junior tranches.
+
+See [Risk & Market Layer](./risk-market-layer).
+
+### How does the loss cascade actually work?
+
+When a credit event is recorded, realized loss is applied to tranche assets in reverse priority — Alpha first, then Core, then Prime — until the loss is fully absorbed. Each tranche's NAV updates as its assets shrink. Token supply does not change.
+
+A USDC amount equal to the realized loss is moved from the vault reserve to the loss bucket account so the reserve invariant continues to hold.
+
+See [Edge Case Handling](./edge-case-handling) for boundary conditions.
+
+### Can Prime holders ever lose money?
+
+Yes, but only after Alpha and Core have been fully wiped. Prime is loss-protected by subordination, not by guarantee. If a loss exceeds the combined capital of Alpha and Core, the remaining loss flows to Prime.
+
+### What if I deposit into a tranche that's been wiped?
+
+Deposits into a tranche with NAV equal to zero and non-zero token supply are blocked. This prevents new depositors from being minted into a broken accounting state where worthless tokens are still outstanding. A tranche must either be fully drained (supply returns to zero) or recapitalized through a recovery event before deposits resume.
+
+## Operations
+
+### Can I withdraw at any time?
+
+Yes, except when the protocol is paused. Withdrawal redeems tranche tokens at current NAV — which may be higher than your deposit (if yield accrued) or lower (if a credit event reduced tranche assets).
+
+If you want immediate exit and are willing to accept market pricing, you can also sell tranche tokens on the AMM. The vault and the AMM are independent exit paths.
+
+### Why does the protocol need a "borrower" wallet for yield?
+
+Yield accrual is a pull-pattern instruction: it transfers USDC from a designated borrower account into the vault reserve and runs the waterfall in a single transaction. This makes the cash movement visible (USDC actually flows from borrower to vault) instead of having yield appear as if from nowhere.
+
+In the current implementation, an authorized account simulates the borrower so the demo can show the full lifecycle without depending on external originators.
+
+### What does pause actually block?
+
+Pause blocks user-facing operations: deposit, withdraw, swap. It does not block credit-event resolution or accounting updates, because pausing user interaction should never prevent the protocol from applying a necessary loss or preserving accounting integrity.
+
+See [Security & Controls](./security-controls).
+
+## Architecture
+
+### Why are the vault and the AMM separate programs?
+
+Blast-radius isolation. A bug in the AMM should never compromise vault accounting. Splitting the credit risk engine and the market layer into two on-chain programs means each domain can be audited and upgraded independently.
+
+The AMM only depends on the SPL mints exposed by the vault. It never reads or writes vault state.
+
+### Why does the vault reserve need to equal the sum of tranche assets?
+
+If the reserve held more USDC than the tranches were entitled to, withdrawal would be inconsistent — some users could pull more than their share. If it held less, some users could not be paid out. The reserve invariant guarantees that protocol accounting and physical cash always agree.
+
+The loss bucket exists to maintain the invariant: when a credit event reduces tranche assets, the corresponding USDC is moved out of the reserve so totals continue to match.
+
+### Where can I find implementation details?
+
+This site documents the protocol design — the conceptual model, financial mechanics, and architectural decisions. For implementation details (Anchor instructions, account structures, deployment scripts), see the engineering documentation in the project repository.

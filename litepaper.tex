@@ -1,0 +1,1402 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\setlist[itemize]{leftmargin=1.4em}
+\setlist[enumerate]{leftmargin=1.6em}
+\renewcommand{\arraystretch}{1.2}
+
+\title{\textbf{PRISM Protocol Litepaper}\\
+\large Programmable Risk and Income Structured Markets}
+\author{PRISM Protocol}
+\date{May 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+PRISM Protocol is decentralized credit infrastructure for transforming pooled
+credit exposure into transparent, programmable, and tradable risk layers. Instead
+of forcing investors to analyze isolated loans or trust opaque intermediaries,
+PRISM separates a credit pool into tranches with distinct yield priority, loss
+exposure, tokenized ownership, and market pricing. The protocol combines
+structured credit mechanics with on-chain accounting, allowing capital providers
+to choose where they sit in the risk stack while markets price those positions in
+real time.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Executive Summary}
+
+PRISM Protocol is a framework for making credit risk legible. It does this by
+turning a pooled credit exposure into distinct on-chain risk layers, each with
+its own claim on income, its own place in the loss hierarchy, and its own market
+price.
+
+The protocol starts from a simple observation: a credit pool is never one
+uniform exposure. Inside the same pool there may be conservative capital seeking
+protection, balanced capital seeking steady yield, and risk-seeking capital
+willing to absorb first losses in exchange for higher return. Traditional
+structured finance recognizes this through tranches. PRISM brings that same
+logic into programmable markets.
+
+PRISM has four core mechanics:
+
+\begin{enumerate}
+  \item \textbf{Pooling}: credit exposure is gathered into a vault.
+  \item \textbf{Tranching}: the vault is split into Prime, Core, and Alpha risk
+  layers.
+  \item \textbf{Waterfall accounting}: incoming income flows by priority from
+  Prime to Core to Alpha.
+  \item \textbf{Loss cascading}: realized losses flow in reverse, from Alpha to
+  Core to Prime.
+\end{enumerate}
+
+Each tranche is represented by a fungible token. The token is a claim on the
+current net asset value of that tranche, not a claim on one specific borrower.
+This is important because it concentrates liquidity at the risk-layer level
+instead of fragmenting liquidity across many isolated loan instruments.
+
+The market layer allows tranche tokens to trade against USDC. A user can exit by
+redeeming through the vault at NAV, or by selling into the market at the current
+market price. The difference between NAV and market price becomes a public signal
+of credit sentiment.
+
+In one sentence:
+
+\begin{quote}
+PRISM turns credit risk from an opaque, slow-moving balance-sheet exposure into
+a transparent, tokenized, and market-priced financial primitive.
+\end{quote}
+
+\section{Introduction}
+
+Credit is one of the largest financial markets in the world, yet most credit
+exposure remains difficult to inspect, difficult to transfer, and slow to price.
+Traditional structured finance solved part of this problem by pooling loans and
+splitting risk into senior and junior claims. However, those systems are often
+opaque, document-heavy, intermediated, and inaccessible to many market
+participants.
+
+PRISM brings the core logic of structured credit on-chain. It turns a pool of
+credit into programmable risk and income layers, each represented by a fungible
+token. These tokens can be held, redeemed, transferred, or traded against USDC in
+open markets.
+
+The result is a new primitive: credit risk that is transparent, composable, and
+market-priced.
+
+\subsection{Why Credit Needs a New Primitive}
+
+On-chain finance has built highly liquid markets for spot assets, collateralized
+borrowing, perpetual swaps, stablecoins, and automated market making. Credit has
+not reached the same level of transparency or composability. The reason is not
+that credit is unimportant. It is that credit is stateful, path-dependent, and
+event-driven.
+
+A credit position changes when income is received, when a borrower misses a
+payment, when collateral value changes, when a default is recognized, or when
+capital exits. These changes cannot be represented well by a simple token that
+only tracks ownership of one static asset. Credit requires accounting rules.
+
+PRISM treats those accounting rules as the product. The protocol defines who is
+paid first, who absorbs losses first, how token value changes, and how markets
+can trade those claims. This converts credit from a legal and administrative
+object into a programmable market object.
+
+\subsection{Why Structured Credit Belongs On-Chain}
+
+Structured credit already exists in traditional finance because different
+investors want different positions in the same risk pool. Some want senior
+protection. Some want balanced return. Some want first-loss upside. The problem
+is that traditional structured credit often depends on private reporting,
+intermediated servicing, slow settlement, and limited access.
+
+On-chain infrastructure improves the model in four ways:
+
+\begin{itemize}
+  \item \textbf{Transparent accounting}: tranche assets, token supply, and NAV
+  can be observed directly.
+  \item \textbf{Programmable rules}: waterfall and loss logic execute according
+  to deterministic protocol rules.
+  \item \textbf{Composable ownership}: tranche tokens can integrate with wallets,
+  markets, analytics, and strategy products.
+  \item \textbf{Continuous pricing}: markets can react immediately as risk
+  information changes.
+\end{itemize}
+
+PRISM is not trying to make credit risk disappear. It is trying to make credit
+risk visible, tradable, and easier to reason about.
+
+\section{The Core Thesis}
+
+Most credit systems ask:
+
+\begin{quote}
+Which borrower do you trust?
+\end{quote}
+
+PRISM asks:
+
+\begin{quote}
+How much risk do you want to take?
+\end{quote}
+
+Rather than tokenizing every individual loan into fragmented markets, PRISM
+tokenizes risk layers inside a shared credit pool. The protocol creates three
+tranches:
+
+\begin{itemize}
+  \item \textbf{Prime}: lowest-risk capital, paid first, absorbs losses last.
+  \item \textbf{Core}: intermediate risk and intermediate yield.
+  \item \textbf{Alpha}: highest-risk, highest-yield target, first-loss capital.
+\end{itemize}
+
+Yield flows from safer capital to riskier capital. Losses flow in the opposite
+direction. This makes the capital stack explicit.
+
+\section{Problem}
+
+Modern credit markets face several structural problems:
+
+\begin{itemize}
+  \item \textbf{Opacity}: Investors often cannot see how cash flows, losses, or
+  credit events affect their position.
+  \item \textbf{Illiquidity}: Credit exposure is usually held to maturity or
+  traded through private, inefficient markets.
+  \item \textbf{Fragmentation}: Per-loan tokenization creates thin liquidity and
+  high due-diligence overhead for every isolated asset.
+  \item \textbf{Delayed pricing}: Credit marks can lag real risk, especially
+  after negative events.
+  \item \textbf{Limited access}: Structured credit products are usually designed
+  for institutions, not open financial networks.
+\end{itemize}
+
+PRISM addresses these problems by pooling credit exposure, separating it into
+risk tranches, encoding waterfall logic on-chain, and enabling tranche tokens to
+trade in secondary markets.
+
+\section{Market Context}
+
+Most lending products in decentralized finance are built around
+overcollateralization. A borrower posts more collateral than they borrow, and the
+protocol liquidates the collateral if the position becomes unsafe. This model is
+powerful for crypto-native leverage, but it does not solve the broader credit
+problem.
+
+Many economically productive borrowers do not have large amounts of liquid
+on-chain collateral. They may have invoices, receivables, payment flows,
+inventory, real-world collateral, revenue history, or cross-chain assets. These
+forms of creditworthiness are not captured by the standard overcollateralized
+lending loop.
+
+PRISM is designed for credit markets where risk must be evaluated, priced, and
+allocated rather than eliminated through excess collateral. This includes:
+
+\begin{itemize}
+  \item business credit,
+  \item invoice finance,
+  \item trade finance,
+  \item real-world asset facilities,
+  \item undercollateralized borrower pools,
+  \item partially collateralized cross-chain credit,
+  \item institutional originator vaults,
+  \item tokenized yield and risk products.
+\end{itemize}
+
+In these markets, the central question is not only whether a borrower is
+collateralized. It is how a pool of lenders should share income and absorb loss.
+That is the problem tranching solves.
+
+\subsection{From Lending Markets to Risk Markets}
+
+Most lending protocols focus on matching lenders with borrowers. PRISM focuses
+on creating markets for risk layers.
+
+This distinction matters. A lending market answers:
+
+\begin{quote}
+What rate should this borrower pay?
+\end{quote}
+
+A risk market answers:
+
+\begin{quote}
+Who should receive income first, who should absorb loss first, and what price
+should each position command?
+\end{quote}
+
+PRISM treats credit as a capital stack rather than a flat pool. This gives the
+system more expressive power. The same underlying credit facility can support
+conservative capital, balanced capital, and high-risk capital without creating
+three separate borrower relationships.
+
+\section{Design Goals}
+
+PRISM is designed around a set of financial and architectural goals.
+
+\subsection{Make Risk Explicit}
+
+Risk should not be hidden inside a blended APY. Users should know whether they
+are senior, intermediate, or first-loss capital. They should understand what
+happens when income arrives and what happens when losses occur.
+
+\subsection{Concentrate Liquidity}
+
+Credit markets are difficult to trade when each individual loan becomes its own
+isolated instrument. PRISM concentrates liquidity into tranche tokens. This lets
+markets price categories of risk rather than every single borrower separately.
+
+\subsection{Separate Accounting Value From Market Price}
+
+NAV and market price answer different questions. NAV is what the protocol says a
+token is redeemable for. Market price is what traders are willing to pay now.
+PRISM keeps both visible instead of forcing them to be identical.
+
+\subsection{Keep The Core Deterministic}
+
+Credit sourcing, borrower identity, collateral verification, and market
+interfaces can evolve. The core accounting engine should remain simple:
+deposits, withdrawals, income, losses, NAV, and token supply.
+
+\subsection{Support Composability}
+
+Tranche tokens should be portable financial objects. They can be held by users,
+traded in markets, used by strategy products, displayed by analytics platforms,
+or eventually accepted as collateral elsewhere.
+
+\section{Protocol Overview}
+
+A PRISM vault is a credit pool denominated in USDC. Capital providers deposit
+into one of three tranches and receive tranche tokens representing ownership in
+that layer.
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{0.18\textwidth}p{0.25\textwidth}p{0.25\textwidth}p{0.18\textwidth}}
+\toprule
+Tranche & Yield Priority & Loss Priority & Token \\
+\midrule
+Prime & Paid first & Absorbs last & pPRIME \\
+Core & Paid second & Absorbs second & pCORE \\
+Alpha & Paid last & Absorbs first & pALPHA \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Each tranche has its own:
+
+\begin{itemize}
+  \item asset balance,
+  \item token supply,
+  \item net asset value per share,
+  \item target yield profile,
+  \item loss exposure,
+  \item secondary market.
+\end{itemize}
+
+This design lets users select a risk-return profile without selecting individual
+loans.
+
+\subsection{The Vault as the Unit of Credit}
+
+The vault is the fundamental unit of PRISM. It is a container for capital,
+income, loss, token supply, and credit-event history. A vault may represent one
+credit facility or a diversified pool of related credit assets. What matters is
+that all capital inside a vault shares the same waterfall and loss cascade.
+
+A vault has two economic boundaries:
+
+\begin{itemize}
+  \item \textbf{Internal accounting}: tranche assets, tranche supply, and NAV.
+  \item \textbf{External markets}: token trading, market price, and liquidity.
+\end{itemize}
+
+The vault determines intrinsic value. The market determines current tradable
+value. PRISM intentionally keeps these boundaries separate.
+
+\subsection{The Capital Stack}
+
+The three tranches form a capital stack:
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{0.2\textwidth}p{0.28\textwidth}p{0.38\textwidth}}
+\toprule
+Layer & Economic Role & Primary Tradeoff \\
+\midrule
+Prime & Protected capital & Lower yield, higher priority \\
+Core & Balanced capital & Moderate yield, moderate loss exposure \\
+Alpha & First-loss capital & Higher yield target, highest loss exposure \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+This structure does not make Prime risk-free. Prime is protected by
+subordination. If losses exceed Alpha and Core, Prime can still lose value. The
+purpose of the structure is not to guarantee outcomes. It is to define them
+before capital enters.
+
+\section{Vault Lifecycle}
+
+A PRISM vault moves through a financial lifecycle. Each phase changes either
+capital, income, loss, token supply, or market price.
+
+\subsection{1. Vault Formation}
+
+A vault defines its underlying credit strategy, asset denomination, tranche
+configuration, and risk rules. The initial design uses three tranches because
+three layers are expressive enough to show conservative, balanced, and first-loss
+capital without making the system unnecessarily complex.
+
+\subsection{2. Capital Formation}
+
+Capital providers deposit USDC into the tranche that matches their risk
+preference. Depositors receive tranche tokens at the current NAV. The deposit
+increases tranche assets and tranche token supply but does not change NAV.
+
+\subsection{3. Credit Deployment}
+
+The vault's capital is associated with borrower demand or originated credit
+exposure. The sourcing layer validates the credit relationship, while the core
+protocol remains focused on accounting outcomes: income received, principal
+repaid, or loss realized.
+
+\subsection{4. Income Recognition}
+
+When income enters the vault, the waterfall allocates it by priority. Tranche
+assets rise, token supply remains unchanged, and NAV increases for the tranches
+that receive income.
+
+\subsection{5. Credit Event Recognition}
+
+If a credit event occurs, the protocol records the event and applies losses
+through the cascade. Tranche assets fall, token supply remains unchanged, and NAV
+drops for affected tranches.
+
+\subsection{6. Exit}
+
+Users can exit in two ways:
+
+\begin{itemize}
+  \item \textbf{Redemption}: burn tranche tokens and withdraw USDC at NAV.
+  \item \textbf{Market sale}: sell tranche tokens in the secondary market at
+  market price.
+\end{itemize}
+
+The existence of two exits is important. Redemption exposes the user to vault
+liquidity and accounting value. Market sale exposes the user to market liquidity
+and trader sentiment.
+
+\section{Tranche Tokens}
+
+When a user deposits USDC into a tranche, PRISM mints a corresponding tranche
+token. These tokens are not rebasing assets. Their balance stays fixed unless a
+user deposits more, transfers, trades, or withdraws. Value changes through net
+asset value.
+
+\subsection{Net Asset Value}
+
+Each tranche tracks net asset value per share:
+
+\[
+\text{NAV} = \frac{\text{Tranche Assets}}{\text{Tranche Token Supply}}
+\]
+
+If yield enters the tranche, assets increase while supply stays constant, so NAV
+rises. If losses hit the tranche, assets decrease while supply stays constant, so
+NAV falls.
+
+Deposits mint tokens according to current NAV:
+
+\[
+\text{Shares Minted} = \frac{\text{USDC Deposited}}{\text{Current NAV}}
+\]
+
+Withdrawals burn tokens and redeem USDC according to current NAV:
+
+\[
+\text{USDC Redeemed} = \text{Shares Burned} \times \text{Current NAV}
+\]
+
+\subsection{What Tranche Tokens Represent}
+
+A tranche token represents a pro-rata claim on one risk layer of one vault. It
+does not represent:
+
+\begin{itemize}
+  \item a direct claim on a specific borrower,
+  \item a fixed repayment promise,
+  \item a guaranteed yield,
+  \item a rebasing balance,
+  \item a protocol governance right.
+\end{itemize}
+
+It represents exposure to a defined place in the capital stack. The token holder
+benefits when that tranche receives income and loses value when that tranche
+absorbs losses.
+
+\subsection{Transferability}
+
+Because tranche positions are fungible tokens, they can move without closing the
+underlying vault. A user can transfer pCORE to another wallet, trade pALPHA in a
+market, or hold pPRIME as part of a broader portfolio.
+
+This transferability gives PRISM its composability. The vault maintains
+accounting truth. The token carries ownership. External markets and interfaces
+can build around the token without modifying the vault.
+
+\subsection{Non-Rebasing Design}
+
+PRISM uses non-rebasing tranche tokens. This means token balances do not change
+when yield or losses occur. Instead, NAV changes.
+
+This design has three advantages:
+
+\begin{itemize}
+  \item It keeps token balances easy to reason about.
+  \item It lets markets trade a stable quantity of tokens while price changes.
+  \item It separates ownership quantity from economic value.
+\end{itemize}
+
+\section{Tranche Economics}
+
+Each tranche serves a different type of capital.
+
+\subsection{Prime}
+
+Prime is the most protected layer. It receives income first and absorbs losses
+last. Prime is designed for capital that prioritizes predictability and downside
+protection over maximum yield.
+
+Prime's protection comes from the capital beneath it. Alpha and Core absorb
+losses before Prime is touched. This is not insurance. It is subordination.
+
+\subsection{Core}
+
+Core is the intermediate layer. It receives income after Prime and absorbs
+losses after Alpha. Core is designed for capital that wants more yield than
+Prime but does not want to sit in the first-loss position.
+
+Core is often the most informative tranche in a credit system because it is
+neither fully protected nor fully speculative. Its market price can reveal how
+participants judge the health of the broader pool.
+
+\subsection{Alpha}
+
+Alpha is the first-loss layer. It receives income after senior claims are
+satisfied and absorbs losses first. Alpha is designed for capital that accepts
+higher volatility and first-loss exposure in exchange for higher return
+potential.
+
+Alpha makes the rest of the stack possible. Without junior capital, Prime would
+not have meaningful protection. Alpha is the shock absorber of the vault.
+
+\subsection{Risk-Return Summary}
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{0.18\textwidth}p{0.22\textwidth}p{0.22\textwidth}p{0.25\textwidth}}
+\toprule
+Tranche & Yield Potential & Downside Exposure & Typical Motivation \\
+\midrule
+Prime & Lowest & Lowest & Protected credit yield \\
+Core & Medium & Medium & Balanced credit exposure \\
+Alpha & Highest & Highest & First-loss risk premium \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Yield Waterfall}
+
+Incoming yield is distributed by priority. The safest tranche receives its target
+yield first, followed by the intermediate tranche, then the riskiest tranche.
+
+\begin{enumerate}
+  \item Prime receives yield up to its target.
+  \item Core receives yield after Prime.
+  \item Alpha receives remaining yield after senior claims are satisfied.
+\end{enumerate}
+
+This waterfall gives each tranche a clear economic role. Prime trades upside for
+protection. Alpha accepts first-loss exposure in exchange for higher yield
+potential. Core sits between them.
+
+\subsection{Target Yield Logic}
+
+Each tranche can be associated with a target yield. A target is not a guarantee.
+It is a priority rule for allocating available income.
+
+For a given period, the yield entitlement of a tranche can be described as:
+
+\[
+\text{Target Income} =
+\text{Tranche Assets} \times \text{Target Rate} \times \text{Time Fraction}
+\]
+
+Incoming yield is then allocated in order. If yield is insufficient, lower
+priority tranches may receive less than their target. If yield is abundant,
+senior tranches receive their priority allocation first, and remaining yield can
+flow down the stack.
+
+\subsection{Why Waterfall Accounting Matters}
+
+A flat lending pool gives every depositor the same blended return and the same
+blended loss exposure. This is simple, but it does not match how credit risk is
+actually consumed. Some capital wants protection. Some capital wants risk
+premium.
+
+Waterfall accounting lets a single credit pool support multiple risk appetites.
+It also creates transparent disagreement. A Prime holder and an Alpha holder can
+participate in the same vault while having very different economic exposure.
+
+\subsection{Income Scenario}
+
+Assume a vault receives 100 USDC of income. If Prime is entitled to 40 USDC for
+the period and Core is entitled to 30 USDC, the waterfall allocates:
+
+\begin{itemize}
+  \item 40 USDC to Prime,
+  \item 30 USDC to Core,
+  \item 30 USDC to Alpha.
+\end{itemize}
+
+If the vault receives only 50 USDC, Prime receives its 40 USDC first, Core
+receives the remaining 10 USDC, and Alpha receives nothing for that period. This
+is the economic meaning of priority.
+
+\section{Loss Cascade}
+
+Losses are applied in reverse priority:
+
+\begin{enumerate}
+  \item Alpha absorbs losses first.
+  \item Core absorbs remaining losses after Alpha is depleted.
+  \item Prime absorbs losses only after both subordinate tranches are depleted.
+\end{enumerate}
+
+This is the defining mechanic of PRISM. Losses do not disappear. They move
+through the capital stack according to rules known before capital enters the
+vault.
+
+\subsection{Example}
+
+Assume a vault has:
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{0.25\textwidth}r}
+\toprule
+Tranche & Assets \\
+\midrule
+Prime & 10,000 USDC \\
+Core & 4,500 USDC \\
+Alpha & 5,000 USDC \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+If the vault realizes a 6,500 USDC loss:
+
+\begin{itemize}
+  \item Alpha absorbs 5,000 USDC and is wiped.
+  \item Core absorbs the remaining 1,500 USDC.
+  \item Prime absorbs 0 USDC.
+\end{itemize}
+
+The loss is not socialized equally. It follows the predefined risk hierarchy.
+
+\subsection{Moderate, Severe, and Extreme Losses}
+
+The cascade behaves differently depending on loss size.
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{0.2\textwidth}p{0.35\textwidth}p{0.35\textwidth}}
+\toprule
+Scenario & Loss Size & Result \\
+\midrule
+Moderate & Less than Alpha assets & Only Alpha loses value \\
+Severe & Greater than Alpha but less than Alpha + Core & Alpha is wiped, Core loses value \\
+Extreme & Greater than Alpha + Core & Alpha and Core are wiped, Prime loses value \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+This structure makes loss allocation legible. Users do not need to guess whether
+a loss is socialized across everyone. They can see exactly which layer absorbs
+it first.
+
+\subsection{Recoveries}
+
+Some credit losses are not final. A borrower may restructure, collateral may be
+recovered, or a defaulted facility may return partial value. PRISM's model can
+support recovery events that add value back to the vault and update NAV.
+
+A recovery framework must define where recovered value goes. The simplest model
+is to reverse the loss path: recovered value restores senior accounting
+integrity first or follows a predefined recovery waterfall. The important point
+is that recovery logic should be explicit before users enter the vault.
+
+\section{Accounting Model}
+
+PRISM's core accounting model is built around assets, supply, NAV, and cash
+integrity.
+
+\subsection{Reserve Invariant}
+
+The vault reserve should match the sum of tranche assets:
+
+\[
+\text{Reserve} =
+\text{Prime Assets} + \text{Core Assets} + \text{Alpha Assets}
+\]
+
+This invariant matters because NAV is only meaningful if accounting value and
+cash value agree. If the reserve has more cash than tranche assets, some users
+could withdraw value not assigned to their tranche. If the reserve has less cash
+than tranche assets, users may not be able to redeem what the protocol reports.
+
+\subsection{State Transitions}
+
+Each financial event changes accounting in a specific way:
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{0.18\textwidth}p{0.22\textwidth}p{0.22\textwidth}p{0.22\textwidth}}
+\toprule
+Event & Assets & Supply & NAV \\
+\midrule
+Deposit & Increase & Increase & Usually unchanged \\
+Withdraw & Decrease & Decrease & Usually unchanged \\
+Income & Increase & Unchanged & Increases \\
+Loss & Decrease & Unchanged & Decreases \\
+Trade & Unchanged in vault & Unchanged in vault & Unchanged in vault \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Trading changes market ownership and market price. It does not change vault NAV.
+This separation keeps the protocol accounting clean.
+
+\subsection{Event History}
+
+Every meaningful accounting transition should be observable as an event:
+
+\begin{itemize}
+  \item deposits,
+  \item withdrawals,
+  \item income distributions,
+  \item losses,
+  \item recoveries,
+  \item market trades.
+\end{itemize}
+
+Event history turns credit from a private ledger into a public financial record.
+It lets analysts reconstruct what happened to a vault over time.
+
+\subsection{Edge Cases}
+
+Credit systems need explicit edge-case behavior:
+
+\begin{itemize}
+  \item \textbf{First deposit}: if supply is zero, shares are minted 1:1.
+  \item \textbf{Total wipeout}: if assets are zero while supply remains, NAV is
+  zero.
+  \item \textbf{Post-wipe deposits}: deposits into a zero-NAV tranche with
+  outstanding supply should be blocked or governed by explicit recapitalization
+  rules.
+  \item \textbf{Rounding}: fixed-point accounting should use deterministic,
+  conservative rounding.
+  \item \textbf{Excess loss}: if loss exceeds available assets, all tranches are
+  wiped and the remaining off-chain loss sits outside vault accounting.
+\end{itemize}
+
+\section{Market Layer}
+
+PRISM separates intrinsic value from market value.
+
+\begin{itemize}
+  \item \textbf{NAV} is the protocol accounting value of a tranche token.
+  \item \textbf{Market price} is what traders are willing to pay for that token.
+\end{itemize}
+
+Each tranche token can trade against USDC in a constant-product market:
+
+\[
+x \times y = k
+\]
+
+where \(x\) is the tranche token reserve, \(y\) is the USDC reserve, and \(k\) is
+the pool invariant.
+
+This creates a live market for credit risk. If pALPHA trades below NAV, the
+market may be pricing future losses or low liquidity. If pPRIME trades at a
+premium, the market may be expressing demand for protected exposure. The spread
+between NAV and market price becomes information.
+
+\subsection{NAV Premiums and Discounts}
+
+A tranche token can trade above, below, or near NAV.
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{0.22\textwidth}p{0.32\textwidth}p{0.32\textwidth}}
+\toprule
+Market State & Possible Meaning & User Interpretation \\
+\midrule
+Premium to NAV & Demand for exposure, expected future income, low perceived risk & Market is paying more than current redemption value \\
+Near NAV & Stable expectations, balanced liquidity & Market and accounting value are aligned \\
+Discount to NAV & Fear of future losses, low liquidity, urgent exits & Market requires a risk premium \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The protocol does not force price to NAV because that difference is useful. A
+credit market should reveal sentiment, not hide it.
+
+\subsection{Secondary-Market Exit}
+
+Vault redemption is not the only exit path. A user may prefer to sell tranche
+tokens to another participant. This can be useful when:
+
+\begin{itemize}
+  \item the user wants immediate liquidity,
+  \item the vault has a withdrawal queue or liquidity constraint,
+  \item the user believes the market price is favorable,
+  \item the user wants to rebalance from one tranche to another,
+  \item a trader wants to express a view on future credit events.
+\end{itemize}
+
+The market layer therefore turns a static credit position into a tradable risk
+instrument.
+
+\subsection{Market Makers}
+
+Market makers provide inventory on both sides of a tranche market. They take on
+inventory risk in exchange for fees and potential arbitrage opportunities. In a
+healthy PRISM market, market makers help connect accounting value to tradable
+liquidity while still allowing discounts and premiums to emerge.
+
+\subsection{Market Reaction to Credit Events}
+
+When a credit event occurs, NAV changes first. Traders then decide what the new
+information means for future outcomes.
+
+For example:
+
+\begin{enumerate}
+  \item A loss event wipes Alpha NAV to zero.
+  \item pALPHA may still have liquidity in the market.
+  \item Traders sell pALPHA because redemption value has collapsed.
+  \item The AMM price moves toward the new risk reality.
+  \item Analysts can compare the speed and depth of repricing across tranches.
+\end{enumerate}
+
+This makes PRISM more than an accounting system. It becomes a live credit-risk
+market.
+
+\section{Why Tranche Tokens Instead of Loan Tokens}
+
+Per-loan tokenization creates fragmented liquidity. Every loan becomes its own
+market, with its own risk analysis, buyer base, maturity profile, and trading
+depth.
+
+PRISM instead tokenizes pooled risk exposure. A vault can contain one or many
+credit assets, but users trade the risk layer rather than the individual loan.
+This concentrates liquidity and makes markets easier to understand.
+
+\begin{center}
+\begin{tabular}{p{0.3\textwidth}p{0.3\textwidth}p{0.3\textwidth}}
+\toprule
+Model & Liquidity & User Burden \\
+\midrule
+Per-loan tokens & Fragmented across many assets & Analyze each loan \\
+Tranche tokens & Concentrated by risk layer & Choose risk position \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Diversification and Liquidity}
+
+If a vault contains multiple loans, tranche tokens represent exposure to the
+pool's structured risk rather than to one borrower. This allows diversified
+credit exposure to trade through a smaller number of liquid instruments.
+
+Per-loan markets are useful when investors want to underwrite individual
+borrowers. Tranche markets are useful when investors want exposure to a defined
+risk layer across a pool. PRISM chooses the second model because it is more
+composable and easier to scale.
+
+\subsection{Due-Diligence Compression}
+
+In a per-loan model, every buyer must understand every asset. In a tranche model,
+users can focus on:
+
+\begin{itemize}
+  \item the vault strategy,
+  \item the originator or sourcing process,
+  \item tranche seniority,
+  \item historical loss and yield behavior,
+  \item market price versus NAV.
+\end{itemize}
+
+This does not remove the need for credit analysis. It organizes it around the
+pool and capital stack instead of around scattered individual instruments.
+
+\section{Architecture}
+
+PRISM is organized into five conceptual layers.
+
+\subsection{Sourcing Layer}
+
+The Sourcing Layer introduces credit into the system. It connects vaults to
+borrower demand, originators, collateral systems, credit attestations, or other
+forms of validated yield and credit events.
+
+\subsection{Core Protocol Layer}
+
+The Core Protocol Layer enforces vault accounting, tranche state, NAV updates,
+yield distribution, and loss allocation.
+
+\subsection{Risk and Market Layer}
+
+The Risk and Market Layer provides liquidity and price discovery through
+tranche-token markets. It allows users to exit or reposition without waiting for
+the vault redemption path.
+
+\subsection{Integrity Layer}
+
+The Integrity Layer verifies credit events, preserves accounting correctness,
+supports transparent event history, and can integrate optional privacy or
+identity modules.
+
+\subsection{Surface Layer}
+
+The Surface Layer exposes vault state to users. It shows tranche NAV, market
+price, position value, risk exposure, historical events, and strategy-level
+views.
+
+\subsection{Separation of Responsibilities}
+
+PRISM separates concerns deliberately:
+
+\begin{itemize}
+  \item The vault should not depend on a specific frontend.
+  \item The market should not be able to rewrite vault accounting.
+  \item The sourcing layer should not obscure how income and losses are applied.
+  \item The integrity layer should verify events without changing economic rules
+  arbitrarily.
+\end{itemize}
+
+This modularity lets the protocol evolve. New credit originators, collateral
+systems, analytics interfaces, or privacy tools can be added around the core
+without changing the basic waterfall and cascade model.
+
+\subsection{Conceptual Data Flow}
+
+The high-level flow is:
+
+\begin{enumerate}
+  \item Users deposit USDC into a selected tranche.
+  \item The vault mints tranche tokens.
+  \item Credit exposure generates income or loss.
+  \item Income updates NAV through the waterfall.
+  \item Loss updates NAV through the cascade.
+  \item Tranche tokens can be redeemed at NAV or traded at market price.
+\end{enumerate}
+
+This flow is intentionally simple. The sophistication comes from the interaction
+between deterministic accounting and free market pricing.
+
+\section{Participants}
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{0.25\textwidth}p{0.65\textwidth}}
+\toprule
+Participant & Role \\
+\midrule
+Capital providers & Deposit USDC into Prime, Core, or Alpha and receive tranche tokens. \\
+Borrowers or originators & Generate credit demand and return principal, yield, or credit event data. \\
+Market makers & Provide liquidity for pPRIME, pCORE, and pALPHA markets. \\
+Traders & Buy or sell tranche tokens based on risk expectations. \\
+Risk verifiers & Supply or validate credit event information. \\
+Interfaces & Present vault state, market prices, and position-level risk to users. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Capital Providers}
+
+Capital providers are not all the same. A conservative allocator may prefer
+Prime, a yield-seeking allocator may prefer Core, and a risk-seeking allocator
+may prefer Alpha. PRISM lets each user choose a position in the stack instead of
+forcing every participant into the same blended exposure.
+
+\subsection{Borrowers and Originators}
+
+Borrowers and originators are the source of credit demand. They may be
+businesses, protocols, real-world asset platforms, payment companies, or
+cross-chain collateral providers. PRISM does not require all origination to look
+the same. It requires that financial outcomes be translated into clear protocol
+events: income, repayment, impairment, default, or recovery.
+
+\subsection{Traders}
+
+Traders are essential because they turn credit information into price. A trader
+can buy discounted pCORE, sell risky pALPHA, rotate into pPRIME after a negative
+event, or provide liquidity to earn fees. This is how credit sentiment becomes
+observable.
+
+\subsection{Risk Verifiers}
+
+Risk verifiers provide or validate information that affects the vault. Their role
+is especially important for credit events, collateral status, borrower
+performance, and recovery outcomes. The core protocol should treat verified
+events as inputs and then apply predefined accounting rules.
+
+\section{Use Cases}
+
+PRISM can support multiple categories of credit markets:
+
+\begin{itemize}
+  \item structured pools for real-world credit originators,
+  \item invoice and trade-finance vaults,
+  \item undercollateralized or partially collateralized borrower facilities,
+  \item tokenized credit-risk strategies,
+  \item tranche-based yield products,
+  \item secondary markets for credit exposure,
+  \item risk dashboards and analytics products,
+  \item future hedging and protection markets.
+\end{itemize}
+
+\subsection{Real-World Asset Vaults}
+
+An originator can group similar credit assets into a PRISM vault. Investors then
+choose Prime, Core, or Alpha exposure based on desired risk. Instead of creating
+a separate market for every invoice or loan, the originator creates a structured
+pool.
+
+\subsection{Trade Finance}
+
+Trade finance often involves short-duration credit, invoices, purchase orders,
+and working-capital needs. These cash flows can be pooled and tranched. Prime
+capital can fund safer portions, while Alpha capital earns higher yield for
+absorbing early losses.
+
+\subsection{Cross-Chain Collateral Credit}
+
+Borrowers may hold valuable assets outside the chain where credit is issued.
+PRISM's model can support collateral attestations and cross-chain credit
+relationships through the sourcing and integrity layers while keeping tranche
+accounting on-chain.
+
+\subsection{Risk Strategies}
+
+Portfolio managers can build strategies around tranche tokens. Examples include:
+
+\begin{itemize}
+  \item Prime-only protected credit baskets,
+  \item Core yield strategies,
+  \item Alpha risk-premium strategies,
+  \item dynamic rotation between tranches based on market discount,
+  \item market-neutral NAV versus AMM arbitrage strategies.
+\end{itemize}
+
+\subsection{Analytics and Research}
+
+Because PRISM emits structured financial events, analysts can build dashboards
+showing:
+
+\begin{itemize}
+  \item historical NAV,
+  \item default frequency,
+  \item tranche returns,
+  \item market discounts and premiums,
+  \item liquidity depth,
+  \item realized loss allocation,
+  \item originator-level performance.
+\end{itemize}
+
+\section{Risk Model}
+
+PRISM does not remove credit risk. It makes credit risk explicit.
+
+Key risks include:
+
+\begin{itemize}
+  \item \textbf{Credit risk}: Borrowers may fail to repay.
+  \item \textbf{Tranche risk}: Junior tranches can lose value quickly during
+  defaults.
+  \item \textbf{Liquidity risk}: AMM exit price may diverge from NAV.
+  \item \textbf{Oracle and verification risk}: Credit event data must be
+  accurate.
+  \item \textbf{Market risk}: Traders can reprice assets aggressively after new
+  information.
+  \item \textbf{Smart contract risk}: Protocol rules must be implemented and
+  audited carefully.
+\end{itemize}
+
+The goal of PRISM is not to promise safety. The goal is to show where risk sits,
+how it moves, and what the market thinks it is worth.
+
+\subsection{Credit Risk}
+
+Credit risk is the risk that the borrower or pool fails to generate expected
+cash flows. This is the core risk PRISM exposes. Tranching does not eliminate
+credit risk. It allocates credit risk across the capital stack.
+
+\subsection{Subordination Risk}
+
+Subordination defines the order of loss absorption. Alpha is exposed first, Core
+second, and Prime last. This makes junior tranches more volatile. It also makes
+senior tranches dependent on the existence and size of subordinate capital.
+
+\subsection{Liquidity Risk}
+
+A tranche token may have positive NAV but trade at a discount if market
+liquidity is thin or if sellers are urgent. Conversely, a token may trade at a
+premium if demand for that exposure is high. Users must understand that market
+exit value can differ from redemption value.
+
+\subsection{Information Risk}
+
+Credit markets depend on information. If borrower performance, collateral value,
+or default events are reported incorrectly, markets may misprice risk. PRISM's
+integrity layer exists to make event verification explicit, but the quality of
+inputs remains critical.
+
+\subsection{Concentration Risk}
+
+A vault backed by one borrower behaves differently from a vault backed by many
+borrowers. Concentrated vaults can offer clearer exposure but higher idiosyncratic
+risk. Diversified vaults reduce single-borrower dependence but may be harder to
+analyze at the asset level.
+
+\subsection{Mitigation Principles}
+
+PRISM's risk mitigations are structural rather than promotional:
+
+\begin{itemize}
+  \item publish tranche priority before deposit,
+  \item make NAV and market price visible,
+  \item record income and loss events,
+  \item separate vault accounting from market pricing,
+  \item use explicit rules for edge cases,
+  \item preserve a clear event history,
+  \item allow users to choose their risk layer.
+\end{itemize}
+
+\section{Governance and Controls}
+
+PRISM's base design does not require discretionary management of user funds.
+However, credit systems require controlled parameters and verified events.
+
+\subsection{Parameters}
+
+Vault parameters may include:
+
+\begin{itemize}
+  \item tranche target yields,
+  \item eligible collateral or originator types,
+  \item credit event verification rules,
+  \item pause conditions,
+  \item market fee settings,
+  \item recovery distribution rules.
+\end{itemize}
+
+These parameters should be visible before users enter a vault. Changing them
+should follow governance or admin controls appropriate to the vault type.
+
+\subsection{Pause and Emergency Controls}
+
+A pause mechanism can protect users during abnormal conditions. A good pause
+design should block new risky user actions while still allowing necessary
+accounting updates. For example, if a credit event must be recognized, the
+protocol should be able to apply it rather than freezing incorrect accounting in
+place.
+
+\subsection{Permissioned and Permissionless Vaults}
+
+Different credit markets require different access models. PRISM can support:
+
+\begin{itemize}
+  \item permissionless vaults for open participation,
+  \item permissioned vaults for regulated or institutional credit,
+  \item originator-specific vaults,
+  \item curated strategy vaults.
+\end{itemize}
+
+The accounting model remains the same. The access layer can differ.
+
+\section{Compliance Posture}
+
+PRISM is designed as infrastructure, not as financial advice. The protocol can
+show risk layers, market prices, NAV, and historical outcomes. Users or
+interfaces may use that information to make decisions, but the protocol itself
+does not decide which tranche a user should choose.
+
+\subsection{Non-Custodial Design}
+
+Users hold tranche tokens in their own wallets. The protocol defines redemption
+rules and market mechanics, but token ownership remains portable.
+
+\subsection{Transparency of Risk}
+
+Every tranche should clearly communicate:
+
+\begin{itemize}
+  \item its priority in the waterfall,
+  \item its position in the loss cascade,
+  \item its current NAV,
+  \item its current market price,
+  \item its exposure to future credit events.
+\end{itemize}
+
+This is not only a user-experience principle. It is the foundation of responsible
+credit-market design.
+
+\section{Token Philosophy}
+
+PRISM does not require a separate protocol token for its core function. The
+native financial instruments of the system are the tranche tokens:
+
+\begin{itemize}
+  \item pPRIME,
+  \item pCORE,
+  \item pALPHA.
+\end{itemize}
+
+These represent claims on specific risk layers within a vault. A separate
+governance or incentive token is unnecessary for the base credit primitive. If a
+future token exists, it should have clear utility, such as insurance backstop
+capital or governance over risk parameters, rather than being introduced before
+the protocol requires it.
+
+\subsection{Why No Protocol Token Is Needed At The Base Layer}
+
+The protocol's main economic objects are already tokens: pPRIME, pCORE, and
+pALPHA. Adding another token too early can confuse the system's purpose. A
+credit protocol should first prove that risk can be structured, accounted for,
+and priced.
+
+A protocol token may become useful later if it performs a real function. For
+example:
+
+\begin{itemize}
+  \item absorbing tail risk through an insurance reserve,
+  \item governing risk parameters,
+  \item backstopping originator failures,
+  \item aligning long-term liquidity providers.
+\end{itemize}
+
+Until such a function is necessary, tranche tokens are sufficient.
+
+\section{Economic Sustainability}
+
+PRISM can support several protocol-level revenue or sustainability models
+without changing the core accounting primitive.
+
+\subsection{Market Fees}
+
+Secondary markets can charge swap fees. These fees compensate liquidity
+providers and encourage market depth around tranche tokens.
+
+\subsection{Vault Fees}
+
+Vaults may charge management, origination, or performance fees depending on the
+strategy and access model. Any fee should be transparent and applied according
+to predefined rules.
+
+\subsection{Risk Infrastructure Fees}
+
+As PRISM expands, verification, analytics, reporting, and risk-management
+services may become separate revenue layers. These should support the credit
+market rather than distort tranche accounting.
+
+\subsection{Alignment Principle}
+
+The protocol should only extract value when it improves market function:
+
+\begin{itemize}
+  \item better liquidity,
+  \item better risk verification,
+  \item better accounting transparency,
+  \item better originator access,
+  \item better user decision-making.
+\end{itemize}
+
+\section{Ecosystem Extensions}
+
+PRISM is a base primitive. Other systems can build around it.
+
+\subsection{Analytics}
+
+Analytics platforms can index vault events, display historical NAV, track market
+discounts, compare originators, and quantify realized loss behavior.
+
+\subsection{Strategy Vaults}
+
+Strategy products can allocate across multiple PRISM tranches, rebalance between
+Prime/Core/Alpha, or build diversified baskets of credit exposure.
+
+\subsection{Collateral and Identity Systems}
+
+Borrower identity, collateral verification, cross-chain asset control, and
+reputation can live around the sourcing and integrity layers. These extensions
+make credit underwriting richer without changing how the core waterfall works.
+
+\subsection{Hedging Markets}
+
+Future protection markets can allow participants to buy or sell default
+protection on tranche tokens or vaults. This would create a second layer of
+credit-risk pricing around the base tranche markets.
+
+\section{Roadmap}
+
+\subsection{Phase 1: Structured Credit Primitive}
+
+The first phase establishes the core protocol:
+
+\begin{itemize}
+  \item tranche vaults,
+  \item NAV-based accounting,
+  \item yield waterfall,
+  \item loss cascade,
+  \item tranche tokenization,
+  \item secondary markets.
+\end{itemize}
+
+The goal of Phase 1 is to prove that the primitive works: users can enter a
+risk layer, income can move through the waterfall, losses can move through the
+cascade, and markets can price the resulting tokens.
+
+\subsection{Phase 2: Market Expansion}
+
+The second phase expands PRISM into a broader credit-risk marketplace:
+
+\begin{itemize}
+  \item multiple vaults and originator types,
+  \item richer borrower and collateral integrations,
+  \item strategy automation,
+  \item analytics and risk scoring,
+  \item hedging and protection products.
+\end{itemize}
+
+The goal of Phase 2 is to move from a single primitive to a credit-risk
+marketplace. This phase deepens liquidity, expands sourcing, and makes PRISM
+useful for more than one vault type.
+
+\subsection{Phase 3: Institutional Credit Infrastructure}
+
+The third phase focuses on scale:
+
+\begin{itemize}
+  \item permissioned and permissionless vaults,
+  \item institutional reporting,
+  \item compliance-aware access models,
+  \item cross-chain credit markets,
+  \item insurance and backstop mechanisms,
+  \item deeper liquidity infrastructure.
+\end{itemize}
+
+The goal of Phase 3 is to make PRISM a durable base layer for institutional and
+open credit markets. This includes better reporting, more sophisticated access
+controls, larger pools, and deeper integrations with existing financial
+infrastructure.
+
+\section{Illustrative Scenarios}
+
+The following scenarios show how PRISM behaves conceptually.
+
+\subsection{Scenario A: Healthy Credit Pool}
+
+A vault receives regular borrower payments. Prime receives its target income
+first, Core receives its target income second, and Alpha receives remaining
+income. NAV rises across tranches according to waterfall priority.
+
+In this scenario:
+
+\begin{itemize}
+  \item Prime earns steady protected yield,
+  \item Core earns higher yield after Prime is satisfied,
+  \item Alpha benefits from surplus income,
+  \item market prices may trade near or above NAV if confidence is high.
+\end{itemize}
+
+\subsection{Scenario B: Mild Stress}
+
+A small impairment occurs but is smaller than Alpha's asset base. Alpha absorbs
+the full loss. Core and Prime NAV remain unchanged. pALPHA may trade at a
+discount as traders reassess future losses, while pPRIME may trade at a premium
+because demand for protected exposure increases.
+
+\subsection{Scenario C: Severe Default}
+
+A large loss wipes Alpha and partially reduces Core. Prime remains protected
+because subordinate capital absorbs the loss first. This is the clearest example
+of structured credit: every tranche experiences the same credit event, but not
+the same economic outcome.
+
+\subsection{Scenario D: Flight to Safety}
+
+After negative credit news, traders sell pALPHA and pCORE while buying or holding
+pPRIME. Market prices diverge from NAV. This divergence becomes a live signal of
+risk appetite.
+
+\subsection{Scenario E: Recovery}
+
+After a default, some value is recovered. The vault applies recovery according
+to predefined rules. NAV improves for eligible tranches, and market prices react
+again. This shows that credit events are not only binary defaults; they can also
+include restructurings and partial recoveries.
+
+\section{Comparison With Existing Models}
+
+\subsection{Traditional Banks}
+
+Banks pool credit risk internally. Depositors usually receive fixed or low
+yield, while the bank keeps much of the spread. Risk sits inside the bank's
+balance sheet, and external users have limited visibility.
+
+PRISM externalizes the capital stack. Users choose their risk layer directly and
+can observe how income and loss affect that layer.
+
+\subsection{Traditional Structured Finance}
+
+Traditional structured finance uses tranching, but it is often private,
+document-driven, and slow to settle. PRISM preserves the useful part of the
+model, the capital stack, while making accounting and ownership programmable.
+
+\subsection{Overcollateralized DeFi Lending}
+
+Overcollateralized lending is excellent for liquid collateral and leverage. It
+is less suited for borrower types that rely on cash flow, invoices, receivables,
+or off-chain collateral. PRISM is designed for credit allocation rather than
+automatic liquidation alone.
+
+\subsection{Per-Loan Tokenization}
+
+Per-loan tokenization can be useful for bespoke underwriting, but it fragments
+liquidity. PRISM pools credit exposure and tokenizes risk layers, creating fewer
+and deeper markets.
+
+\section{Conclusion}
+
+PRISM turns credit from an opaque balance-sheet exposure into a programmable
+financial primitive. By splitting pooled credit into transparent tranches,
+encoding yield and loss rules on-chain, and allowing each risk layer to trade in
+open markets, PRISM makes credit easier to inspect, price, transfer, and build
+upon.
+
+The core idea is simple:
+
+\begin{quote}
+Credit should not be a black box. It should be structured, transparent, and
+market-priced.
+\end{quote}
+
+PRISM is the infrastructure for that market.
+
+\end{document}

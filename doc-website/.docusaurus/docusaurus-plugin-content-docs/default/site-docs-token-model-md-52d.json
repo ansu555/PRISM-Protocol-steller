@@ -1,0 +1,28 @@
+{
+  "id": "token-model",
+  "title": "Token Model",
+  "description": "Each PRISM tranche is represented by a fungible SPL token.",
+  "source": "@site/docs/token-model.md",
+  "sourceDirName": ".",
+  "slug": "/token-model",
+  "permalink": "/token-model",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 11,
+  "frontMatter": {
+    "sidebar_position": 11,
+    "title": "Token Model",
+    "id": "token-model"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Financial Model",
+    "permalink": "/financial-model"
+  },
+  "next": {
+    "title": "Market Design",
+    "permalink": "/market-design"
+  }
+}

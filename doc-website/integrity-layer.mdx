@@ -1,0 +1,56 @@
+---
+title: Integrity Layer
+---
+
+# Integrity Layer
+
+The Integrity Layer ensures correctness, verifiability, and optional privacy.
+
+PRISM is designed so financial state transitions can be reproduced and inspected. Users should not need to trust a dashboard, a server, or an operator to understand what happened to their credit exposure.
+
+## Credit Event Verification
+
+Credit events represent realized impairment to the vault.
+
+Primary path:
+
+- Oracle-based triggers.
+- External data providers report credit events.
+- On-chain instruction applies the verified loss.
+
+Fallback path:
+
+- Authorized admin triggers.
+- Used for early demo operation, simulation, or emergency intervention.
+
+All credit events are recorded on-chain.
+
+## Event Record
+
+A credit event should make the following information observable:
+
+- Vault affected.
+- Loss amount.
+- Trigger authority.
+- Timestamp or slot.
+- Loss distribution across tranches.
+- Resulting tranche NAV values.
+
+## Optional Privacy
+
+PRISM can support optional shielded transfers during withdrawal flows.
+
+Privacy is not required for the base accounting model. The base model prioritizes transparent financial state. Optional privacy modules can protect user-level transfer behavior while preserving protocol-level accounting verifiability.
+
+## Identity Extensions
+
+Future modules can support:
+
+- Confidential borrower scoring.
+- Reputation-based risk assessment.
+- Originator risk tiers.
+- Institutional allowlists.
+- Portfolio-level risk metadata.
+
+These modules should not weaken the deterministic vault engine. They should add richer sourcing and risk context around it.
+

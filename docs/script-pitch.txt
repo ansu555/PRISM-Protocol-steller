@@ -1,0 +1,155 @@
+# PRISM Pitch Video Script (2 Min)
+
+## Slide 1 — Intro
+
+Crypto rebuilt trading.
+
+It rebuilt exchanges.
+It rebuilt payments.
+It rebuilt liquidity.
+
+But one massive market is still broken on-chain.
+
+Credit.
+
+We’re building PRISM — Programmable Risk & Income Structured Markets.
+
+A protocol that turns credit into structured, tradable risk layers on Solana.
+
+---
+
+## Slide 2 — The Problem
+
+Today, on-chain credit has two big problems.
+
+First — users don’t really understand what risk they’re taking.
+
+Second — credit positions are illiquid.
+
+Most protocols either:
+
+* overcollateralize everything
+* or isolate loans into separate markets
+
+And that creates fragmented liquidity, poor pricing, and inefficient capital.
+
+It feels like traditional finance problems copied on-chain.
+
+---
+
+## Slide 3 — Real World Analogy
+
+But in traditional finance, banks don’t sell loans one by one.
+
+They pool loans together.
+
+Then split them into different risk layers.
+
+Low risk.
+Medium risk.
+High risk.
+
+That’s how structured credit works.
+
+We realized:
+
+the problem isn’t tokenizing loans.
+
+The problem is structuring risk.
+
+---
+
+## Slide 4 — Our Solution
+
+That’s what PRISM does.
+
+Users deposit into one pooled credit vault.
+
+Then choose their exposure:
+
+Prime — lowest risk
+Core — balanced risk
+Alpha — highest risk
+
+Each layer becomes a tradable SPL token.
+
+So instead of choosing borrowers,
+users simply choose risk.
+
+---
+
+## Slide 5 — Hero Moment
+
+Yield flows top-down.
+
+[pause for visual]
+
+Losses cascade up.
+
+Alpha wipes. Core takes a hit. Prime — protected.
+
+---
+
+## Slide 6 — Real Money
+
+Three users. Same vault. Different tranches.
+
+After the default —
+
+Prime walked away with twenty dollars in profit.
+
+Core lost a thousand.
+
+Alpha lost everything.
+
+That’s not the protocol failing.
+
+That’s the protocol working exactly as it promised.
+
+---
+
+## Slide 7 — Live Markets
+
+And unlike traditional credit markets, users don’t need to wait until a loan matures to exit.
+
+For example, imagine you invested 10 dollars into pCORE in a 90-day pool.
+
+If, on day 30, the pool is performing well and borrowers are repaying normally, 
+the value of your pCORE tokens may increase because yield has already started accruing.
+
+You can simply sell those tokens on the AMM and exit early with profit.
+
+But if defaults happen and losses reach the Core layer, the market price of pCORE can fall.
+
+So when you exit, you may leave with less than you started with.
+
+That’s the key difference:
+
+PRISM doesn’t lock risk behind fixed maturity.
+
+It lets markets continuously price it in real time.
+
+---
+
+## Slide 8 — Integrations
+
+We wire into IKA for cross-chain collateral, Encrypt for confidential credit data, 
+and Cloak for shielded payouts — infrastructure we plug into so we don’t have to run it forever.
+
+---
+
+## Slide 9 — Closing
+
+Stablecoins brought money on-chain.
+
+DEXs brought liquidity on-chain.
+
+PRISM brings risk markets on-chain.
+
+And we haven’t even launched yet — 1,207 people are already on our waitlist. Zero marketing spend. Just demand.
+
+Built by four engineers — two Ackee Solana fellows, a GSoC contributor, and a research-published UI engineer.
+
+Today credit markets are opaque and illiquid.
+
+We just showed how they become programmable, transparent, and tradable.

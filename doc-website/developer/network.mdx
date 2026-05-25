@@ -1,0 +1,230 @@
+---
+title: Network
+description: PRISM Protocol network details — Solana Devnet endpoints, faucets, RPC selection, commitment levels, and mainnet plans.
+---
+
+# Network
+
+PRISM runs on **Solana Devnet** today. This page covers everything you need to wire a client to the network: endpoints, RPC selection, commitment levels, faucets, rate-limit guidance, local development against `solana-test-validator`, and the path to mainnet.
+
+## Network Summary
+
+| Field | Value |
+| --- | --- |
+| Network | Solana Devnet |
+| Cluster | `devnet` |
+| RPC | `https://api.devnet.solana.com` |
+| WebSocket | `wss://api.devnet.solana.com` |
+| Commitment | `confirmed` (recommended) |
+| Slot time | ~400 ms |
+| Block finalization | ~13 s (confirmed → finalized) |
+| Explorer | [explorer.solana.com — devnet](https://explorer.solana.com/?cluster=devnet) |
+| SOL faucet | [faucet.solana.com](https://faucet.solana.com) |
+| USDC faucet | [faucet.circle.com](https://faucet.circle.com) |
+
+Solana doesn't have a numeric chain ID like EVM networks do — clusters are identified by their genesis hash. The `genesisHash` for devnet is `EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG`. Most clients identify clusters by name (`devnet` / `testnet` / `mainnet-beta`) instead.
+
+## Endpoints
+
+| Purpose | URL |
+| --- | --- |
+| Public devnet RPC | `https://api.devnet.solana.com` |
+| Public devnet WebSocket | `wss://api.devnet.solana.com` |
+| Helius devnet RPC | `https://devnet.helius-rpc.com/?api-key=YOUR_KEY` |
+| Helius devnet WebSocket | `wss://devnet.helius-rpc.com/?api-key=YOUR_KEY` |
+| QuickNode | Per-customer endpoint |
+| Triton One | Per-customer endpoint |
+| Local validator | `http://127.0.0.1:8899` and `ws://127.0.0.1:8900` |
+
+The public endpoint is throttled and shares one queue with every other developer. Use it for casual exploration and unit tests; switch to a commercial RPC for anything user-facing.
+
+## RPC Selection
+
+| RPC | Pros | Cons | When to use |
+| --- | --- | --- | --- |
+| Public (`api.devnet.solana.com`) | Free, no setup | Heavy rate limits, unreliable under load | Casual scripts, CI |
+| Helius | Free tier (1M req/mo), priority fees, parsed transactions, gRPC | Requires sign-up | Production frontends, indexers |
+| QuickNode | Stable, broad chain coverage | Paid | Multi-chain apps |
+| Triton One | High throughput, gRPC | Paid | High-frequency trading, custom oracles |
+| `solana-test-validator` | Deterministic, instant airdrops | Single node, devnet state not present | Tests, local development |
+
+The PRISM frontend defaults to Helius via `NEXT_PUBLIC_RPC_URL`:
+
+```bash
+NEXT_PUBLIC_RPC_URL=https://devnet.helius-rpc.com/?api-key=YOUR_KEY
+```
+
+The SDK examples and the `buildPrograms` helper pick this up automatically through `process.env.NEXT_PUBLIC_RPC_URL`.
+
+## Commitment Levels
+
+Solana has three commitment levels, each with different latency and rollback safety:
+
+| Commitment | Latency | Rollback safe? | Use case |
+| --- | --- | --- | --- |
+| `processed` | ~400 ms (1 slot) | ❌ Can be rolled back | Optimistic UI updates, animations |
+| `confirmed` | ~1 s (32 slots votes) | ⚠️ Very rarely rolled back | **Default for PRISM** — read/write workflows |
+| `finalized` | ~13 s (rooted by supermajority) | ✅ Cryptographically final | Settlement, bridge proofs, audit logs |
+
+PRISM's frontend, examples, and tests all use `confirmed` by default:
+
+```typescript
+const provider = new AnchorProvider(connection, wallet, {
+  commitment: 'confirmed',
+  preflightCommitment: 'confirmed',
+});
+```
+
+For settlement-critical flows (e.g., archiving credit events to a bridge), upgrade to `finalized`:
+
+```typescript
+await core.methods.triggerCreditEvent(0, lossAmount, severity)
+  .accounts({ /* ... */ })
+  .rpc({ commitment: 'finalized' });
+```
+
+## WebSocket Subscriptions
+
+Real-time state updates run over WebSocket. The most useful subscription for PRISM dashboards is `onAccountChange`, which fires on every write to a given account:
+
+```typescript
+const subId = connection.onAccountChange(
+  tranchePda,
+  (accountInfo) => {
+    const decoded = core.coder.accounts.decode('tranche', accountInfo.data);
+    console.log('NAV updated:', decoded.navPerShareQ.toString());
+  },
+  'confirmed',
+);
+
+// Later
+await connection.removeAccountChangeListener(subId);
+```
+
+Other useful subscriptions:
+
+- `onProgramAccountChange` — listens for any account owned by a program (verbose, costly)
+- `onLogs` — emits Anchor `emit!` events as they appear in transaction logs
+- `onSignature` — fires when a specific transaction signature finalizes
+
+For environments without WebSocket support (Cloudflare Workers, some serverless platforms), fall back to polling. The PRISM frontend uses 5-second `useQuery` polling — fast enough that demo NAV feels live, slow enough that public RPCs don't rate-limit.
+
+## Faucets
+
+### SOL
+
+The project ships an in-app faucet at `POST /api/testnet-faucet` that wraps the Solana airdrop RPC and falls back to the public faucet when rate-limited:
+
+```typescript
+const response = await fetch('/api/testnet-faucet', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ address: wallet.publicKey.toBase58() }),
+});
+const { amount, signature } = await response.json();
+```
+
+Or call the airdrop RPC directly:
+
+```bash
+solana airdrop 2 <wallet-pubkey> --url devnet
+```
+
+Limits: 2 SOL per request, 24-hour cooldown per IP. If you hit the limit, use [faucet.solana.com](https://faucet.solana.com) which pools across multiple validators.
+
+### USDC
+
+Devnet USDC must be acquired through Circle's hosted [faucet.circle.com](https://faucet.circle.com). Per-address daily limits apply.
+
+For local testing where your wallet holds the mint authority, mint directly:
+
+```bash
+spl-token mint <USDC_MINT> 10000 --owner keys/admin.json
+```
+
+The PRISM admin panel exposes a "Dev Faucet" button that calls `mint_to` when the connected wallet is the mint authority.
+
+## Rate Limits & Backoff
+
+Public RPC rate limits trigger HTTP 429 or RPC error -32429. Handle them with exponential backoff:
+
+```typescript
+async function withBackoff<T>(fn: () => Promise<T>, maxRetries = 5): Promise<T> {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (e: any) {
+      const isRateLimit =
+        e.message?.includes('429') ||
+        e.message?.includes('rate limit') ||
+        e.code === -32429;
+      if (!isRateLimit || attempt >= maxRetries) throw e;
+      const delayMs = 250 * 2 ** attempt;
+      await new Promise((r) => setTimeout(r, delayMs));
+      attempt++;
+    }
+  }
+}
+
+const vault = await withBackoff(() =>
+  core.account.vault.fetch(vaultPda),
+);
+```
+
+Helius and other commercial RPCs have generous quotas — typically rate limits are not an issue at indexer scale.
+
+## Local Development
+
+For deterministic testing, run a local validator:
+
+```bash
+solana-test-validator --reset
+```
+
+Then point your client at it:
+
+```bash
+solana config set --url http://127.0.0.1:8899
+ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
+```
+
+`anchor test` does this automatically and tears down the validator after the suite. See the [Test Suite](/developer/test-suite) page for the full local workflow.
+
+Local validators give you:
+
+- Instant airdrops (no rate limit)
+- Deterministic clocks (`warp_to_slot` for time-travel testing)
+- No public devnet state to interfere with your accounts
+- Sub-millisecond RPC latency
+
+The catch: state doesn't carry over from devnet. You need to redeploy programs and recreate accounts on every fresh validator start.
+
+## Troubleshooting RPC Errors
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| `Blockhash not found` | Transaction took too long to send | Refresh blockhash with `connection.getLatestBlockhash()` and retry |
+| `Transaction simulation failed: Blockhash not found` | Same as above, surfaced in preflight | Same |
+| `Account does not exist` | PDA not initialized yet | Run the appropriate `initialize_*` instruction first |
+| `Custom program error: 0x1771` (6001) | `VaultPaused` | Wait for admin to unpause |
+| `Insufficient funds for fee` | Wallet has no SOL | Airdrop SOL or fund manually |
+| `node is behind by N slots` | RPC node is stale | Switch to a different RPC |
+| WebSocket disconnects | Public RPC closing idle connections | Configure auto-reconnect in your client |
+
+## Mainnet
+
+PRISM does not yet run on mainnet. Before any mainnet claim, the team will:
+
+1. **Re-deploy programs** under a hardware-wallet upgrade authority.
+2. **Rotate authority** to a Squads multisig immediately after deploy.
+3. **Remove demo keypairs** (`contracts/keys/`) and the local IKA test oracle from frontend bundles.
+4. **Switch USDC mint** to mainnet (`EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`).
+5. **Wire a real IKA oracle URL** instead of the local test endpoint.
+6. **Complete a third-party audit** with all findings remediated and re-tested.
+
+Track the full pre-mainnet checklist in `docs/before-mainnet.md`.
+
+<Warning>
+Devnet USDC, devnet SOL, and devnet program deployments have no monetary value. Never reuse the same keypairs on mainnet — generate fresh authorities, store them in hardware wallets, and rotate the upgrade authority to a multisig immediately after deploy.
+</Warning>

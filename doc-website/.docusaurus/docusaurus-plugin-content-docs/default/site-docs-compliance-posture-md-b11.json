@@ -1,0 +1,28 @@
+{
+  "id": "compliance-posture",
+  "title": "Compliance Posture",
+  "description": "PRISM is designed as non-custodial, non-advisory, deterministic infrastructure.",
+  "source": "@site/docs/compliance-posture.md",
+  "sourceDirName": ".",
+  "slug": "/compliance-posture",
+  "permalink": "/compliance-posture",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 14,
+  "frontMatter": {
+    "sidebar_position": 14,
+    "title": "Compliance Posture",
+    "id": "compliance-posture"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Security & Controls",
+    "permalink": "/security-controls"
+  },
+  "next": {
+    "title": "Roadmap",
+    "permalink": "/roadmap"
+  }
+}

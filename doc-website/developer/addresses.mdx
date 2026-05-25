@@ -1,0 +1,244 @@
+---
+title: Deployed Addresses
+description: PRISM Protocol program IDs, mint addresses, PDA derivation rules, and account size reference for Solana Devnet.
+---
+
+# Deployed Addresses
+
+All addresses below are on **Solana Devnet**. Mainnet has its own deployment with different program IDs and a hardware-wallet upgrade authority controlled by a multisig.
+
+## Quick Reference
+
+<CardGroup cols={2}>
+  <Card title="prism_core" icon="cube">
+    `GGb2hHKW…26BKp`
+
+    Credit engine — vault, tranches, loans, NAV, waterfall, default cascade, IKA collateral.
+  </Card>
+  <Card title="prism_amm" icon="arrows-rotate">
+    `6xu3TJub…1S5M6Q`
+
+    Constant-product AMM for tranche tokens vs USDC. Independent of `prism_core`.
+  </Card>
+  <Card title="USDC (devnet)" icon="dollar-sign">
+    `4zMMC9sr…JDncDU`
+
+    Circle's official devnet USDC mint. 6 decimals.
+  </Card>
+  <Card title="Vault #1" icon="vault">
+    `8TDuRCL3…28UPYH`
+
+    The live demo vault on devnet (`vault_id = 1`).
+  </Card>
+</CardGroup>
+
+## Programs
+
+| Program | Address | Purpose |
+| --- | --- | --- |
+| `prism_core` | [`GGb2hHKWGxFT72wFDMtyLrqCj9yQaE8etpPTw1p26BKp`](https://explorer.solana.com/address/GGb2hHKWGxFT72wFDMtyLrqCj9yQaE8etpPTw1p26BKp?cluster=devnet) | Credit engine |
+| `prism_amm` | [`6xu3TJubMGdepBDoyKN4dC8rHytK35FRbG2fdZ1S5M6Q`](https://explorer.solana.com/address/6xu3TJubMGdepBDoyKN4dC8rHytK35FRbG2fdZ1S5M6Q?cluster=devnet) | Secondary market AMM |
+
+The two programs are intentionally separated. `prism_amm` only depends on the SPL mints exposed by `prism_core` — it never reads or writes vault state. This blast-radius isolation means a bug in the AMM can't compromise vault accounting, and each program can be audited and upgraded independently.
+
+## Tokens
+
+| Token | Address | Decimals |
+| --- | --- | --- |
+| Devnet USDC | [`4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`](https://explorer.solana.com/address/4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU?cluster=devnet) | 6 |
+
+The protocol is denominated in USDC. All tranche mints (`pPRIME`, `pCORE`, `pALPHA`) and AMM LP mints also use 6 decimals so NAV math stays integer-clean at NAV = 1.0.
+
+## Vault #1 — Live Demo
+
+The current devnet demo runs against `vault_id = 1`. The protocol-level singletons and the vault top-level account:
+
+| Account | Address |
+| --- | --- |
+| `GlobalConfig` | [`5tgMtuBABb6jM4mLVfQuPsJuFJWN82LuvmqeE5ATFgvo`](https://explorer.solana.com/address/5tgMtuBABb6jM4mLVfQuPsJuFJWN82LuvmqeE5ATFgvo?cluster=devnet) |
+| `Vault` | [`8TDuRCL3S6i8zLFrVauP8uHhwErqD1X6aJVDLY28UPYH`](https://explorer.solana.com/address/8TDuRCL3S6i8zLFrVauP8uHhwErqD1X6aJVDLY28UPYH?cluster=devnet) |
+
+All other vault-scoped accounts (tranche state, tranche mints, USDC reserve, loss bucket, loan, credit events, AMM pools) derive deterministically from the vault PDA.
+
+## IKA Test Oracle
+
+For local development, the project ships a fixed-keypair test oracle that signs the 81-byte attestation message. The pubkey is constant across runs:
+
+| Account | Address |
+| --- | --- |
+| Test oracle pubkey | [`5nmEq5cNc9yXpK1ySrb4XH65zccBvRK2hwKnEJePjcrf`](https://explorer.solana.com/address/5nmEq5cNc9yXpK1ySrb4XH65zccBvRK2hwKnEJePjcrf?cluster=devnet) |
+
+Use this as `oracle_pubkey` when calling `attach_ika_collateral` against a locally-served oracle endpoint. **Never** use this key on mainnet — the secret is checked into the repo.
+
+## PDA Seed Reference
+
+PRISM uses Program-Derived Addresses for every protocol-controlled account. Use the SDK helpers (recommended) or derive locally with these seeds:
+
+| PDA | Seeds | Owner program | SDK helper |
+| --- | --- | --- | --- |
+| `GlobalConfig` | `["config2"]` | `prism_core` | `getConfigPda()` |
+| `Vault` | `["vault", vault_id_le_bytes]` | `prism_core` | `getVaultPda(id)` |
+| `Tranche` | `["tranche", vault, [kind]]` | `prism_core` | `getTranchePda(vault, kind)` |
+| `Tranche Mint` | `["mint", vault, [kind]]` | `prism_core` | `getTrancheMintPda(vault, kind)` |
+| `Vault USDC reserve` | `["reserve", vault]` | `prism_core` | `getVaultReservePda(vault)` |
+| `Loss bucket` | `["loss_bucket", vault]` | `prism_core` | `getLossBucketPda(vault)` |
+| `Loan` | `["loan", vault, loan_id_le_bytes]` | `prism_core` | `getLoanPda(vault, id)` |
+| `CreditEvent` | `["credit_event", vault, seq_le_bytes]` | `prism_core` | `getCreditEventPda(vault, seq)` |
+| `IkaCollateral` | `["ika_collateral_v2", loan]` | `prism_core` | `getIkaCollateralPda(loan)` |
+| `EncryptHealth` | `["encrypt_health", loan]` | `prism_core` | `getEncryptHealthPda(loan)` |
+| `CloakPayout` | `["cloak_payout", vault]` | `prism_core` | `getCloakPayoutPda(vault)` |
+| `AmmPool` | `["amm", tranche_mint]` | `prism_amm` | `getPoolPda(trancheMint)` |
+| `AMM Tranche reserve` | `["amm_tranche", tranche_mint]` | `prism_amm` | `getPoolTrancheReservePda(trancheMint)` |
+| `AMM Quote reserve` | `["amm_quote", tranche_mint]` | `prism_amm` | `getPoolQuoteReservePda(trancheMint)` |
+| `AMM LP mint` | `["amm_lp", tranche_mint]` | `prism_amm` | `getLpMintPda(trancheMint)` |
+
+`kind` byte: `0 = Prime`, `1 = Core`, `2 = Alpha`. All multi-byte integer seeds are little-endian.
+
+## Derive Every PDA in TypeScript
+
+The full set for a single vault, in one snippet you can paste into a script:
+
+```typescript
+import {
+  PRISM_CORE_PROGRAM_ID,
+  PRISM_AMM_PROGRAM_ID,
+  TrancheKind,
+  USDC_MINT,
+  getConfigPda,
+  getVaultPda,
+  getTranchePda,
+  getTrancheMintPda,
+  getVaultReservePda,
+  getLossBucketPda,
+  getLoanPda,
+  getCreditEventPda,
+  getIkaCollateralPda,
+  getPoolPda,
+  getPoolTrancheReservePda,
+  getPoolQuoteReservePda,
+  getLpMintPda,
+} from 'prismprotocol-sdk';
+
+const VAULT_ID = 1;
+const LOAN_ID = 0;
+const CREDIT_EVENT_SEQ = 0;
+
+const [config]      = getConfigPda();
+const [vault]       = getVaultPda(VAULT_ID);
+const [reserve]     = getVaultReservePda(vault);
+const [lossBucket]  = getLossBucketPda(vault);
+const [loan]        = getLoanPda(vault, LOAN_ID);
+const [creditEvent] = getCreditEventPda(vault, CREDIT_EVENT_SEQ);
+const [collateral]  = getIkaCollateralPda(loan);
+
+// Per-tranche
+const tranches = [TrancheKind.Prime, TrancheKind.Core, TrancheKind.Alpha].map((kind) => {
+  const [pda]     = getTranchePda(vault, kind);
+  const [mint]    = getTrancheMintPda(vault, kind);
+  const [pool]    = getPoolPda(mint);
+  const [pTRsv]   = getPoolTrancheReservePda(mint);
+  const [pQRsv]   = getPoolQuoteReservePda(mint);
+  const [lpMint]  = getLpMintPda(mint);
+  return { kind, pda, mint, pool, trancheReserve: pTRsv, quoteReserve: pQRsv, lpMint };
+});
+
+console.log({
+  programs: {
+    core: PRISM_CORE_PROGRAM_ID.toBase58(),
+    amm: PRISM_AMM_PROGRAM_ID.toBase58(),
+  },
+  tokens: {
+    usdc: USDC_MINT.toBase58(),
+  },
+  vault: {
+    config: config.toBase58(),
+    vault: vault.toBase58(),
+    reserve: reserve.toBase58(),
+    lossBucket: lossBucket.toBase58(),
+    loan: loan.toBase58(),
+    creditEvent: creditEvent.toBase58(),
+    collateral: collateral.toBase58(),
+  },
+  tranches: tranches.map((t) => ({
+    kind: TrancheKind[t.kind],
+    tranche: t.pda.toBase58(),
+    mint: t.mint.toBase58(),
+    pool: t.pool.toBase58(),
+  })),
+});
+```
+
+## Account Sizes & Rent
+
+Anchor accounts include an 8-byte discriminator. The on-chain layouts:
+
+| Account | Size (bytes) | Rent (SOL, devnet) |
+| --- | --- | --- |
+| `GlobalConfig` | 350 | ~0.0026 |
+| `Vault` | 250 | ~0.0019 |
+| `Tranche` | 132 | ~0.0011 |
+| `Loan` | 135 | ~0.0011 |
+| `CreditEvent` | 145 | ~0.0011 |
+| `IkaCollateral` | 122 | ~0.0010 |
+| `AmmPool` | 171 | ~0.0014 |
+
+These are rent-exempt by default (Anchor's `init` constraint). The admin pays rent at `initialize_*` time and the lamports stay locked for the lifetime of the account.
+
+## Authority Model
+
+Every signing requirement, in one place:
+
+| Resource | Authority | Notes |
+| --- | --- | --- |
+| `initialize_global_config` | New admin pubkey | Set on first call, immutable thereafter |
+| `initialize_vault` | `config.admin` | Enforced via `has_one = admin` |
+| `initialize_tranche` | `config.admin` | Same |
+| `initialize_loan` | `config.admin` | Same |
+| `disburse_loan` | `config.admin` | Optional `IkaCollateral` must be `Locked` |
+| `pause` / `unpause` | `config.admin` | Emergency switch |
+| `accrue_yield` | `config.admin` OR allowlisted oracle | Plus borrower co-signs to authorize the USDC pull |
+| `trigger_credit_event` | `config.admin` OR allowlisted oracle | |
+| `liquidate_ika_collateral` | `config.admin` | Vault must be `Defaulted`/`Resolved` |
+| `deposit` / `withdraw` | User | Token transfer authority is the user's wallet |
+| `repay_loan` | The exact `loan.borrower` pubkey | |
+| `attach_ika_collateral` | The exact `loan.borrower` pubkey | |
+| `verify_ika_collateral` | Anyone (relayer-friendly) | Validity proven by ed25519 precompile, not signer |
+| `release_ika_collateral` | Anyone (loan must be `Repaid`) | |
+| Tranche mint authority | `Tranche` PDA | Only `prism_core` can mint/burn pTokens |
+| Vault USDC reserve authority | `Vault` PDA | Only `prism_core` can move reserve USDC |
+| AMM pool reserves authority | `AmmPool` PDA | Only `prism_amm` can move pool reserves |
+| LP mint authority | `AmmPool` PDA | Only `prism_amm` can mint/burn LP shares |
+
+`oracle_allowlist` lives in `GlobalConfig.oracle_allowlist` — up to 8 pubkeys allowed to call privileged read-only triggers.
+
+## Verifying On-Chain
+
+Cross-check any address using the Solana CLI:
+
+```bash
+# Confirm a program is deployed
+solana program show GGb2hHKWGxFT72wFDMtyLrqCj9yQaE8etpPTw1p26BKp --url devnet
+
+# Inspect the GlobalConfig PDA
+solana account 5tgMtuBABb6jM4mLVfQuPsJuFJWN82LuvmqeE5ATFgvo --url devnet --output json
+
+# View the vault USDC reserve token balance
+spl-token account-info <vault_reserve_pda> --url devnet
+```
+
+Or jump directly to [Solana Explorer (devnet)](https://explorer.solana.com/?cluster=devnet) and paste any address from the tables above.
+
+<Warning>
+These are **devnet** program IDs. They will be re-deployed for mainnet with a new upgrade authority. Never assume program IDs are stable across networks — always read them from the SDK constants or your environment configuration. Do not hard-code these into Rust programs that target mainnet.
+</Warning>
+
+## Mainnet (Coming Soon)
+
+Mainnet program IDs will be published here once:
+
+1. Programs are re-deployed under a hardware-wallet upgrade authority.
+2. Upgrade authority is rotated to a Squads multisig.
+3. Third-party audit is complete with all findings remediated.
+4. USDC mint references switch to mainnet (`EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`).
+
+Track progress in the project's `before-mainnet.md` checklist.

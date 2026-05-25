@@ -1,0 +1,28 @@
+{
+  "id": "roadmap",
+  "title": "Roadmap",
+  "description": "PRISM is planned in phases, beginning with the core structured credit engine and expanding into broader credit markets, automation, and institutional integrations.",
+  "source": "@site/docs/roadmap.md",
+  "sourceDirName": ".",
+  "slug": "/roadmap",
+  "permalink": "/roadmap",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 15,
+  "frontMatter": {
+    "sidebar_position": 15,
+    "title": "Roadmap",
+    "id": "roadmap"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Compliance Posture",
+    "permalink": "/compliance-posture"
+  },
+  "next": {
+    "title": "Glossary",
+    "permalink": "/glossary"
+  }
+}

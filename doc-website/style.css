@@ -1,0 +1,91 @@
+.nav-logo,
+nav-logo {
+  height: 2.75rem !important;
+  max-height: none !important;
+  width: auto !important;
+}
+
+#navbar a[href="/"]:has(.nav-logo) {
+  display: flex !important;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: max-content;
+}
+
+#navbar a[href="/"]:has(.nav-logo)::after {
+  content: "Prism Protocol Docs";
+  color: rgb(17 24 39);
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.dark #navbar a[href="/"]:has(.nav-logo)::after {
+  color: rgb(245 245 246);
+}
+
+#navbar .navbar-link a[href="https://www.prismprotocol.dev/blog"] {
+  color: rgb(107 114 128) !important;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.dark #navbar .navbar-link a[href="https://www.prismprotocol.dev/blog"] {
+  color: rgb(161 161 170) !important;
+}
+
+#navbar .navbar-link a[href="https://www.prismprotocol.dev/blog"]:hover {
+  color: rgb(31 41 55) !important;
+}
+
+.dark #navbar .navbar-link a[href="https://www.prismprotocol.dev/blog"]:hover {
+  color: rgb(245 245 246) !important;
+}
+
+#navbar .navbar-link a[href="https://www.prismprotocol.dev/"] {
+  align-items: center;
+  background: rgb(var(--primary-light) / var(--tw-text-opacity, 1));
+  border-radius: 8px;
+  color: white !important;
+  display: inline-flex !important;
+  font-size: 0.95rem;
+  font-weight: 600;
+  gap: 0.6rem;
+  height: 2.3rem;
+  line-height: 1;
+  padding: 0 0.95rem;
+  transition: background-color 180ms ease;
+}
+
+#navbar .navbar-link a[href="https://www.prismprotocol.dev/"]::after {
+  border-right: 2px solid currentColor;
+  border-top: 2px solid currentColor;
+  content: "";
+  display: inline-block;
+  height: 0.4rem;
+  transform: rotate(45deg);
+  width: 0.4rem;
+}
+
+#navbar .navbar-link a[href="https://www.prismprotocol.dev/"]:hover {
+  background: #db5fb9;
+}
+
+@media (max-width: 640px) {
+  .nav-logo,
+  nav-logo {
+    height: 2.35rem !important;
+  }
+
+  #navbar a[href="/"]:has(.nav-logo)::after {
+    font-size: 0.9rem;
+  }
+
+  #navbar .navbar-link a[href="https://www.prismprotocol.dev/"] {
+    height: 2.1rem;
+    padding: 0 0.8rem;
+  }
+}

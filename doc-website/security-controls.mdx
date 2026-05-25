@@ -1,0 +1,86 @@
+---
+title: Security & Controls
+---
+
+# Security & Controls
+
+PRISM financial logic must be deterministic, transparent, and enforceable on-chain.
+
+## Access Control
+
+PRISM separates privileged initialization from permissionless user flows.
+
+Admin authority controls:
+
+- Protocol initialization.
+- Vault setup.
+- Tranche setup.
+- Emergency actions.
+- Demo or fallback credit event triggers.
+
+Users can permissionlessly:
+
+- Deposit.
+- Withdraw.
+- Trade.
+- Read protocol state.
+
+## Pause Mechanism
+
+The protocol may pause:
+
+- Deposits.
+- Withdrawals.
+- Trading.
+
+While allowing:
+
+- Accounting updates.
+- Credit event resolution.
+- Emergency reconciliation.
+
+This matters because pausing user interaction should not prevent the protocol from applying a necessary credit event or preserving accounting integrity.
+
+## Determinism
+
+All financial logic is:
+
+- Transparent.
+- Reproducible.
+- Enforced on-chain.
+
+Given the same vault state and input event, the protocol should produce the same output every time.
+
+## PDA Authorities
+
+Program-derived addresses can control:
+
+- Vault reserves.
+- Tranche mints.
+- AMM reserves.
+- LP mints.
+
+This avoids trusting externally owned accounts with critical financial permissions.
+
+## Checked Math
+
+Credit accounting must avoid silent overflow, underflow, or precision surprises.
+
+Core calculations should use:
+
+- Checked arithmetic.
+- Fixed-point math.
+- Explicit rounding.
+- Reverts on impossible states.
+
+## Event Transparency
+
+Every meaningful financial transition should be inspectable:
+
+- Deposits.
+- Withdrawals.
+- Yield accrual.
+- Credit events.
+- AMM swaps.
+- Tranche NAV updates.
+

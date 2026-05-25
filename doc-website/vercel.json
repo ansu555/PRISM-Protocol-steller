@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "rewrites": [
+    {
+      "source": "/_mintlify/:path*",
+      "destination": "https://prismprotocol.mintlify.app/_mintlify/:path*"
+    }
+  ]
+}

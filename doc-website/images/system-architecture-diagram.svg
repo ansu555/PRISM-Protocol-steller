@@ -1,0 +1,116 @@
+<svg width="1440" height="900" viewBox="0 0 1440 900" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">PRISM system architecture diagram</title>
+  <desc id="desc">Five protocol domains show how capital, credit events, yield, losses, market pricing, and user surfaces connect inside PRISM Protocol.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1440" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#050505"/>
+      <stop offset="0.45" stop-color="#080608"/>
+      <stop offset="1" stop-color="#140815"/>
+    </linearGradient>
+    <linearGradient id="pink" x1="120" y1="80" x2="1300" y2="810" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F3AEDB"/>
+      <stop offset="0.48" stop-color="#DB5FB9"/>
+      <stop offset="1" stop-color="#7C4DFF"/>
+    </linearGradient>
+    <linearGradient id="coreGlow" x1="520" y1="220" x2="920" y2="650" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F3AEDB" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#7C4DFF" stop-opacity="0.08"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="14" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.95 0 1 0 0 0.45 0 0 1 0 0.83 0 0 0 0.45 0"/>
+      <feBlend in="SourceGraphic"/>
+    </filter>
+    <pattern id="grid" width="72" height="72" patternUnits="userSpaceOnUse">
+      <path d="M 72 0 L 0 0 0 72" stroke="#FFFFFF" stroke-opacity="0.055" stroke-width="1"/>
+    </pattern>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M 2 2 L 12 7 L 2 12" stroke="#F3AEDB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowDim" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M 2 2 L 12 7 L 2 12" stroke="#8B7F8A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect width="1440" height="900" rx="32" fill="url(#bg)"/>
+  <rect width="1440" height="900" rx="32" fill="url(#grid)"/>
+  <circle cx="1120" cy="190" r="230" fill="#DB5FB9" opacity="0.05"/>
+  <circle cx="300" cy="735" r="260" fill="#7C4DFF" opacity="0.05"/>
+
+  <text x="72" y="86" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="36" font-weight="650">PRISM Protocol Architecture</text>
+  <text x="72" y="126" fill="#A7A0A8" font-family="Inter, Arial, sans-serif" font-size="19">Credit enters as capital and borrower obligations. Risk exits as priced, tradable tranche exposure.</text>
+
+  <g opacity="0.92">
+    <rect x="72" y="190" width="240" height="134" rx="18" fill="#080808" stroke="#FFFFFF" stroke-opacity="0.16"/>
+    <text x="98" y="232" fill="#F3AEDB" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="2.4">01 SOURCING</text>
+    <text x="98" y="271" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="620">Credit intake</text>
+    <text x="98" y="303" fill="#9E969F" font-family="Inter, Arial, sans-serif" font-size="16">Borrowers, USDC,</text>
+    <text x="98" y="326" fill="#9E969F" font-family="Inter, Arial, sans-serif" font-size="16">loan metadata</text>
+  </g>
+
+  <g opacity="0.92">
+    <rect x="1128" y="190" width="240" height="134" rx="18" fill="#080808" stroke="#FFFFFF" stroke-opacity="0.16"/>
+    <text x="1154" y="232" fill="#F3AEDB" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="2.4">05 SURFACE</text>
+    <text x="1154" y="271" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="620">User apps</text>
+    <text x="1154" y="303" fill="#9E969F" font-family="Inter, Arial, sans-serif" font-size="16">Dashboard, admin,</text>
+    <text x="1154" y="326" fill="#9E969F" font-family="Inter, Arial, sans-serif" font-size="16">borrower flows</text>
+  </g>
+
+  <g filter="url(#glow)">
+    <rect x="480" y="190" width="480" height="366" rx="28" fill="#070707" stroke="url(#pink)" stroke-opacity="0.85"/>
+    <rect x="512" y="230" width="416" height="286" rx="24" fill="url(#coreGlow)" stroke="#FFFFFF" stroke-opacity="0.12"/>
+  </g>
+  <text x="540" y="277" fill="#F3AEDB" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="2.4">02 CORE PROTOCOL</text>
+  <text x="540" y="322" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="35" font-weight="650">Deterministic vault</text>
+  <text x="540" y="358" fill="#A7A0A8" font-family="Inter, Arial, sans-serif" font-size="18">NAV, tranche supply, yield waterfall,</text>
+  <text x="540" y="384" fill="#A7A0A8" font-family="Inter, Arial, sans-serif" font-size="18">and reverse-priority loss cascade.</text>
+
+  <g>
+    <rect x="540" y="430" width="116" height="56" rx="14" fill="#101010" stroke="#FFFFFF" stroke-opacity="0.16"/>
+    <text x="575" y="465" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="620">Prime</text>
+    <rect x="662" y="430" width="116" height="56" rx="14" fill="#101010" stroke="#FFFFFF" stroke-opacity="0.16"/>
+    <text x="702" y="465" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="620">Core</text>
+    <rect x="784" y="430" width="116" height="56" rx="14" fill="#101010" stroke="#FFFFFF" stroke-opacity="0.16"/>
+    <text x="824" y="465" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="620">Alpha</text>
+  </g>
+
+  <g opacity="0.92">
+    <rect x="206" y="642" width="304" height="148" rx="18" fill="#080808" stroke="#FFFFFF" stroke-opacity="0.16"/>
+    <text x="232" y="686" fill="#F3AEDB" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="2.4">04 INTEGRITY</text>
+    <text x="232" y="726" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="620">Verified events</text>
+    <text x="232" y="758" fill="#9E969F" font-family="Inter, Arial, sans-serif" font-size="16">Controls, oracle attestations,</text>
+    <text x="232" y="781" fill="#9E969F" font-family="Inter, Arial, sans-serif" font-size="16">audit trail, loss bucket</text>
+  </g>
+
+  <g opacity="0.92">
+    <rect x="930" y="642" width="304" height="148" rx="18" fill="#080808" stroke="#FFFFFF" stroke-opacity="0.16"/>
+    <text x="956" y="686" fill="#F3AEDB" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="2.4">03 RISK &amp; MARKET</text>
+    <text x="956" y="726" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="620">Tranche AMMs</text>
+    <text x="956" y="758" fill="#9E969F" font-family="Inter, Arial, sans-serif" font-size="16">pPRIME, pCORE, pALPHA</text>
+    <text x="956" y="781" fill="#9E969F" font-family="Inter, Arial, sans-serif" font-size="16">market price discovery</text>
+  </g>
+
+  <path d="M312 257 C370 257 404 257 470 257" stroke="#F3AEDB" stroke-width="2.4" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="344" y="237" fill="#8B7F8A" font-family="Inter, Arial, sans-serif" font-size="14" letter-spacing="1.3">CAPITAL + CREDIT</text>
+
+  <path d="M960 257 C1024 257 1064 257 1120 257" stroke="#8B7F8A" stroke-width="2.2" stroke-linecap="round" marker-end="url(#arrowDim)"/>
+  <text x="994" y="237" fill="#8B7F8A" font-family="Inter, Arial, sans-serif" font-size="14" letter-spacing="1.3">STATE READS</text>
+
+  <path d="M844 556 C898 594 925 608 996 642" stroke="#F3AEDB" stroke-width="2.4" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="902" y="601" fill="#8B7F8A" font-family="Inter, Arial, sans-serif" font-size="14" letter-spacing="1.3">TRANCHE TOKENS</text>
+
+  <path d="M600 556 C542 596 498 616 430 642" stroke="#8B7F8A" stroke-width="2.2" stroke-linecap="round" marker-end="url(#arrowDim)"/>
+  <text x="454" y="602" fill="#8B7F8A" font-family="Inter, Arial, sans-serif" font-size="14" letter-spacing="1.3">CREDIT EVENTS</text>
+
+  <path d="M1078 642 C1078 578 1032 530 958 494" stroke="#F3AEDB" stroke-width="2.2" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <text x="1062" y="568" fill="#8B7F8A" font-family="Inter, Arial, sans-serif" font-size="14" letter-spacing="1.3">MARKET PRICE</text>
+
+  <g>
+    <path d="M568 520 C620 585 822 585 872 520" stroke="#F3AEDB" stroke-opacity="0.78" stroke-width="2" stroke-linecap="round"/>
+    <text x="603" y="600" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="610">Yield: Prime -> Core -> Alpha</text>
+    <text x="603" y="628" fill="#A7A0A8" font-family="Inter, Arial, sans-serif" font-size="16">Losses: Alpha -> Core -> Prime</text>
+  </g>
+
+  <rect x="72" y="842" width="1296" height="1" fill="#FFFFFF" opacity="0.13"/>
+  <text x="72" y="872" fill="#8B7F8A" font-family="Inter, Arial, sans-serif" font-size="14">Source of truth: vault NAV. Market surface: AMM price. PRISM keeps them separate so credit risk can reprice live.</text>
+</svg>

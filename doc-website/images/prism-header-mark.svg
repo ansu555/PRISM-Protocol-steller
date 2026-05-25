@@ -1,0 +1,11 @@
+<svg width="72" height="64" viewBox="0 0 72 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
+  <title id="title">PRISM logo</title>
+  <defs>
+    <clipPath id="logo-clip">
+      <rect width="72" height="64"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#logo-clip)">
+    <image href="prism.png" x="-252" y="-136" width="576" height="384" preserveAspectRatio="xMidYMid slice"/>
+  </g>
+</svg>

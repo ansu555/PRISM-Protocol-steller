@@ -1,0 +1,28 @@
+{
+  "id": "core-operations",
+  "title": "Core Operations",
+  "description": "PRISM exposes five core operations: deposit, yield accrual, credit event resolution, withdrawal, and trading.",
+  "source": "@site/docs/core-operations.md",
+  "sourceDirName": ".",
+  "slug": "/core-operations",
+  "permalink": "/core-operations",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 9,
+  "frontMatter": {
+    "sidebar_position": 9,
+    "title": "Core Operations",
+    "id": "core-operations"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Edge Case Handling",
+    "permalink": "/edge-case-handling"
+  },
+  "next": {
+    "title": "Security & Controls",
+    "permalink": "/security-controls"
+  }
+}

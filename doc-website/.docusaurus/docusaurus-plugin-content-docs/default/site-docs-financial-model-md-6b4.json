@@ -1,0 +1,28 @@
+{
+  "id": "financial-model",
+  "title": "Financial Model",
+  "description": "PRISM's financial model is based on tranche assets, tranche supply, NAV, yield allocation, and loss allocation.",
+  "source": "@site/docs/financial-model.md",
+  "sourceDirName": ".",
+  "slug": "/financial-model",
+  "permalink": "/financial-model",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 8,
+  "frontMatter": {
+    "sidebar_position": 8,
+    "title": "Financial Model",
+    "id": "financial-model"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Surface Layer",
+    "permalink": "/surface-layer"
+  },
+  "next": {
+    "title": "Token Model",
+    "permalink": "/token-model"
+  }
+}

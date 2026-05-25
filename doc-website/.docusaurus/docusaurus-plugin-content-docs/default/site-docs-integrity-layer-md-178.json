@@ -1,0 +1,28 @@
+{
+  "id": "integrity-layer",
+  "title": "Integrity Layer",
+  "description": "The Integrity Layer ensures correctness, verifiability, and optional privacy.",
+  "source": "@site/docs/integrity-layer.md",
+  "sourceDirName": ".",
+  "slug": "/integrity-layer",
+  "permalink": "/integrity-layer",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 6,
+  "frontMatter": {
+    "sidebar_position": 6,
+    "title": "Integrity Layer",
+    "id": "integrity-layer"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Risk & Market Layer",
+    "permalink": "/risk-market-layer"
+  },
+  "next": {
+    "title": "Surface Layer",
+    "permalink": "/surface-layer"
+  }
+}

@@ -1,0 +1,79 @@
+---
+title: Core Protocol Layer
+---
+
+# Core Protocol Layer
+
+The Core Protocol Layer is the deterministic execution engine of PRISM. It owns the vault accounting model, tranche state, NAV calculation, yield waterfall, and default resolution.
+
+## Vault
+
+A vault represents a single credit pool containing multiple risk tranches.
+
+Each vault tracks:
+
+- USDC reserve.
+- Tranche configuration.
+- Total assets across tranches.
+- Credit event history.
+- Permission and pause state.
+
+A vault is not a generic pool. It is a structured credit container with explicit rules for who gets paid first and who absorbs losses first.
+
+## Tranches
+
+Each vault is partitioned into three tranches:
+
+| Tranche | Description | Waterfall Position | Loss Position |
+| --- | --- | --- | --- |
+| Prime | Loss-protected exposure (junior tranches absorb first) | Paid first | Absorbs last |
+| Core | Intermediate risk exposure | Paid second | Absorbs second |
+| Alpha | 15% target-yield exposure (first-loss capital) | Paid last | Absorbs first |
+
+Each tranche maintains:
+
+- `total_assets`
+- `total_supply`
+- NAV per share
+- target yield parameters, where applicable
+- token mint relationship
+
+## NAV Per Share
+
+NAV is the intrinsic accounting value of one tranche token.
+
+```text
+NAV = total_assets / total_supply
+```
+
+Deposits mint shares based on current NAV. Withdrawals burn shares and redeem USDC based on current NAV. Yield increases tranche assets. Loss decreases tranche assets.
+
+## Waterfall Distribution
+
+Incoming yield is allocated in priority order:
+
+1. Prime tranche.
+2. Core tranche.
+3. Alpha tranche.
+
+Target rates define how much yield each tranche is entitled to in priority order: Prime targets 5%, Core targets 8%, and Alpha targets 15%.
+
+## Default Resolution
+
+Losses are applied in reverse priority:
+
+1. Alpha absorbs losses first.
+2. Core absorbs remaining losses after Alpha is depleted.
+3. Prime absorbs losses only after subordinate tranches are depleted.
+
+This makes subordination explicit. Prime protection is not magic; it exists because junior capital is placed below Prime in the loss stack.
+
+## Reserve Invariant
+
+The core accounting invariant is:
+
+```text
+vault_usdc_reserve = prime_assets + core_assets + alpha_assets
+```
+
+When yield enters, both the reserve and tranche assets increase. When a loss is realized, USDC leaves the vault and tranche assets decrease through the cascade.

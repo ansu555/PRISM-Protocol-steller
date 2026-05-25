@@ -1,0 +1,93 @@
+---
+title: Introduction
+---
+
+# PRISM Protocol
+
+PRISM stands for **Programmable Risk & Income Structured Markets**.
+
+The name describes the protocol's core purpose: PRISM takes a credit pool and refracts it into distinct risk and income layers, the same way a prism separates light into visible bands. Each layer has its own primeity, yield profile, loss exposure, token, and market price.
+
+PRISM Protocol is decentralized, non-custodial credit infrastructure for creating, structuring, trading, and managing credit risk on-chain.
+
+PRISM turns credit into transparent, programmable, and liquid risk layers. Instead of treating a credit pool as one blended exposure, PRISM decomposes it into tranches with different priority, yield, and loss behavior.
+
+The protocol introduces a system where:
+
+- Credit is decomposed into risk-segmented tranches.
+- Cash flows are distributed through deterministic waterfall logic.
+- Losses are absorbed through predefined subordination hierarchies.
+- Credit positions are represented as fungible SPL tokens.
+- Tranche tokens can trade in open markets against USDC.
+
+<Info>
+Credit should be transparent, programmable, and liquid.
+</Info>
+
+## Why The Name PRISM
+
+Credit is not one uniform exposure. A single pool can contain prime protection, core yield, alpha upside, default risk, liquidity premiums, and market sentiment at the same time.
+
+PRISM makes those hidden layers explicit:
+
+- **Programmable:** credit logic is encoded into deterministic on-chain rules.
+- **Risk:** each tranche exposes a different position in the loss hierarchy.
+- **Income:** yield flows through a defined waterfall from Prime to Core to Alpha.
+- **Structured:** vaults use tranche-based subordination rather than a single blended pool.
+- **Markets:** tranche tokens can trade independently, allowing live price discovery.
+
+That is why PRISM expands to **Programmable Risk & Income Structured Markets**.
+
+## Why PRISM Exists
+
+Credit is one of the largest financial primitives in the world, but most credit exposure is hard to inspect, hard to transfer, and hard to price in real time. Traditional structured credit uses primeity and subordination, but those mechanics usually live behind private documents, manual administration, and opaque secondary markets.
+
+PRISM brings those mechanics on-chain. Vault state, tranche accounting, NAV updates, waterfall distributions, credit events, token balances, and AMM prices are all visible to the user.
+
+## What PRISM Makes Possible
+
+PRISM enables a new category of on-chain financial products:
+
+- Structured credit vaults with explicit primeity.
+- Tokenized credit positions that can be transferred or traded.
+- Live market pricing for tranche-specific risk.
+- Deterministic yield and loss accounting.
+- Simulation-first risk education for users and developers.
+- Future integrations with real-world assets, cross-chain collateral, identity, and institutional originators.
+
+## Mental Model
+
+A PRISM vault is a credit pool split into three risk layers:
+
+| Tranche | Priority | Risk Role | Typical User |
+| --- | --- | --- | --- |
+| Prime | Paid first | Most protected | Conservative capital |
+| Core | Paid second | Intermediate exposure | Balanced capital |
+| Alpha | Paid last | First-loss absorber | 15% target-yield exposure |
+
+When yield enters the vault, it flows from the safest layer to the riskiest layer. When losses hit, they flow in the opposite direction.
+
+## The Defining Moment
+
+The most important PRISM behavior is the loss cascade.
+
+When a credit event occurs:
+
+1. Alpha absorbs losses first.
+2. Core absorbs remaining losses after Alpha is depleted.
+3. Prime absorbs losses only after subordinate tranches are depleted.
+
+This is the core demonstration:
+
+> Losses do not disappear. They move.
+
+## Documentation Map
+
+Use this documentation to understand PRISM from multiple angles:
+
+- [System Architecture](./system-architecture) explains the five protocol domains.
+- [Core Protocol Layer](./core-protocol-layer) defines vaults, tranches, waterfalls, and default resolution.
+- [Financial Model](./financial-model) explains NAV, yield, loss, and accounting integrity.
+- [Core Operations](./core-operations) walks through deposit, yield accrual, credit events, withdrawal, and trading.
+- [Market Design](./market-design) explains AMM liquidity and price discovery.
+- [Security & Controls](./security-controls) covers access control, pause behavior, and deterministic execution.
