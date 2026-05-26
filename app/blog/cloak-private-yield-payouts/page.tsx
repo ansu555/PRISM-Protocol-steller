@@ -32,7 +32,7 @@ const cloakProperties = [
   "Individual payout amounts are hidden from all outside observers.",
   "Each LP receives a viewing key — the only path to their own amount.",
   "The batch receipt is committed on-chain: public confirmation, private amounts.",
-  "Live on Solana mainnet — not a prototype, not a promise.",
+  "Live on Stellar — not a prototype, not a promise.",
 ];
 
 const attestationLayout = [
@@ -46,7 +46,7 @@ const integrationFlow = [
   {
     step: "01",
     title: "Accrue Yield On-Chain",
-    body: "The standard PRISM waterfall runs on Solana. Yield flows top-down: Prime to Core to Alpha. At this point, amounts exist in on-chain account state — still public.",
+    body: "The standard PRISM waterfall runs on Stellar. Yield flows top-down: Prime to Core to Alpha. At this point, amounts exist in on-chain account state — still public.",
   },
   {
     step: "02",
@@ -66,7 +66,7 @@ const integrationFlow = [
 ];
 
 const withoutCloak = [
-  "Every LP payout amount is permanently public on Solana.",
+  "Every LP payout amount is permanently public on Stellar.",
   "Competitors read tranche allocation and infer LP strategy.",
   "Institutional credit desks refuse to participate — disclosure risk is unacceptable.",
   "The yield market is limited to actors with no privacy requirements.",
@@ -175,7 +175,7 @@ export default function CloakPrivateYieldArticlePage() {
           <div className="max-w-4xl">
             <ArticleSection eyebrow="The problem" title="A public ledger is a terrible place for payouts.">
               <p>
-                Solana is a public blockchain. Every instruction, every account mutation, every token transfer is permanently recorded and indexed within seconds. That permanence is a feature — it is the source of PRISM's transparency and auditability.
+                Stellar is a public blockchain. Every instruction, every account mutation, every token transfer is permanently recorded and indexed within seconds. That permanence is a feature — it is the source of PRISM's transparency and auditability.
               </p>
               <p>
                 It is also a problem for institutional LPs. Credit fund managers do not publish their yield. They do not disclose how much capital they have deployed in which risk layer. They do not want their competitors to know their payout schedule, their tranche allocation, or their return profile.
@@ -201,7 +201,7 @@ export default function CloakPrivateYieldArticlePage() {
 
             <ArticleSection eyebrow="Cloak" title="Shielded batch disbursements for every LP.">
               <p>
-                Cloak is a privacy protocol on Solana that provides shielded batch disbursement — a primitive that fans one transaction out to many recipients with hidden individual amounts. Each recipient gets a viewing key that lets them verify and decrypt their own payout. No one else can.
+                Cloak is a privacy protocol on Stellar that provides shielded batch disbursement — a primitive that fans one transaction out to many recipients with hidden individual amounts. Each recipient gets a viewing key that lets them verify and decrypt their own payout. No one else can.
               </p>
               <p>
                 Cloak's batch disbursement primitive is structurally identical to a tranche waterfall payout. One vault, many recipients, individual amounts that should stay private. The fit is not approximate — it is exact.
@@ -232,7 +232,7 @@ export default function CloakPrivateYieldArticlePage() {
                 ))}
               </div>
               <p>
-                The result: Solana has a verifiable record that yield was shielded and confirmed by the Cloak oracle. The LP has a viewing key that decrypts their exact payout amount. Everyone else sees a commitment hash and a confirmation bit.
+                The result: Stellar has a verifiable record that yield was shielded and confirmed by the Cloak oracle. The LP has a viewing key that decrypts their exact payout amount. Everyone else sees a commitment hash and a confirmation bit.
               </p>
             </ArticleSection>
 
@@ -256,7 +256,7 @@ export default function CloakPrivateYieldArticlePage() {
                 </div>
               </div>
               <p>
-                The transaction structure mirrors Encrypt exactly: <span className="font-mono text-sm text-white/80">ix[0]</span> is Solana's native Ed25519 precompile, which validates the Cloak oracle signature at the runtime level. <span className="font-mono text-sm text-white/80">ix[1]</span> is <span className="font-mono text-sm text-white/80">record_cloak_payout</span>, which reads the precompile result through the instructions sysvar, checks the batch ID commitment, and creates a <span className="font-mono text-sm text-white/80">CloakPayoutRecord</span> PDA with status <span className="font-mono text-sm text-white/80">Shielded</span>.
+                The Soroban contract's <span className="font-mono text-sm text-white/80">record_cloak_payout</span> function receives the attestation and oracle signature, verifies via <span className="font-mono text-sm text-white/80">env.crypto().ed25519_verify</span>, checks the batch ID commitment, and creates a <span className="font-mono text-sm text-white/80">CloakPayoutRecord</span> entry with status <span className="font-mono text-sm text-white/80">Shielded</span>.
               </p>
               <div className="mt-7 border border-white/10 bg-black/80 p-5">
                 <div className="mb-3 font-mono text-xs uppercase text-white/35">

@@ -2,7 +2,7 @@
 
 // Soroban client helpers — single place to spin up RPC + contract callers.
 //
-// Replaces app/lib/program.ts (Solana Anchor flavour).
+// Soroban contract interaction helpers.
 //
 // Usage:
 //   const client = buildCoreClient(keypair);

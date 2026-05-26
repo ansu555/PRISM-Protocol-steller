@@ -1,6 +1,6 @@
 'use client';
 
-// Drop-in replacement for @solana/wallet-adapter-react-ui.
+// Drop-in shim for legacy wallet-adapter-react-ui imports.
 // Aliased in next.config.mjs.
 
 import { useStellarWallet } from '@/components/providers/stellar-wallet-context';

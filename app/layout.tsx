@@ -24,7 +24,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: {
     template: '%s | PRISM Protocol',
-    default: 'PRISM Protocol | Programmable Credit on Solana',
+    default: 'PRISM Protocol | Programmable Credit on Stellar',
   },
   description: 'Tranche credit risk into Prime, Core, and Alpha. Trade tranche tokens on a live AMM. Watch losses cascade in real time.',
   generator: 'v0.app',

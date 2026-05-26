@@ -51,7 +51,7 @@ const paymentRailAges = [
 ];
 
 const prismSolves = [
-  "Credit pools settle on Solana in 400 ms, not T+2.",
+  "Credit pools settle on Stellar in seconds, not T+2.",
   "Risk is priced continuously by a live AMM, not quarterly by a credit desk.",
   "Every tranche position is a freely tradable token — exit whenever the market is open.",
   "Default events fire from cryptographic proofs, not admin discretion.",
@@ -62,12 +62,12 @@ const whyNow = [
   {
     step: "01",
     title: "Programmable Money Exists",
-    body: "Solana runs at 400 ms finality and sub-cent fees. The execution layer that legacy rails could never achieve is now a commodity. The bottleneck is no longer speed — it is the credit primitive.",
+    body: "Stellar runs at 5-second finality and sub-cent fees. The execution layer that legacy rails could never achieve is now a commodity. The bottleneck is no longer speed — it is the credit primitive.",
   },
   {
     step: "02",
     title: "Trustless Collateral Is Solved",
-    body: "IKA Network's threshold MPC dWallets let BTC and ETH sit as collateral on their native chains, verified on-chain with no custodian. The $1T+ in non-Solana assets can now back credit without a trusted bridge.",
+    body: "IKA Network's threshold MPC dWallets let BTC and ETH sit as collateral on their native chains, verified on-chain with no custodian. The $1T+ in non-Stellar assets can now back credit without a trusted bridge.",
   },
   {
     step: "03",
@@ -259,7 +259,7 @@ export default function DodoPaymentsArticlePage() {
                 ))}
               </div>
               <p>
-                None of these conditions was true five years ago. Solana was not mature enough. Threshold MPC for BTC and ETH did not exist at the protocol level. FHE was too slow for production use. And structured credit had not been attempted on-chain in a composable way.
+                None of these conditions was true five years ago. Stellar was not mature enough. Threshold MPC for BTC and ETH did not exist at the protocol level. FHE was too slow for production use. And structured credit had not been attempted on-chain in a composable way.
               </p>
               <p>
                 All four are true now. That is why PRISM exists in 2026 and not in 2021.

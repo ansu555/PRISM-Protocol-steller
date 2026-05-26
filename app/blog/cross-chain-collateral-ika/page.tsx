@@ -16,7 +16,7 @@ const collateralProblems = [
   "Custodial bridges require trusting a single operator.",
   "Over $2B in bridge exploits since 2021.",
   "Wrapped assets are liabilities of whoever controls the mint.",
-  "No existing path for trustless BTC or ETH collateral on Solana.",
+  "No existing path for trustless BTC or ETH collateral on Stellar.",
 ];
 
 const ikaProperties = [
@@ -50,7 +50,7 @@ const dwalletFlow = [
 ];
 
 const withoutIka = [
-  "PRISM limited to borrowers with existing Solana assets.",
+  "PRISM limited to borrowers with existing Stellar assets.",
   "Collateral options restricted to SPL tokens.",
   "Real-world credit remains out of reach for BTC and ETH holders.",
   "The $1T+ in native BTC and ETH stays locked out of on-chain credit.",
@@ -159,7 +159,7 @@ export default function CrossChainCollateralArticlePage() {
           <div className="max-w-4xl">
             <ArticleSection eyebrow="The gap" title="Real credit needs real collateral.">
               <p>
-                PRISM is built for real-world credit — businesses, invoice financiers, capital allocators who do not hold their wealth in USDC. They hold it in BTC. In ETH. In assets that predate Solana entirely.
+                PRISM is built for real-world credit — businesses, invoice financiers, capital allocators who do not hold their wealth in USDC. They hold it in BTC. In ETH. In assets that predate Stellar entirely.
               </p>
               <p>
                 To underwrite credit against those assets, you need a way to lock them. Every path that existed before IKA ran through a centralized intermediary.
@@ -183,7 +183,7 @@ export default function CrossChainCollateralArticlePage() {
               </p>
             </ArticleSection>
 
-            <ArticleSection eyebrow="The flow" title="From BTC on-chain to credit on Solana.">
+            <ArticleSection eyebrow="The flow" title="From BTC on-chain to credit on Stellar.">
               <p>
                 PRISM's collateral onboarding flow is four steps. Each step is cryptographically verifiable. No step requires trusting a human.
               </p>
@@ -203,7 +203,7 @@ export default function CrossChainCollateralArticlePage() {
                 ))}
               </div>
               <p>
-                The result: the Solana program has verified — without any off-chain trust assumption — that a borrower controls a specific quantity of BTC or ETH on its native chain. That verification is the basis for credit.
+                The result: the Stellar contract has verified — without any off-chain trust assumption — that a borrower controls a specific quantity of BTC or ETH on its native chain. That verification is the basis for credit.
               </p>
             </ArticleSection>
 
@@ -212,7 +212,7 @@ export default function CrossChainCollateralArticlePage() {
                 IKA's oracle network produces an attestation when a dWallet's collateral balance crosses a threshold. This attestation encodes the dWallet ID, asset type, amount, and timestamp into a fixed 81-byte message, signed by the oracle set using Ed25519.
               </p>
               <p>
-                Solana's Ed25519 precompile lets any program verify an Ed25519 signature as a native instruction. PRISM uses this directly: the first instruction in the collateral verification transaction runs the precompile check, and the second instruction — <span className="font-mono text-sm text-white/80">verify_ika_collateral</span> — reads the precompile's result through the instructions sysvar.
+                Stellar's Soroban runtime includes native Ed25519 verification via <span className="font-mono text-sm text-white/80">env.crypto().ed25519_verify</span>. PRISM's <span className="font-mono text-sm text-white/80">verify_ika_collateral</span> contract function receives the attestation and oracle signature, verifies cryptographically, and registers the collateral on-chain.
               </p>
               <p>
                 The message layout in <span className="font-mono text-sm text-white/80">ika.ts</span> is byte-identical to what the Rust program expects. Any mismatch fails the instruction. There is no oracle trust assumption beyond IKA's network itself — the cryptographic proof does the work.
@@ -269,7 +269,7 @@ export default function CrossChainCollateralArticlePage() {
                 </div>
               </div>
               <p>
-                The addressable market for PRISM is not constrained to Solana-native capital. It is every holder of BTC and ETH who has ever needed credit and found no trustless path to access it.
+                The addressable market for PRISM is not constrained to Stellar-native capital. It is every holder of BTC and ETH who has ever needed credit and found no trustless path to access it.
               </p>
             </ArticleSection>
 
@@ -306,7 +306,7 @@ export default function CrossChainCollateralArticlePage() {
                 bytes in the IKA attestation — the entire proof that BTC or ETH collateral is locked, verified on-chain with no custodian.
               </p>
               <div className="mt-8 grid gap-px border border-white/10 bg-white/10">
-                {["Lock BTC/ETH", "Attest on IKA", "Verify on Solana"].map((item) => (
+                {["Lock BTC/ETH", "Attest on IKA", "Verify on Stellar"].map((item) => (
                   <div key={item} className="bg-black/80 px-4 py-3 font-mono text-xs uppercase text-white/55">
                     {item}
                   </div>

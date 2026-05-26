@@ -51,7 +51,7 @@ export function useStellarWallet(): StellarWalletContext {
 
 // ── Compatibility shims so legacy useWallet()/useConnection() callers compile ─
 
-/** Drop-in replacement for `useWallet()` from @solana/wallet-adapter-react. */
+/** Stellar wallet hook (also serves as compatibility shim for legacy imports). */
 export function useWallet() {
   const w = useContext(StellarWalletCtx);
   if (!w) {

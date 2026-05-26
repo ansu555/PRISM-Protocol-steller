@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   if (sync) {
     try {
-      const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com';
+      const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://soroban-testnet.stellar.org';
       const connection = new Connection(rpcUrl, 'confirmed');
       const chainEvents = await fetchOnChainEvents(connection, limit);
       

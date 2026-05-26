@@ -21,7 +21,7 @@ const rpcLimitations = [
 ];
 
 const indexerCosts = [
-  "A reliable Solana indexer is 3–6 months of dedicated engineering.",
+  "A reliable Stellar indexer is 3–6 months of dedicated engineering.",
   "It requires its own infrastructure: RPC nodes, a database, a parsing pipeline.",
   "It must be updated every time program instructions or account layouts change.",
   "When it falls behind, every dashboard reading from it silently lies.",
@@ -78,7 +78,7 @@ const dashboardPanels = [
     panel: "Account Balances",
     source: "Dune SIM",
     description:
-      "SPL token balances for protocol-controlled accounts queried via /v1/solana/balances. Shows live USDC holdings across vault reserve and tranche accounts without building a custom RPC crawler.",
+      "Token balances for protocol-controlled accounts queried via /v1/stellar/balances. Shows live USDC holdings across vault reserve and tranche accounts without building a custom RPC crawler.",
   },
   {
     panel: "NAV Chart",
@@ -106,7 +106,7 @@ const withDune = [
   "Single API key gives access to protocol transaction history and account balances.",
   "Event ticker and balance panel update in real time — no custom infrastructure.",
   "Credit event log is complete and auditable from day one via /beta/svm/transactions.",
-  "SPL token balances queryable instantly via /v1/solana/balances — no RPC crawling.",
+  "Token balances queryable instantly via /v1/stellar/balances — no RPC crawling.",
   "Two endpoints, zero indexer maintenance: Dune SIM stays in sync with the chain.",
 ];
 
@@ -206,7 +206,7 @@ export default function DuneSimArticlePage() {
           <div className="max-w-4xl">
             <ArticleSection eyebrow="The problem" title="Public data is not the same as readable data.">
               <p>
-                PRISM runs on a public blockchain. Every deposit, every yield epoch, every credit event, every AMM swap is permanently recorded on Solana. In theory, this means complete transparency — any investor can verify the protocol's accounting at any time.
+                PRISM runs on a public blockchain. Every deposit, every yield epoch, every credit event, every AMM swap is permanently recorded on Stellar. In theory, this means complete transparency — any investor can verify the protocol's accounting at any time.
               </p>
               <p>
                 In practice, raw on-chain data is nearly unusable without an indexing layer. An RPC node tells you the current state of an account. It does not tell you how that state changed over time, in what sequence, and in response to which events.
@@ -230,9 +230,9 @@ export default function DuneSimArticlePage() {
               </p>
             </ArticleSection>
 
-            <ArticleSection eyebrow="Dune SIM" title="Real-time Solana state with one API key.">
+            <ArticleSection eyebrow="Dune SIM" title="Real-time Stellar state with one API key.">
               <p>
-                Dune SIM is a real-time developer platform that provides low-latency APIs to query Solana state — PDAs, account balances, and event streams — without building a custom indexer. It subscribes to the chain, parses events as they land, and makes them queryable over HTTP.
+                Dune SIM is a real-time developer platform that provides low-latency APIs to query Stellar state — account balances and event streams — without building a custom indexer. It subscribes to the chain, parses events as they land, and makes them queryable over HTTP.
               </p>
               <p>
                 For PRISM, the integration is one route handler. A single API key. The entire analytics layer — NAV, TVL, yield, credit events, AMM pricing — runs on top of what Dune SIM returns.
@@ -280,7 +280,7 @@ export default function DuneSimArticlePage() {
                 ))}
               </div>
               <p>
-                Each event is structured, typed, and emitted at the exact moment the instruction succeeds. There is no polling, no delayed consistency. When a credit event fires on Solana, the <span className="font-mono text-sm text-white/80">LossApplied</span> event lands in the Dune stream in the same block.
+                Each event is structured, typed, and emitted at the exact moment the instruction succeeds. There is no polling, no delayed consistency. When a credit event fires on Stellar, the <span className="font-mono text-sm text-white/80">LossApplied</span> event lands in the Dune stream in the same ledger.
               </p>
             </ArticleSection>
 
@@ -348,7 +348,7 @@ export default function DuneSimArticlePage() {
                 In traditional credit markets, transparency is a legal obligation enforced by regulators — filed quarterly, audited annually, and often months out of date. In PRISM, transparency is an architectural property enforced by the protocol — updated in every block, readable by anyone, and never more than a few seconds behind the chain.
               </p>
               <p>
-                Dune SIM is the bridge between that architectural property and a dashboard that investors can actually use. It is the difference between "the data is there if you know how to read raw Solana account state" and "here is the NAV chart, here is the credit event log, here is the AMM price feed — real time, no intermediary."
+                Dune SIM is the bridge between that architectural property and a dashboard that investors can actually use. It is the difference between "the data is there if you know how to read raw Stellar account state" and "here is the NAV chart, here is the credit event log, here is the AMM price feed — real time, no intermediary."
               </p>
               <p>
                 On-chain credit without the analytics layer is a promise. With Dune SIM, it is a product.

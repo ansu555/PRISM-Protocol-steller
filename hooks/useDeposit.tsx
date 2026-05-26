@@ -7,7 +7,7 @@
 //   2. The user signs via the connected Stellar wallet (Freighter etc.)
 //   3. Result is the new pToken share count
 //
-// Hook shape matches the Solana version so dashboard components don't change.
+// Hook shape kept stable so dashboard components don't change.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {

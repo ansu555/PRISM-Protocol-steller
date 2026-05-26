@@ -28,8 +28,7 @@ export interface SimulationIdentity {
   role: Role;
   label: string;
   description: string;
-  /** Stellar Keypair. Old code that called `identity.keypair.publicKey` (Solana
-   *  PublicKey object) now sees a function — see compatibility helpers below. */
+  /** Stellar Keypair for this role. */
   keypair: Keypair;
   /** The 56-char Stellar address (`G...`) for this role. */
   address: string;

@@ -1,6 +1,6 @@
 # PRISM Protocol
 
-Programmable credit markets on Solana.
+Programmable credit markets on Stellar.
 
 PRISM turns credit exposure into transparent, tradable risk layers. Users deposit USDC into Prime, Core, or Alpha tranches, receive tranche tokens, and watch yield, losses, and secondary-market prices update on-chain.
 
@@ -10,16 +10,15 @@ PRISM turns credit exposure into transparent, tradable risk layers. Users deposi
 
 ## What PRISM Is
 
-PRISM Protocol is a full-stack Solana credit-market demo built for the Solana Frontier Hackathon by Colosseum.
+PRISM Protocol is a full-stack Stellar credit-market demo built on the Soroban smart contract platform.
 
 It combines:
 
-
-- An Anchor credit engine, `prism_core`
-- A separate Anchor AMM, `prism_amm`
-- SPL tranche tokens: `pPRIME`, `pCORE`, `pALPHA`
+- A Soroban credit engine, `prism_core`
+- A separate Soroban AMM, `prism_amm`
+- Stellar asset tranche tokens: `pPRIME`, `pCORE`, `pALPHA`
 - A Next.js dashboard for deposits, yield, defaults, AMM exits, and simulation
-- Borrower and admin flows for IKA-backed collateral experiments
+- Borrower and admin flows for collateral experiments
 - A public marketing site and blog for the protocol narrative
 
 The system models a credit vault where capital is pooled, split into risk layers, and repriced through live market activity.
@@ -48,7 +47,7 @@ Credit pool
 
 Each tranche
   -> NAV accounting
-  -> SPL token
+  -> Stellar asset token
   -> AMM market
   -> live price discovery
 ```
@@ -99,25 +98,23 @@ They move.
 | `/blog` | Protocol essays and research notes |
 | `/dashboard` | Live vault simulation and action panel |
 | `/admin` | Demo admin setup and protocol operations |
-| `/borrower` | Borrower application and IKA collateral flow |
+| `/borrower` | Borrower application and collateral flow |
 | `/api/waitlist` | Waitlist API |
-| `/api/ika-test-oracle/attest` | Local/devnet IKA test oracle endpoint |
 
 ---
 
 ## Architecture
 
 ```text
-contracts/
-  programs/
-    prism-core/       credit engine, tranches, loans, collateral, waterfall
-    prism-amm/        constant-product tranche markets
+soroban/
+  prism-core/       credit engine, tranches, loans, collateral, waterfall
+  prism-amm/        constant-product tranche markets
 
 app/
   (app)/              dashboard, admin, borrower routes
   blog/               public articles
-  api/                waitlist and IKA test oracle routes
-  lib/                constants, IDLs, PDA helpers, program builders, IKA client
+  api/                waitlist routes
+  lib/                constants, program builders, Stellar client
 
 components/
   landing/            public website
@@ -127,16 +124,14 @@ components/
   borrower/           loan application and collateral onboarding
 
 docs/
-  README.md           documentation index, read this first
-  00-overview.md      master architecture index
-  12-reference-card.md constants, PDA seeds, demo numbers, error codes
+  README.md           documentation index
 ```
 
-Two-program design:
+Two-contract design:
 
-| Program | Responsibility |
+| Contract | Responsibility |
 |---|---|
-| `prism_core` | Vaults, tranches, NAV, loans, yield, losses, IKA collateral |
+| `prism_core` | Vaults, tranches, NAV, loans, yield, losses, collateral |
 | `prism_amm` | Secondary markets for tranche tokens |
 
 The separation is intentional: an AMM bug should not become a credit-engine failure.
@@ -147,14 +142,13 @@ The separation is intentional: an AMM bug should not become a credit-engine fail
 
 | Layer | Stack |
 |---|---|
-| Chain | Solana devnet |
-| Contracts | Anchor / Rust |
-| Tokens | Classic SPL tokens |
+| Chain | Stellar testnet (Soroban) |
+| Contracts | Soroban / Rust |
+| Tokens | Stellar assets (SAC) |
 | Frontend | Next.js 16, React 19, TypeScript |
 | Styling | Tailwind CSS |
-| Wallets | Solana Wallet Adapter |
+| Wallets | Freighter / Stellar wallet kit |
 | Data | React Query |
-| IKA integration | `@ika.xyz/sdk`, `@mysten/sui` |
 | Database | Postgres for waitlist storage |
 
 ---
@@ -198,60 +192,48 @@ pnpm build
 Minimum frontend variables:
 
 ```bash
-NEXT_PUBLIC_RPC_URL=
-NEXT_PUBLIC_PRISM_CORE_PROGRAM_ID=
-NEXT_PUBLIC_PRISM_AMM_PROGRAM_ID=
+NEXT_PUBLIC_STELLAR_RPC_URL=
+NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=
+NEXT_PUBLIC_PRISM_CORE_CONTRACT_ID=
+NEXT_PUBLIC_PRISM_AMM_CONTRACT_ID=
 NEXT_PUBLIC_VAULT_ID=0
-NEXT_PUBLIC_USDC_MINT=
-```
-
-Optional IKA/demo variables:
-
-```bash
-NEXT_PUBLIC_IKA_ORACLE_URL=http://localhost:3000/api/ika-test-oracle
-NEXT_PUBLIC_IKA_FULLNODE_URL=https://fullnode.testnet.ika.xyz
-NEXT_PUBLIC_IKA_NETWORK=testnet
+NEXT_PUBLIC_USDC_ASSET=
 ```
 
 Optional infrastructure variables:
 
 ```bash
 DATABASE_URL=
-HELIUS_API_KEY=
-SWITCHBOARD_AGGREGATOR_PUBKEY=
-CLOAK_API_ENDPOINT=https://api.cloak.dev
 ```
 
-Do not put production private keys in frontend env variables.
+Do not put production secret keys in frontend env variables.
 
 ---
 
 ## Contract Work
 
-Anchor lives under `contracts/`.
+Soroban contracts live under `soroban/`.
 
 Common commands:
 
 ```bash
-cd contracts
-anchor build
-anchor test
+cd soroban
+stellar contract build
+stellar contract test
 ```
 
 After contract changes:
 
-1. Rebuild Anchor programs.
-2. Regenerate/update IDLs.
-3. Sync frontend IDL files in `app/lib/idl/`.
+1. Rebuild Soroban contracts.
+2. Regenerate/update contract bindings.
+3. Sync frontend contract files.
 4. Re-run `pnpm build` from repo root.
 
-IDL drift is one of the fastest ways to break the frontend.
+Contract binding drift is one of the fastest ways to break the frontend.
 
 ---
 
 ## Important Demo Numbers
-
-Locked demo constants live in [docs/12-reference-card.md](docs/12-reference-card.md).
 
 Key values:
 
@@ -269,45 +251,13 @@ The default scenario is designed so Alpha gets wiped, Core takes a visible hit, 
 
 ---
 
-## IKA Collateral Flow
-
-PRISM includes an experimental IKA integration for cross-chain collateral.
-
-Borrower flow:
-
-1. Borrower applies for a loan.
-2. Borrower attaches an IKA dWallet ID.
-3. Test oracle signs an attestation.
-4. `verify_ika_collateral` verifies the oracle signature through Solana's Ed25519 precompile.
-5. Collateral status moves from `Pending` to `Locked`.
-6. Admin can disburse the loan once collateral is locked.
-
-This is demo infrastructure. Read [docs/before-mainnet.md](docs/before-mainnet.md) before treating any of it as production-ready.
-
----
-
 ## Documentation Map
 
 Start here:
 
-- [docs/README.md](docs/README.md) - documentation index for coding agents
+- [docs/README.md](docs/README.md) - documentation index
 - [docs/00-overview.md](docs/00-overview.md) - master architecture overview
-- [docs/12-reference-card.md](docs/12-reference-card.md) - constants, PDAs, demo numbers
-- [docs/protocol_explained.md](docs/protocol_explained.md) - complete system explanation
-- [docs/contract-integration-progress.md](docs/contract-integration-progress.md) - IKA and contract integration notes
-- [docs/before-mainnet.md](docs/before-mainnet.md) - production safety checklist
-
-For contract work:
-
-- [docs/05-anchor-architecture.md](docs/05-anchor-architecture.md)
-- [docs/09-lld-completion.md](docs/09-lld-completion.md)
-- [docs/testing.md](docs/testing.md)
-
-For demo and submission:
-
-- [docs/01-sidetrack-strategy.md](docs/01-sidetrack-strategy.md)
-- [docs/13-demo-runbook.md](docs/13-demo-runbook.md)
-- [docs/ika-audit-2026-05-01.md](docs/ika-audit-2026-05-01.md)
+- [docs/12-reference-card.md](docs/12-reference-card.md) - constants, demo numbers
 
 ---
 
@@ -318,12 +268,10 @@ This repository contains demo-oriented code.
 Before mainnet:
 
 - Remove client-side demo keypairs.
-- Disable or replace the local IKA test oracle.
 - Move admin signing to real wallets or multisig.
-- Re-deploy programs with production upgrade authority.
-- Update USDC mint and program IDs.
+- Re-deploy contracts with production upgrade authority.
+- Update asset codes and contract IDs.
 - Audit all contracts.
-- Read [docs/before-mainnet.md](docs/before-mainnet.md).
 
 Do not use this code with real funds without a full security review.
 
@@ -331,7 +279,7 @@ Do not use this code with real funds without a full security review.
 
 ## Status
 
-PRISM is currently a devnet hackathon build with a working full-stack demo surface and ongoing IKA collateral integration.
+PRISM is currently a testnet build with a working full-stack demo surface on Stellar's Soroban platform.
 
 The goal is not to ship another lending app.
 

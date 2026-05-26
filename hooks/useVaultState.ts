@@ -3,17 +3,14 @@
 // Poll the deployed Soroban contracts for the full vault snapshot.
 // Replaces the Anchor `account.fetchNullable` flow with Soroban contract reads.
 //
-// Returned shape is intentionally close to the Solana version's so dashboards
-// don't all need to be rewritten:
+// Returned shape:
 //   {
 //     config, vault, loan, tranches[3], reserveBalance, lossBucketBalance,
 //     usdcMint, programIds
 //   }
 //
-// What's gone vs Solana: `vaultPda`, `reservePda`, etc. They were PDAs;
-// Soroban doesn't have them. The contract id (single string) is the only
-// "address" any caller needs now, so dashboards that displayed PDAs should
-// fall back to displaying tranche `kind` or the contract id.
+// Soroban doesn't have PDAs. The contract id is the only "address" any
+// caller needs, so dashboards display tranche `kind` or the contract id.
 
 import { useQuery } from '@tanstack/react-query';
 

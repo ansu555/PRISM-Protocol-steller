@@ -14,8 +14,8 @@ const NAV_LINKS = [
   { label: "Trade", href: "/trade" },
   { label: "Borrow", href: "/borrow" },
   { label: "Terminal", href: "/terminal" },
-  { label: "Docs", href: "https://docs.prismprotocol.dev/" },
-] as const;
+  { label: "Docs", href: "#", disabled: true },
+] as const satisfies readonly { label: string; href: string; disabled?: boolean }[];
 
 export function AppHeader() {
   const pathname = usePathname();
@@ -116,6 +116,20 @@ export function AppHeader() {
               const active =
                 !external &&
                 (pathname === hrefPath || (hrefPath !== "/dashboard" && pathname.startsWith(`${hrefPath}/`)));
+              const isDisabled = "disabled" in link && link.disabled;
+              if (isDisabled) {
+                return (
+                  <span
+                    key={link.label}
+                    className={[
+                      "relative text-sm cursor-not-allowed opacity-50",
+                      isFloatingHeader ? "text-foreground/70" : "text-white/70",
+                    ].join(" ")}
+                  >
+                    {link.label}
+                  </span>
+                );
+              }
               return (
                 <Link
                   key={link.href}
@@ -194,6 +208,17 @@ export function AppHeader() {
               const active =
                 !external &&
                 (pathname === hrefPath || (hrefPath !== "/dashboard" && pathname.startsWith(`${hrefPath}/`)));
+              const isDisabled = "disabled" in link && link.disabled;
+              if (isDisabled) {
+                return (
+                  <span
+                    key={link.label}
+                    className="rounded-md px-3 py-3 text-sm text-white/30 cursor-not-allowed"
+                  >
+                    {link.label}
+                  </span>
+                );
+              }
               return (
                 <Link
                   key={link.href}

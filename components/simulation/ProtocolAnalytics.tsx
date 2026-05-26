@@ -131,7 +131,7 @@ export function ProtocolAnalytics() {
         <div className="flex-1">
           <div className="font-mono text-[11px] font-bold uppercase tracking-widest text-blue-400/80 mb-0.5">Environment: Real-time SVM Sync</div>
           <p className="text-sm text-white/50 leading-relaxed">
-            Successfully synchronized with the PRISM core program on <b>Solana Devnet</b>. 
+            Successfully synchronized with the PRISM core program on <b>Stellar Testnet</b>.
             Instruction logs are now being pulled directly from the chain and indexed for institutional visibility.
           </p>
         </div>
@@ -239,7 +239,7 @@ export function ProtocolAnalytics() {
                       </td>
                       <td className="px-8 py-5 text-right">
                         <a 
-                          href={`https://explorer.solana.com/tx/${e.signature}?cluster=devnet`} 
+                          href={`https://stellar.expert/explorer/testnet/tx/${e.signature}`} 
                           target="_blank" 
                           rel="noreferrer"
                           className="inline-flex items-center gap-1.5 font-mono text-[10px] text-white/20 hover:text-white/60 transition-colors uppercase tracking-widest group-hover:text-white/40"

@@ -205,7 +205,7 @@ export function ActionPanel() {
     toast.success(`${action} confirmed`, {
       description: (
         <a 
-          href={`https://explorer.solana.com/tx/${signature}?cluster=devnet`}
+          href={`https://stellar.expert/explorer/testnet/tx/${signature}`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1 font-mono text-[10px] text-emerald-400 hover:underline"

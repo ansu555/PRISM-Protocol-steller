@@ -2,9 +2,8 @@
 
 // Probe loan IDs 1..maxScan; collect what comes back.
 //
-// Loans on Soroban are keyed by u32 id (not PDA). Solana version started
-// scanning at 0 — we start at 1 because our prism-core init flow originates
-// loans starting at id 1 (see Phase 3 contract tests).
+// Loans on Soroban are keyed by u32 id (not PDA). We start at 1 because
+// prism-core originates loans starting at id 1 (see Phase 3 contract tests).
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 

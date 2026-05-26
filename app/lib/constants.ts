@@ -1,7 +1,7 @@
 // Stellar / Soroban deployment constants.
 //
 // All addresses below are 56-char Stellar StrKey contract IDs (CXX...) or
-// account IDs (GXX...). The legacy Solana `PublicKey` import is gone — these
+// account IDs (GXX...). The legacy `PublicKey` import is gone — these
 // values are plain strings now. Use `import { Address } from '@stellar/stellar-sdk'`
 // when you need to wrap one for Soroban invocation.
 
@@ -40,7 +40,7 @@ export const USDC_MINT = USDC_CONTRACT_ID;
 
 export const VAULT_ID = Number.parseInt(process.env.NEXT_PUBLIC_VAULT_ID ?? '0', 10);
 
-// Stellar USDC has 7 decimals (Solana USDC had 6).
+// Stellar USDC has 7 decimals.
 export const USDC_DECIMALS = 7;
 export const USDC_BASE_UNITS = 10_000_000n;
 export const Q64_ONE = 1n << 64n;

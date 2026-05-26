@@ -7,12 +7,12 @@ import { Navigation } from "@/components/landing/navigation";
 import { WaitlistDialog } from "@/components/landing/waitlist-dialog";
 
 export const metadata: Metadata = {
-  title: "Solana Fixed Speed. It Didn't Fix Credit. - PRISM Protocol",
+  title: "Stellar Fixed Speed. It Didn't Fix Credit. - PRISM Protocol",
   description:
-    "Solana made execution fast and cheap, but real credit markets still need structure, transparency, and liquid risk pricing.",
+    "Stellar made execution fast and cheap, but real credit markets still need structure, transparency, and liquid risk pricing.",
 };
 
-const currentSolanaActivity = [
+const currentStellarActivity = [
   "Spot trading.",
   "Memecoins.",
   "Perps.",
@@ -29,7 +29,7 @@ const brokenParts = [
   {
     title: "No native way to price credit risk",
     body:
-      "On Solana today, lending is usually overcollateralized or fully trust-based. You either lock inefficient collateral or trust someone off-chain.",
+      "On Stellar today, lending is usually overcollateralized or fully trust-based. You either lock inefficient collateral or trust someone off-chain.",
   },
   {
     title: "Fragmented liquidity",
@@ -158,13 +158,13 @@ export default function SolanaFixedSpeedArticlePage() {
               </div>
 
               <h1 className="font-display text-5xl leading-[0.94] text-white md:text-7xl lg:text-[6.25rem]">
-                Solana fixed speed.
+                Stellar fixed speed.
                 <br />
                 It didn't fix credit.
               </h1>
 
               <p className="mt-7 max-w-3xl text-xl leading-8 text-white/65">
-                Solana made execution fast, cheap, and increasingly usable. Trades settle quickly. Fees are negligible. UX keeps getting better. But one category is still missing: real credit markets.
+                Stellar made execution fast, cheap, and increasingly usable. Trades settle quickly. Fees are negligible. UX keeps getting better. But one category is still missing: real credit markets.
               </p>
             </div>
           </div>
@@ -172,11 +172,11 @@ export default function SolanaFixedSpeedArticlePage() {
 
         <div className="mx-auto grid max-w-[1400px] gap-10 px-6 py-14 lg:grid-cols-[minmax(0,1fr)_320px] lg:px-12 lg:py-20">
           <div className="max-w-4xl">
-            <ArticleSection eyebrow="Context" title="Solana has activity. Credit is still absent.">
+            <ArticleSection eyebrow="Context" title="Stellar has activity. Credit is still absent.">
               <p>
-                Most activity on Solana today is short-term, reflexive, and built around capital recycling.
+                Most activity on Stellar today is short-term, reflexive, and built around capital recycling.
               </p>
-              <BulletList items={currentSolanaActivity} />
+              <BulletList items={currentStellarActivity} />
               <p>
                 Very little of it looks like capital being allocated against durable credit risk.
               </p>
@@ -210,7 +210,7 @@ export default function SolanaFixedSpeedArticlePage() {
               </p>
               <BulletList items={triedModels} />
               <p>
-                Solana has fast execution, deep liquidity, and active users. What it lacks is a way to turn credit into a tradable asset.
+                Stellar has fast execution, deep liquidity, and active users. What it lacks is a way to turn credit into a tradable asset.
               </p>
             </ArticleSection>
 
@@ -259,7 +259,7 @@ export default function SolanaFixedSpeedArticlePage() {
                 That one shift changes everything, because markets do not scale with assets. They scale with abstraction.
               </p>
               <p>
-                Solana does not need more tokens. It needs better primitives. Credit is one of the largest markets in the world, and it still has not been rebuilt on-chain properly.
+                Stellar does not need more tokens. It needs better primitives. Credit is one of the largest markets in the world, and it still has not been rebuilt on-chain properly.
               </p>
               <p>
                 PRISM is our attempt to fix that by making credit structured, transparent, and finally liquid.
@@ -281,7 +281,7 @@ export default function SolanaFixedSpeedArticlePage() {
               <div className="font-mono text-xs uppercase text-white/35">Article thesis</div>
               <div className="mt-5 font-display text-5xl text-white">Risk</div>
               <p className="mt-3 text-sm leading-6 text-white/55">
-                Solana solved execution speed. PRISM adds the missing market structure for credit risk.
+                Stellar solved execution speed. PRISM adds the missing market structure for credit risk.
               </p>
               <div className="mt-8 grid gap-px border border-white/10 bg-white/10">
                 {["Pool credit", "Tokenize risk", "Let markets price it"].map((item) => (

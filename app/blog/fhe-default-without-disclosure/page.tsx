@@ -143,7 +143,7 @@ export default function FheDefaultArticlePage() {
           <div className="max-w-4xl">
             <ArticleSection eyebrow="The problem" title="A public ledger is a terrible place for credit data.">
               <p>
-                PRISM runs on Solana — a public blockchain where every instruction, every account state change, and every payment is permanently recorded and indexed. That is the source of its transparency and composability. It is also the source of a real problem for institutional credit.
+                PRISM runs on Stellar — a public blockchain where every instruction, every account state change, and every payment is permanently recorded and indexed. That is the source of its transparency and composability. It is also the source of a real problem for institutional credit.
               </p>
               <p>
                 Credit is fundamentally about information asymmetry. A borrower's repayment history, outstanding balances, and default behavior are exactly the data their competitors, counterparties, and rivals would pay to see. Posting that data on-chain to trigger a default is not an acceptable tradeoff for any serious institutional borrower.
@@ -175,7 +175,7 @@ export default function FheDefaultArticlePage() {
                 When a loan is underwritten, the <span className="font-mono text-sm text-white/80">attach_encrypt_score</span> instruction creates an <span className="font-mono text-sm text-white/80">EncryptLoanHealth</span> PDA on-chain. This PDA stores the <span className="font-mono text-sm text-white/80">score_commitment</span> — a sha256 hash of the borrower's Encrypt-sealed credit data. The sealed data itself lives with the Encrypt oracle. Only the commitment goes on-chain. That commitment is the anchor.
               </p>
               <p>
-                When default is suspected, the Encrypt oracle loads the sealed data, runs <span className="font-mono text-sm text-white/80">total_repaid &lt; principal</span> homomorphically, and signs a 73-byte attestation message. The signature and message are submitted to Solana in a two-instruction transaction.
+                When default is suspected, the Encrypt oracle loads the sealed data, runs <span className="font-mono text-sm text-white/80">total_repaid &lt; principal</span> homomorphically, and signs a 73-byte attestation message. The signature and message are submitted to Stellar in a Soroban contract call.
               </p>
               <div className="mt-7 border border-white/10 bg-black/80 p-5">
                 <div className="mb-4 font-mono text-xs uppercase text-white/35">
@@ -193,7 +193,7 @@ export default function FheDefaultArticlePage() {
                 </div>
               </div>
               <p>
-                The first instruction in the transaction is the native Ed25519 precompile — Solana validates the oracle signature at the runtime level, with no program logic involved. The second instruction, <span className="font-mono text-sm text-white/80">verify_encrypt_default</span>, reads the precompile's result through the instructions sysvar, validates the commitment matches the one registered at underwriting, checks the result byte is <span className="font-mono text-sm text-white/80">0x01</span>, and fires the loss cascade.
+                The Soroban contract's <span className="font-mono text-sm text-white/80">verify_encrypt_default</span> function receives the attestation message and oracle signature, verifies the Ed25519 signature via <span className="font-mono text-sm text-white/80">env.crypto().ed25519_verify</span>, validates the commitment matches the one registered at underwriting, checks the result byte is <span className="font-mono text-sm text-white/80">0x01</span>, and fires the loss cascade.
               </p>
             </ArticleSection>
 

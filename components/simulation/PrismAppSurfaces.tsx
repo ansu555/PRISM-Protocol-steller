@@ -377,7 +377,7 @@ function ProtocolAtGlance({ data }: { data: PrismData }) {
 function HowPrismWorks() {
   const node = 'rounded border border-white/10 bg-black/35 px-5 py-4 text-center';
   const links = [
-    { label: 'Read the docs', href: 'https://docs.prismprotocol.dev/', external: true },
+    { label: 'Read the docs', href: '#', external: false, disabled: true },
     { label: 'Developer integration', href: '/', external: false },
     { label: 'Explore vaults', href: '/earn', external: false },
   ];
@@ -387,9 +387,9 @@ function HowPrismWorks() {
       <SectionTitle
         title="How PRISM works"
         action={
-          <Link href="https://docs.prismprotocol.dev/" target="_blank" rel="noreferrer">
+          <span className="pointer-events-none opacity-50 cursor-not-allowed">
             Read the docs {'->'}
-          </Link>
+          </span>
         }
       />
       <Card className="p-6">
@@ -443,18 +443,32 @@ function HowPrismWorks() {
             Underlying credit positions generate cashflow that flows into the vault. Cashflow pays tranches from the top down: Prime first, then Core, then Alpha. When losses occur they are absorbed from the bottom up: Alpha first, then Core, finally Prime.
           </p>
           <div className="grid gap-3">
-            {links.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                target={item.external ? '_blank' : undefined}
-                rel={item.external ? 'noreferrer' : undefined}
-                className="flex items-center justify-between rounded border border-white/10 bg-black/35 px-4 py-3 text-sm text-white hover:bg-white/[0.06]"
-              >
-                {item.label}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            ))}
+            {links.map((item) => {
+              const isDisabled = "disabled" in item && item.disabled;
+              if (isDisabled) {
+                return (
+                  <span
+                    key={item.label}
+                    className="flex items-center justify-between rounded border border-white/10 bg-black/35 px-4 py-3 text-sm text-white/40 cursor-not-allowed"
+                  >
+                    {item.label}
+                    <ArrowRight className="h-4 w-4" />
+                  </span>
+                );
+              }
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  target={item.external ? '_blank' : undefined}
+                  rel={item.external ? 'noreferrer' : undefined}
+                  className="flex items-center justify-between rounded border border-white/10 bg-black/35 px-4 py-3 text-sm text-white hover:bg-white/[0.06]"
+                >
+                  {item.label}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              );
+            })}
           </div>
         </div>
       </Card>
@@ -466,7 +480,7 @@ function FeaturedVault({ data }: { data: PrismData }) {
   const metrics = [
     ['Vault TVL', `$${formatUsdc(data.vaultCapital, 2)}`],
     ['Tranches', '3'],
-    ['Underlying', 'Solana credit + USDC'],
+    ['Underlying', 'Stellar credit + USDC'],
     ['30d default', '0.00%'],
   ];
 
@@ -503,7 +517,7 @@ function FeaturedVault({ data }: { data: PrismData }) {
                   <Pill>USDC</Pill>
                 </div>
                 <h3 className="mt-5 font-display text-4xl leading-none text-white">PRISM Credit Vault</h3>
-                <p className="mt-3 text-sm text-white/50">Solana credit positions · transparent tranche accounting · USDC denominated</p>
+                <p className="mt-3 text-sm text-white/50">Stellar credit positions · transparent tranche accounting · USDC denominated</p>
               </div>
               <ArrowUpRight className="h-5 w-5 text-white/45 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white" />
             </div>
@@ -541,7 +555,7 @@ export function PrismOverview() {
           </h1>
         </div>
         <p className="max-w-xl text-lg leading-8 text-white/70">
-          PRISM is a structured credit protocol on Solana. Deposit into tranched vaults to earn, monitor credit protection, or provide liquidity to tranche markets. <Link href="#how-it-works" className="border-b border-white">How it works {'->'}</Link>
+          PRISM is a structured credit protocol on Stellar. Deposit into tranched vaults to earn, monitor credit protection, or provide liquidity to tranche markets. <Link href="#how-it-works" className="border-b border-white">How it works {'->'}</Link>
         </p>
       </section>
 
@@ -720,7 +734,7 @@ function VaultCard({ entry }: { entry: VaultEntry }) {
             </div>
             <h2 className="mt-5 font-display text-4xl text-white">{entry.name}</h2>
             <p className="mt-3 text-white/50">
-              Solana credit positions · {aprPrime}%–{aprAlpha}% APR range · USDC denominated
+              Stellar credit positions · {aprPrime}%–{aprAlpha}% APR range · USDC denominated
             </p>
           </div>
           <div className="grid grid-cols-2 gap-px border-l border-white/10 pl-7">
@@ -777,7 +791,7 @@ function VaultCard({ entry }: { entry: VaultEntry }) {
         </div>
         <div className="grid border-t border-white/10 bg-white/[0.055] md:grid-cols-5">
           {[
-            ['Underlying', 'Solana credit + USDC'],
+            ['Underlying', 'Stellar credit + USDC'],
             ['Originator', data.vaultLabel],
             ['Maturity', `${entry.maturity_days}d`],
             ['30d default rate', '0.00%'],
@@ -934,7 +948,7 @@ export function PrismVaultDetail({ vaultId }: { vaultId: string }) {
               <Pill>USDC</Pill>
             </div>
             <h2 className="mt-5 font-display text-4xl text-white">PRISM Credit Vault</h2>
-            <p className="mt-3 text-white/50">Solana credit positions · transparent tranche accounting · USDC denominated</p>
+            <p className="mt-3 text-white/50">Stellar credit positions · transparent tranche accounting · USDC denominated</p>
           </div>
           <div className="grid grid-cols-2 gap-px border-l border-white/10 pl-7">
             <div>

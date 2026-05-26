@@ -38,7 +38,7 @@ export const runtime = 'nodejs';
 
 const USDC_MINT_B58 =
   process.env.NEXT_PUBLIC_USDC_MINT ?? 'CoSmAscHkm3KxFvsd3QvrLzzSX6Ke1qEfGvcWLPG1GJ1';
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? 'https://api.devnet.solana.com';
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? 'https://soroban-testnet.stellar.org';
 
 // Always return 200 OK to avoid Dodo retry storms; log on the server.
 function ok(extra: Record<string, unknown> = {}) {

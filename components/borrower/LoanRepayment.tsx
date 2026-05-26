@@ -334,10 +334,10 @@ export function LoanRepayment({ loanId, vaultId = VAULT_ID }: LoanRepaymentProps
                   <div className="font-semibold">Settled on-chain</div>
                   <div className="text-sm opacity-80 mt-0.5">
                     Your fiat payment has been bridged to USDC and the loan was
-                    repaid on Solana. Vault reserve restored.
+                    repaid on Stellar. Vault reserve restored.
                   </div>
                   <a
-                    href={`https://explorer.solana.com/tx/${onChainTxSig}?cluster=devnet`}
+                    href={`https://stellar.expert/explorer/testnet/tx/${onChainTxSig}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-2 inline-block break-all text-sm underline opacity-80 hover:opacity-100"
@@ -394,7 +394,7 @@ function FiatStatusBanner({
         <div className="text-sm opacity-80">{meta.body}</div>
         {txSig ? (
           <a
-            href={`https://explorer.solana.com/tx/${txSig}?cluster=devnet`}
+            href={`https://stellar.expert/explorer/testnet/tx/${txSig}`}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-1.5 inline-block break-all underline opacity-80 hover:opacity-100"

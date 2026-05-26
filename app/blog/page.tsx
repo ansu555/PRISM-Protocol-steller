@@ -23,9 +23,9 @@ const featuredPosts = [
   {
     category: "Market design",
     date: "APR 2026",
-    title: "Solana fixed speed. It didn't fix credit.",
+    title: "Stellar fixed speed. It didn't fix credit.",
     excerpt:
-      "Solana made execution fast and cheap. PRISM adds the missing credit primitive: explicit risk, structured markets, and liquid exposure.",
+      "Stellar made execution fast and cheap. PRISM adds the missing credit primitive: explicit risk, structured markets, and liquid exposure.",
     href: "/blog/solana-fixed-speed-not-credit",
     image: "/images/isolated.jpg",
     metric: "3",
@@ -166,7 +166,7 @@ const fieldNotes = [
 export const metadata: Metadata = {
   title: "Protocol Intelligence",
   description:
-    "Research notes, architecture essays, and protocol updates from the team building programmable credit risk on Solana.",
+    "Research notes, architecture essays, and protocol updates from the team building programmable credit risk on Stellar.",
 };
 
 function ArticleCard({
@@ -301,7 +301,7 @@ export default function BlogPage() {
             </h1>
 
             <p className="mt-5 max-w-2xl text-lg leading-8 text-white/60 md:text-xl lg:mt-4">
-              Research notes, architecture essays, and protocol updates from the team building programmable credit risk on Solana.
+              Research notes, architecture essays, and protocol updates from the team building programmable credit risk on Stellar.
             </p>
           </div>
 

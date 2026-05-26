@@ -6,7 +6,7 @@ import { FooterSection } from "@/components/landing/footer-section";
 import { Navigation } from "@/components/landing/navigation";
 import { WaitlistDialog } from "@/components/landing/waitlist-dialog";
 
-const xArticleUrl = "https://x.com/prismsolana/status/2048830720278483222";
+const xArticleUrl = "https://x.com/prismstellar/status/2048830720278483222";
 
 export const metadata: Metadata = {
   title: "The $100T Market That Doesn't Trade - PRISM Protocol",
@@ -250,7 +250,7 @@ export default function HundredTMarketArticlePage() {
                 CDOs and CLOs already use pooling, tranching, and waterfall distribution. But they are closed, opaque, and institution-only. PRISM brings that model on-chain and makes it open, transparent, composable, and liquid by default.
               </p>
               <p>
-                When a loan defaults, the cascade is not theoretical. You watch it happen on Solana in seconds: Alpha wiped, Core cut, Prime protected.
+                When a loan defaults, the cascade is not theoretical. You watch it happen on Stellar in seconds: Alpha wiped, Core cut, Prime protected.
               </p>
               <p>
                 Losses do not disappear. They move.

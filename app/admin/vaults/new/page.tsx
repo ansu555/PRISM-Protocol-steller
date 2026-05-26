@@ -198,7 +198,7 @@ export default function NewVaultPage() {
           <div className="flex items-center gap-4">
              <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2 text-[11px] font-mono text-white/30">
                 <Globe className="h-3.5 w-3.5" />
-                Network: <span className="text-emerald-400/60">Solana Devnet</span>
+                Network: <span className="text-emerald-400/60">Stellar Testnet</span>
              </div>
              <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2 text-[11px] font-mono text-white/30">
                 <Lock className="h-3.5 w-3.5" />
@@ -466,7 +466,7 @@ export default function NewVaultPage() {
                    <div className="flex items-start gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
                       <Info className="h-4 w-4 text-white/20 shrink-0 mt-0.5" />
                       <p className="text-[10px] text-white/30 leading-relaxed italic">
-                         Deployment creates a globally unique credit pool on Solana. This action is immutable and protocol-authoritative.
+                         Deployment creates a globally unique credit pool on Stellar. This action is immutable and protocol-authoritative.
                       </p>
                    </div>
                 </div>

@@ -5,8 +5,8 @@ const FAUCET_SOL_AMOUNTS = [2, 1, 0.5, 0.1] as const;
 const RPC_ENDPOINT =
   process.env.NEXT_PUBLIC_RPC_ENDPOINT ??
   process.env.NEXT_PUBLIC_RPC_URL ??
-  'https://api.devnet.solana.com';
-const SOLANA_FAUCET_URL = 'https://faucet.solana.com';
+  'https://soroban-testnet.stellar.org';
+const STELLAR_FAUCET_URL = 'https://friendbot.stellar.org';
 
 async function rpcRequest<T>(method: string, params: unknown[]): Promise<T> {
   const response = await fetch(RPC_ENDPOINT, {
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: lastError,
-        faucetUrl: SOLANA_FAUCET_URL,
+        faucetUrl: STELLAR_FAUCET_URL,
       },
       { status: 429 },
     );

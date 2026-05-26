@@ -78,5 +78,5 @@ export function buildPrograms(_connection?: unknown, _signer?: Keypair | AnchorW
 }
 
 // Re-export so old `import { Keypair }` lines keep working — note this is now
-// a Stellar Keypair, not Solana.
+// a Stellar Keypair.
 export { Keypair } from '@stellar/stellar-sdk';

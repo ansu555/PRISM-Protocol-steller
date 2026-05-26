@@ -66,7 +66,7 @@ export function stateName(value: unknown): string {
 }
 
 export function getNetworkName(endpoint: string): string {
-  if (endpoint.includes('devnet')) return 'Solana Devnet';
-  if (endpoint.includes('testnet')) return 'Solana Testnet';
-  return 'Solana Mainnet';
+  if (endpoint.includes('devnet')) return 'Stellar Devnet';
+  if (endpoint.includes('testnet')) return 'Stellar Testnet';
+  return 'Stellar Mainnet';
 }

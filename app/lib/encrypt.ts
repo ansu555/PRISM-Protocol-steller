@@ -5,7 +5,7 @@
  * borrower data and signs a 73-byte attestation that the contract verifies
  * via `env.crypto().ed25519_verify` inside `verify_encrypt_default`.
  *
- * What changed from Solana:
+ * What changed for Stellar:
  *   - Loan identifier in bytes 8..40 is now `(loan_id u32 LE) || 28 zero bytes`
  *     (no Stellar pubkey for the loan itself; loans are keyed by u32 id).
  *   - On-chain verification: one Soroban contract call (no Ed25519 precompile +

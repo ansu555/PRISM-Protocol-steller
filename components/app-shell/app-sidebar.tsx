@@ -33,7 +33,7 @@ const NAV_ITEMS = [
 
 const BOTTOM_ITEMS = [
   { icon: ShieldCheck,  label: 'Admin',   href: '/admin', external: false },
-  { icon: BookOpenText, label: 'Docs',    href: 'https://docs.prismprotocol.dev', external: true },
+  { icon: BookOpenText, label: 'Docs',    href: '#', external: false, disabled: true },
   { icon: LogOut,       label: 'Log out', href: '/', external: false },
 ];
 
@@ -251,23 +251,35 @@ export function AppSidebar() {
 
         {BOTTOM_ITEMS.map((item) => {
           const Icon = item.icon;
+          const isDisabled = "disabled" in item && item.disabled;
           const content = (
             <>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/40 transition-colors group-hover/item:text-white/90">
+              <div className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors",
+                isDisabled ? "text-white/20" : "text-white/40 group-hover/item:text-white/90",
+              )}>
                 <Icon className="h-5 w-5" strokeWidth={1.75} />
               </div>
               <span
                 className={cn(
                   'whitespace-nowrap font-mono text-[13px] tracking-tight transition-opacity duration-200',
                   walletOpen ? 'opacity-100' : 'opacity-0 group-hover/sidebar:opacity-100',
-                  'text-white/50 group-hover/item:text-white/80',
+                  isDisabled ? 'text-white/20' : 'text-white/50 group-hover/item:text-white/80',
                 )}
               >
                 {item.label}
               </span>
             </>
           );
-          const className = "group/item flex items-center gap-3 h-11 pl-4 pr-3 hover:bg-white/[0.02] transition-colors";
+          const baseClassName = "group/item flex items-center gap-3 h-11 pl-4 pr-3 transition-colors";
+
+          if (isDisabled) {
+            return (
+              <span key={item.label} className={`${baseClassName} cursor-not-allowed opacity-50`}>
+                {content}
+              </span>
+            );
+          }
 
           return item.external ? (
             <a
@@ -275,12 +287,12 @@ export function AppSidebar() {
               href={item.href}
               target="_blank"
               rel="noreferrer"
-              className={className}
+              className={`${baseClassName} hover:bg-white/[0.02]`}
             >
               {content}
             </a>
           ) : (
-            <Link key={item.href} href={item.href} className={className}>
+            <Link key={item.href} href={item.href} className={`${baseClassName} hover:bg-white/[0.02]`}>
               {content}
             </Link>
           );

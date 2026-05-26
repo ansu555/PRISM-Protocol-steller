@@ -5,7 +5,7 @@ import Image from "next/image";
 
 const features = [
   { 
-    title: "Solana settlement", 
+    title: "Stellar settlement",
     description: "Fast finality for tranche minting, NAV updates, AMM swaps, and withdrawals."
   },
   { 
@@ -23,7 +23,7 @@ const features = [
 ];
 
 const logos = [
-  { name: "Solana", src: "/logos/solana-logo.png", width: 28, height: 28 },
+  { name: "Stellar", src: "/logos/stellar-logo.png", width: 28, height: 28 },
   { name: "Ika", src: "/logos/ika-logo.png", width: 28, height: 28 },
   { name: "Encrypt", src: "/logos/encrypt-logo.png", width: 28, height: 28 },
   { name: "Cloak", src: "/logos/cloak-logo.png", width: 78, height: 24, wide: true },
@@ -119,7 +119,7 @@ export function DevelopersSection() {
           }`}
         >
           <p className="mb-10 max-w-md text-base leading-relaxed text-muted-foreground sm:text-lg lg:mb-12 lg:text-xl">
-            Powered by Solana and partner protocols that secure collateral, privacy, analytics,
+            Powered by Stellar and partner protocols that secure collateral, privacy, analytics,
             payments, and verified credit events.
           </p>
           <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">

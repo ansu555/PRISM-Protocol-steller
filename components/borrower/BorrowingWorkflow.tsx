@@ -221,7 +221,7 @@ function StepProfile({
             <div className="mt-1 flex items-center gap-2">
               <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="font-mono text-xs uppercase tracking-[0.15em] text-white/30">
-                Authorized Session · Network: Solana Devnet
+                Authorized Session · Network: Stellar Testnet
               </span>
             </div>
           </div>

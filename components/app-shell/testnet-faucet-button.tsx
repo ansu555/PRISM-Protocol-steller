@@ -1,8 +1,6 @@
 "use client";
 
-// Testnet XLM faucet — opens Stellar Lab's Friendbot in a new tab.
-// The Solana version POSTed to an in-house API route; on Stellar the
-// official testnet faucet is browser-only, so we just deep-link.
+// Testnet XLM faucet — calls Stellar Friendbot directly.
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";

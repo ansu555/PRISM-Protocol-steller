@@ -1,14 +1,4 @@
-//! AMM pool state and constants.
-//!
-//! Mirrors `contracts/programs/prism-amm/src/state.rs` (Solana).
-//!
-//! Soroban differences:
-//!   - No `tranche_reserve` / `quote_reserve` token-account addresses. The
-//!     AMM contract holds both reserves in its own balance via the standard
-//!     token interface (`token::Client::balance(&contract_address)`).
-//!   - `bump` field dropped (no PDAs).
-//!   - `lp_token` is the address of a pre-deployed SAC whose admin is this
-//!     contract.
+
 
 use soroban_sdk::{contracttype, Address};
 
@@ -25,3 +15,4 @@ pub struct AmmPool {
     pub lp_token: Address,
     pub fee_bps: u32,
 }
+
