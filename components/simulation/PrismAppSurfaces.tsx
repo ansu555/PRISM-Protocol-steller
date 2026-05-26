@@ -839,14 +839,11 @@ function EarnGuideBanner() {
             You are on Devnet. Use simulated USDC, choose a tranche, and see how the waterfall behaves before any real capital is involved.
           </p>
         </div>
-        <Link
-          href="https://docs.prismprotocol.dev/"
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 bg-black/30 px-5 text-sm font-medium text-white transition-colors hover:bg-white hover:text-black"
+        <span
+          className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 bg-black/30 px-5 text-sm font-medium text-white/40 cursor-not-allowed"
         >
           Read the docs
-        </Link>
+        </span>
       </div>
     </section>
   );
