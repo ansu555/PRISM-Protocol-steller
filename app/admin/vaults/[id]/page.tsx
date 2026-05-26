@@ -22,33 +22,11 @@ import {
   Coins,
   ChevronRight
 } from 'lucide-react';
-import { BN } from '@coral-xyz/anchor';
-import { 
-  PublicKey, 
-  Transaction, 
-  Keypair, 
-  SystemProgram 
-} from '@solana/web3.js';
-import { 
-  TOKEN_PROGRAM_ID, 
-  ASSOCIATED_TOKEN_PROGRAM_ID, 
-  getAssociatedTokenAddress, 
-  createAssociatedTokenAccountInstruction 
-} from '@solana/spl-token';
-import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@/components/providers/stellar-wallet-context';
 import { toast } from 'sonner';
 
-import { buildPrograms } from '@/app/lib/program';
 import { formatUsdc } from '@/app/lib/format';
-import { PRISM_CORE_PROGRAM_ID, USDC_MINT, TrancheKind } from '@/app/lib/constants';
-import {
-  getConfigPda,
-  getVaultPda,
-  getTranchePda,
-  getTrancheMintPda,
-  getVaultReservePda,
-  getLossBucketPda,
-} from '@/app/lib/pda';
+import { TrancheKind } from '@/app/lib/constants';
 import { useVaultState } from '@/hooks/useVaultState';
 import { useReactivateVault } from '@/hooks/useReactivateVault';
 import { useAdminVault } from '@/components/admin/AdminVaultContext';
@@ -64,7 +42,7 @@ export default function VaultDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const { connection } = useConnection();
-  const wallet = useAnchorWallet();
+  const wallet = useWallet();
   const { addLog } = useAdminVault();
   
   const vaultId = parseInt(id as string);
@@ -95,38 +73,10 @@ export default function VaultDetailPage() {
   const isHealthy = stats.lossBucketBal === 0n;
 
   async function triggerCreditEvent() {
-    if (!wallet) return toast.error('Connect wallet');
+    if (!wallet.connected) return toast.error('Connect wallet');
     setBusy(true);
     try {
-      const { core } = buildPrograms(connection, wallet as any);
-      const [config] = getConfigPda();
-      const [vault] = getVaultPda(vaultId);
-      const [reserve] = getVaultReservePda(vault);
-      const [lossBucket] = getLossBucketPda(vault);
-      
-      const tranches = vd?.tranches.map(t => {
-        const [tranche] = getTranchePda(vault, t.kind);
-        return tranche;
-      }) ?? [];
-
-      const amount = new BN(Math.round(parseFloat(lossAmount) * 1_000_000));
-      
-      await (core.methods as any)
-        .triggerCreditEvent(amount)
-        .accounts({
-          admin: wallet.publicKey,
-          config,
-          vault,
-          vaultUsdcReserve: reserve,
-          lossBucket,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
-        .remainingAccounts(tranches.map(t => ({ pubkey: t, isWritable: true, isSigner: false })))
-        .rpc({ commitment: 'confirmed' });
-
-      addLog(`⚠ Credit Event Triggered: $${lossAmount} loss cascade executed on Vault #${vaultId}.`);
-      toast.success('Credit event simulation successful');
-      vaultState.refetch();
+      throw new Error('Not yet migrated to Stellar — use the simulation panel instead.');
     } catch (e: any) {
       addLog(`✗ Simulation Failure: ${e.message}`);
       toast.error(`Simulation failed: ${e.message}`);
@@ -136,49 +86,10 @@ export default function VaultDetailPage() {
   }
 
   async function seedTranche() {
-    if (!wallet) return toast.error('Connect wallet');
+    if (!wallet.connected) return toast.error('Connect wallet');
     setBusy(true);
     try {
-      const { core } = buildPrograms(connection, wallet as any);
-      const user = wallet.publicKey;
-      const [config] = getConfigPda();
-      const [vault] = getVaultPda(vaultId);
-      const [tranche] = getTranchePda(vault, selectedTrancheKind);
-      const [trancheMint] = getTrancheMintPda(vault, selectedTrancheKind);
-      const [vaultReserve] = getVaultReservePda(vault);
-      
-      const userUsdcAta = await getAssociatedTokenAddress(USDC_MINT, user);
-      const userTrancheAta = await getAssociatedTokenAddress(trancheMint, user);
-
-      const amount = new BN(Math.round(parseFloat(seedAmount) * 1_000_000));
-      
-      // Ensure user has ATAs
-      const instructions = [];
-      const userTrancheAtaInfo = await connection.getAccountInfo(userTrancheAta);
-      if (!userTrancheAtaInfo) {
-        instructions.push(createAssociatedTokenAccountInstruction(user, userTrancheAta, user, trancheMint));
-      }
-
-      await (core.methods as any)
-        .deposit(amount)
-        .accounts({
-          user,
-          config,
-          vault,
-          tranche,
-          trancheMint,
-          userUsdcAta,
-          userTrancheAta,
-          vaultUsdcReserve: vaultReserve,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
-        .preInstructions(instructions)
-        .rpc({ commitment: 'confirmed' });
-
-      const label = TRANCHE_METADATA.find(m => m.kind === selectedTrancheKind)?.label;
-      addLog(`✓ Capital Seeded: $${seedAmount} USDC deposited into ${label} tranche of Vault #${vaultId}.`);
-      toast.success(`Successfully seeded ${label} tranche`);
-      vaultState.refetch();
+      throw new Error('Not yet migrated to Stellar — use the simulation panel instead.');
     } catch (e: any) {
       addLog(`✗ Seeding Failure: ${e.message}`);
       toast.error(`Seeding failed: ${e.message}`);

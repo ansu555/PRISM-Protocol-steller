@@ -8,38 +8,12 @@ import {
   Settings2,
   XCircle,
 } from 'lucide-react';
-import { BN } from '@coral-xyz/anchor';
-import { PublicKey, Keypair, SystemProgram, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
-import {
-  TOKEN_PROGRAM_ID,
-} from '@solana/spl-token';
-import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@/components/providers/stellar-wallet-context';
 import { toast } from 'sonner';
 
-import { buildPrograms } from '@/app/lib/program';
 import { formatUsdc } from '@/app/lib/format';
-import {
-  PRISM_CORE_PROGRAM_ID,
-  PRISM_AMM_PROGRAM_ID,
-  USDC_MINT,
-  TrancheKind,
-} from '@/app/lib/constants';
-import {
-  getConfigPda,
-  getVaultPda,
-  getTranchePda,
-  getTrancheMintPda,
-  getVaultReservePda,
-  getLossBucketPda,
-  getLoanPda,
-  getPoolPda,
-  getPoolTrancheReservePda,
-  getPoolQuoteReservePda,
-  getLpMintPda,
-} from '@/app/lib/pda';
 import { useVaultState } from '@/hooks/useVaultState';
 import { useAdminVault } from '@/components/admin/AdminVaultContext';
-import adminSecret from '@/contracts/keys/admin.json';
 
 type StepStatus = 'idle' | 'running' | 'done' | 'error' | 'skipped';
 
@@ -51,12 +25,8 @@ const STEPS = [
   { label: 'AMM Pools',       desc: 'Initialize constant-product AMM pools' },
 ];
 
-function getAdminKeypair() {
-  return Keypair.fromSecretKey(Uint8Array.from(adminSecret as number[]));
-}
-
 export default function ProtocolPage() {
-  const wallet = useAnchorWallet();
+  const wallet = useWallet();
   const { connection } = useConnection();
   const { vaultId, addLog } = useAdminVault();
   const vaultState = useVaultState(vaultId);
@@ -79,51 +49,14 @@ export default function ProtocolPage() {
     setStepStatuses((prev) => { const n = [...prev]; n[i] = s; return n; });
   }
 
-  function getPdas() {
-    const [config] = getConfigPda(PRISM_CORE_PROGRAM_ID);
-    const [vault] = getVaultPda(vaultId, PRISM_CORE_PROGRAM_ID);
-    const [trancheP] = getTranchePda(vault, TrancheKind.Prime, PRISM_CORE_PROGRAM_ID);
-    const [trancheC] = getTranchePda(vault, TrancheKind.Core, PRISM_CORE_PROGRAM_ID);
-    const [trancheA] = getTranchePda(vault, TrancheKind.Alpha, PRISM_CORE_PROGRAM_ID);
-    const [mintP] = getTrancheMintPda(vault, TrancheKind.Prime, PRISM_CORE_PROGRAM_ID);
-    const [mintC] = getTrancheMintPda(vault, TrancheKind.Core, PRISM_CORE_PROGRAM_ID);
-    const [mintA] = getTrancheMintPda(vault, TrancheKind.Alpha, PRISM_CORE_PROGRAM_ID);
-    const [reserve] = getVaultReservePda(vault, PRISM_CORE_PROGRAM_ID);
-    const [lossBucket] = getLossBucketPda(vault, PRISM_CORE_PROGRAM_ID);
-    const [loan] = getLoanPda(vault, 0, PRISM_CORE_PROGRAM_ID);
-    const [poolP] = getPoolPda(mintP, PRISM_AMM_PROGRAM_ID);
-    const [poolC] = getPoolPda(mintC, PRISM_AMM_PROGRAM_ID);
-    const [poolA] = getPoolPda(mintA, PRISM_AMM_PROGRAM_ID);
-    return {
-      config, vault,
-      tranches: { prime: trancheP, core: trancheC, alpha: trancheA },
-      mints: { prime: mintP, core: mintC, alpha: mintA },
-      reserve, lossBucket, loan,
-      pools: { prime: poolP, core: poolC, alpha: poolA },
-    };
+  function notMigrated(): never {
+    throw new Error('Not yet migrated to Stellar — use the simulation panel instead.');
   }
 
   async function step0_GlobalConfig(): Promise<boolean> {
     setStep(0, 'running');
     try {
-      const adminKp = getAdminKeypair();
-      const { core } = buildPrograms(connection, adminKp);
-      const p = getPdas();
-      const admin = adminKp.publicKey;
-      const TEST_ORACLE = new PublicKey('5nmEq5cNc9yXpK1ySrb4XH65zccBvRK2hwKnEJePjcrf');
-      const existing = await core.account.globalConfig.fetchNullable(p.config);
-      if (existing) {
-        log('Global config already exists — skipping');
-        setStep(0, 'skipped');
-      } else {
-        await core.methods
-          .initializeGlobalConfig(0, [admin, TEST_ORACLE])
-          .accounts({ admin, config: p.config, usdcMint: USDC_MINT, systemProgram: SystemProgram.programId })
-          .rpc({ commitment: 'confirmed' });
-        log('✓ Global config initialized');
-        setStep(0, 'done');
-      }
-      return true;
+      notMigrated();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       log(`✗ Global config: ${msg}`);
@@ -135,43 +68,7 @@ export default function ProtocolPage() {
   async function step1_Vault(): Promise<boolean> {
     setStep(1, 'running');
     try {
-      const adminKp = getAdminKeypair();
-      const { core } = buildPrograms(connection, adminKp);
-      const p = getPdas();
-      const admin = adminKp.publicKey;
-      const existing = await core.account.vault.fetchNullable(p.vault);
-      if (existing) {
-        log('Vault already exists — skipping');
-        setStep(1, 'skipped');
-      } else {
-        await core.methods
-          .initializeVault(vaultId)
-          .accounts({ admin, config: p.config, vault: p.vault, systemProgram: SystemProgram.programId })
-          .rpc({ commitment: 'confirmed' });
-        log(`✓ Vault #${vaultId} created`);
-
-        await core.methods
-          .initializeVaultReserves()
-          .accounts({
-            admin, config: p.config, vault: p.vault, usdcMint: USDC_MINT,
-            vaultUsdcReserve: p.reserve, tokenProgram: TOKEN_PROGRAM_ID,
-            systemProgram: SystemProgram.programId,
-          })
-          .rpc({ commitment: 'confirmed' });
-        log('✓ Vault reserve initialized');
-
-        await core.methods
-          .initializeVaultLossBucket()
-          .accounts({
-            admin, config: p.config, vault: p.vault, usdcMint: USDC_MINT,
-            lossBucket: p.lossBucket, tokenProgram: TOKEN_PROGRAM_ID,
-            systemProgram: SystemProgram.programId,
-          })
-          .rpc({ commitment: 'confirmed' });
-        log('✓ Loss bucket initialized');
-        setStep(1, 'done');
-      }
-      return true;
+      notMigrated();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       log(`✗ Vault: ${msg}`);
@@ -183,34 +80,7 @@ export default function ProtocolPage() {
   async function step2_Tranches(): Promise<boolean> {
     setStep(2, 'running');
     try {
-      const adminKp = getAdminKeypair();
-      const { core } = buildPrograms(connection, adminKp);
-      const p = getPdas();
-      const admin = adminKp.publicKey;
-      const configs = [
-        { kind: TrancheKind.Prime, apy: 500,  pda: p.tranches.prime, mint: p.mints.prime, label: 'Prime' },
-        { kind: TrancheKind.Core,  apy: 800,  pda: p.tranches.core,  mint: p.mints.core,  label: 'Core'  },
-        { kind: TrancheKind.Alpha, apy: 1500, pda: p.tranches.alpha, mint: p.mints.alpha, label: 'Alpha' },
-      ];
-      let anyNew = false;
-      for (const t of configs) {
-        const existing = await core.account.tranche.fetchNullable(t.pda);
-        if (existing) { log(`${t.label} tranche already exists — skipping`); continue; }
-        await core.methods
-          .initializeTranche(t.kind, t.apy)
-          .accounts({
-            admin, config: p.config, vault: p.vault,
-            tranche: t.pda, trancheMint: t.mint,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            systemProgram: SystemProgram.programId,
-            rent: SYSVAR_RENT_PUBKEY,
-          })
-          .rpc({ commitment: 'confirmed' });
-        log(`✓ ${t.label} tranche initialized`);
-        anyNew = true;
-      }
-      setStep(2, anyNew ? 'done' : 'skipped');
-      return true;
+      notMigrated();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       log(`✗ Tranches: ${msg}`);
@@ -220,30 +90,10 @@ export default function ProtocolPage() {
   }
 
   async function step3_Loan(): Promise<boolean> {
-    if (!wallet) { toast.error('Connect wallet for loan setup'); return false; }
+    if (!wallet.connected) { toast.error('Connect wallet for loan setup'); return false; }
     setStep(3, 'running');
     try {
-      const adminKp = getAdminKeypair();
-      const { core } = buildPrograms(connection, adminKp);
-      const p = getPdas();
-      const admin = adminKp.publicKey;
-      const borrower = wallet.publicKey;
-      const existing = await core.account.loan.fetchNullable(p.loan);
-      if (existing) {
-        log('Loan already exists — skipping');
-        setStep(3, 'skipped');
-      } else {
-        const principal = new BN(parseFloat(loanPrincipal) * 1_000_000);
-        const apr = parseInt(loanApr) * 100;
-        const maturity = new BN(Math.floor(Date.now() / 1000) + parseInt(loanMaturity) * 24 * 60 * 60);
-        await core.methods
-          .initializeLoan(0, principal, apr, maturity, borrower)
-          .accounts({ admin, config: p.config, vault: p.vault, loan: p.loan, systemProgram: SystemProgram.programId })
-          .rpc({ commitment: 'confirmed' });
-        log(`✓ Loan initialized — $${loanPrincipal} USDC @ ${loanApr}% APR · ${loanMaturity}d`);
-        setStep(3, 'done');
-      }
-      return true;
+      notMigrated();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       log(`✗ Loan: ${msg}`);
@@ -255,39 +105,7 @@ export default function ProtocolPage() {
   async function step4_AmmPools(): Promise<boolean> {
     setStep(4, 'running');
     try {
-      const adminKp = getAdminKeypair();
-      const { amm } = buildPrograms(connection, adminKp);
-      const p = getPdas();
-      const admin = adminKp.publicKey;
-      const entries = [
-        { label: 'Prime', mint: p.mints.prime, pool: p.pools.prime },
-        { label: 'Core',  mint: p.mints.core,  pool: p.pools.core  },
-        { label: 'Alpha', mint: p.mints.alpha,  pool: p.pools.alpha },
-      ];
-      let anyNew = false;
-      for (const e of entries) {
-        const [trancheReserve] = getPoolTrancheReservePda(e.mint, PRISM_AMM_PROGRAM_ID);
-        const [quoteReserve]   = getPoolQuoteReservePda(e.mint, PRISM_AMM_PROGRAM_ID);
-        const [lpMint]         = getLpMintPda(e.mint, PRISM_AMM_PROGRAM_ID);
-        const existing = await amm.account.ammPool.fetchNullable(e.pool);
-        if (existing) { log(`${e.label} AMM pool already exists — skipping`); continue; }
-        await amm.methods
-          .initializePool(30)
-          .accounts({ admin, trancheMint: e.mint, quoteMint: USDC_MINT, pool: e.pool, systemProgram: SystemProgram.programId })
-          .rpc({ commitment: 'confirmed' });
-        await amm.methods
-          .initializePoolReserves()
-          .accounts({
-            admin, pool: e.pool, trancheMint: e.mint, quoteMint: USDC_MINT,
-            trancheReserve, quoteReserve, lpMint,
-            tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-          })
-          .rpc({ commitment: 'confirmed' });
-        log(`✓ ${e.label} AMM pool initialized`);
-        anyNew = true;
-      }
-      setStep(4, anyNew ? 'done' : 'skipped');
-      return true;
+      notMigrated();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       log(`✗ AMM: ${msg}`);
@@ -297,7 +115,7 @@ export default function ProtocolPage() {
   }
 
   async function runFullSetup() {
-    if (!wallet) { toast.error('Connect wallet first'); return; }
+    if (!wallet.connected) { toast.error('Connect wallet first'); return; }
     setRunning(true);
     setStepStatuses(STEPS.map(() => 'idle'));
     setLocalLog([]);
@@ -356,7 +174,7 @@ export default function ProtocolPage() {
             </div>
             <button
               onClick={runFullSetup}
-              disabled={running || !wallet}
+              disabled={running || !wallet.connected}
               className="flex items-center gap-2 rounded-lg border border-purple-500/25 bg-purple-500/[0.08] px-4 py-1.5 font-mono text-[11px] text-purple-200 transition-all hover:bg-purple-500/[0.14] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {running && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -403,7 +221,7 @@ export default function ProtocolPage() {
                 <button
                   key={step.label}
                   onClick={() => stepFns[i]()}
-                  disabled={running || !wallet}
+                  disabled={running || !wallet.connected}
                   className="flex w-full items-center justify-between rounded-lg border border-white/[0.05] bg-white/[0.02] px-4 py-2.5 text-left transition-all hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <div>
@@ -463,8 +281,8 @@ export default function ProtocolPage() {
                 {[
                   { label: 'Reserve', value: `$${formatUsdc(vd.reserveBalance, 2)}` },
                   { label: 'Loss Bucket', value: `$${formatUsdc(vd.lossBucketBalance, 2)}` },
-                  { label: 'Core Program', value: vd.programIds.core.toBase58().slice(0, 12) + '…' },
-                  { label: 'AMM Program', value: vd.programIds.amm.toBase58().slice(0, 12) + '…' },
+                  { label: 'Core Program', value: String(vd.programIds.core).slice(0, 12) + '…' },
+                  { label: 'AMM Program', value: String(vd.programIds.amm).slice(0, 12) + '…' },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex justify-between">
                     <span className="font-mono text-[10px] text-white/28">{label}</span>

@@ -1,29 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
-import { AnchorProvider, Program, BN, type Idl } from '@coral-xyz/anchor';
-import { SystemProgram } from '@solana/web3.js';
-import {
-  TOKEN_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddress,
-} from '@solana/spl-token';
+import { useWallet, useConnection } from '@/components/providers/stellar-wallet-context';
 import { toast } from 'sonner';
 import { Banknote, CheckCircle2, CreditCard, Loader2, ShieldCheck } from 'lucide-react';
 
 import {
-  PRISM_CORE_PROGRAM_ID,
-  USDC_MINT,
   VAULT_ID,
 } from '@/app/lib/constants';
-import {
-  getConfigPda,
-  getVaultPda,
-  getVaultReservePda,
-  getLoanPda,
-} from '@/app/lib/pda';
-import prismCoreIdl from '@/app/lib/idl/prism_core.json';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDodoCheckout } from '@/hooks/useDodoCheckout';
 import {
@@ -37,7 +21,7 @@ interface LoanRepaymentProps {
 }
 
 export function LoanRepayment({ loanId, vaultId = VAULT_ID }: LoanRepaymentProps) {
-  const wallet = useAnchorWallet();
+  const wallet = useWallet();
   const { connection } = useConnection();
   const [repayAmount, setRepayAmount] = useState('');
   const [fiatAmount, setFiatAmount] = useState('');
@@ -63,7 +47,7 @@ export function LoanRepayment({ loanId, vaultId = VAULT_ID }: LoanRepaymentProps
 
   // ── On-chain settlement (existing path, refactored to accept an amount) ──
   async function settleOnChain(amountUsd: number) {
-    if (!wallet) {
+    if (!wallet.connected) {
       toast.error('Connect wallet first');
       return;
     }
@@ -74,40 +58,7 @@ export function LoanRepayment({ loanId, vaultId = VAULT_ID }: LoanRepaymentProps
 
     setLoading(true);
     try {
-      const provider = new AnchorProvider(connection, wallet as any, {
-        commitment: 'confirmed',
-      });
-      const core = new Program(prismCoreIdl as Idl, provider) as any;
-
-      const [config] = getConfigPda(PRISM_CORE_PROGRAM_ID);
-      const [vault] = getVaultPda(vaultId, PRISM_CORE_PROGRAM_ID);
-      const [reserve] = getVaultReservePda(vault, PRISM_CORE_PROGRAM_ID);
-      const [loan] = getLoanPda(vault, loanId, PRISM_CORE_PROGRAM_ID);
-
-      const amount = new BN(Math.round(amountUsd * 1_000_000));
-      const borrowerUsdcAta = await getAssociatedTokenAddress(
-        USDC_MINT,
-        wallet.publicKey,
-      );
-
-      const sig = await core.methods
-        .repayLoan(amount)
-        .accounts({
-          borrower: wallet.publicKey,
-          config,
-          vault,
-          loan,
-          borrowerUsdcAta,
-          vaultUsdcReserve: reserve,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc({ commitment: 'confirmed' });
-
-      toast.success('Repayment settled on-chain');
-      setRepayAmount('');
-      console.log('Repayment signature:', sig);
+      throw new Error('Not yet migrated to Stellar — use the simulation panel instead.');
     } catch (e: any) {
       console.error(e);
       toast.error(`Repayment failed: ${e.message}`);
@@ -134,54 +85,14 @@ export function LoanRepayment({ loanId, vaultId = VAULT_ID }: LoanRepaymentProps
   }
 
   async function settleOnChainAndMark(amountUsd: number) {
-    if (!wallet || !settledKey) return;
+    if (!wallet.connected || !settledKey) return;
     setLoading(true);
     try {
-      const provider = new AnchorProvider(connection, wallet as any, {
-        commitment: 'confirmed',
-      });
-      const core = new Program(prismCoreIdl as Idl, provider) as any;
-
-      const [config] = getConfigPda(PRISM_CORE_PROGRAM_ID);
-      const [vault] = getVaultPda(vaultId, PRISM_CORE_PROGRAM_ID);
-      const [reserve] = getVaultReservePda(vault, PRISM_CORE_PROGRAM_ID);
-      const [loan] = getLoanPda(vault, loanId, PRISM_CORE_PROGRAM_ID);
-
-      const amount = new BN(Math.round(amountUsd * 1_000_000));
-      const borrowerUsdcAta = await getAssociatedTokenAddress(
-        USDC_MINT,
-        wallet.publicKey,
-      );
-
-      const sig = await core.methods
-        .repayLoan(amount)
-        .accounts({
-          borrower: wallet.publicKey,
-          config,
-          vault,
-          loan,
-          borrowerUsdcAta,
-          vaultUsdcReserve: reserve,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc({ commitment: 'confirmed' });
-
-      localStorage.setItem(settledKey, sig);
-      setOnChainTxSig(sig);
-      toast.success('Repayment settled on-chain');
-      console.log('Settlement signature:', sig);
+      throw new Error('Not yet migrated to Stellar — use the simulation panel instead.');
     } catch (e: any) {
       console.error(e);
       const msg = e?.message ?? 'Repayment failed';
-      if (typeof msg === 'string' && msg.includes('0x1')) {
-        toast.error(
-          'Insufficient USDC — this payment may already be settled. Refresh to verify.',
-        );
-      } else {
-        toast.error(`Repayment failed: ${msg}`);
-      }
+      toast.error(`Repayment failed: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -189,7 +100,7 @@ export function LoanRepayment({ loanId, vaultId = VAULT_ID }: LoanRepaymentProps
 
   // ── Dodo checkout submit ────────────────────────────────────────────────
   function handleStartDodo() {
-    if (!wallet) {
+    if (!wallet.connected || !wallet.publicKey) {
       toast.error('Connect wallet first');
       return;
     }

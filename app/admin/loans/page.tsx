@@ -23,22 +23,12 @@ import {
   Coins,
   RefreshCw
 } from 'lucide-react';
-import { PublicKey, Keypair } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
-import { BN } from '@coral-xyz/anchor';
-import adminSecret from '@/contracts/keys/admin.json';
+import { useWallet, useConnection } from '@/components/providers/stellar-wallet-context';
 import { toast } from 'sonner';
 
-import { buildPrograms } from '@/app/lib/program';
 import { formatUsdc } from '@/app/lib/format';
-import { PRISM_CORE_PROGRAM_ID, USDC_MINT, TrancheKind } from '@/app/lib/constants';
 import {
-  getConfigPda,
   getVaultPda,
-  getTranchePda,
-  getVaultReservePda,
-  getLossBucketPda,
   getLoanPda,
   getIkaCollateralPda,
 } from '@/app/lib/pda';
@@ -49,7 +39,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function LoansPage() {
   const { connection } = useConnection();
-  const wallet = useAnchorWallet();
+  const wallet = useWallet();
   const { vaultId, addLog } = useAdminVault();
   const vaultState = useVaultState(vaultId);
   const { applications } = useLoanApplications();
@@ -63,55 +53,13 @@ export default function LoansPage() {
 
 
   async function handleDisburse(app: any) {
-    if (!wallet) return toast.error('Connect wallet');
+    if (!wallet.connected) return toast.error('Connect wallet');
     if (app.loanId === undefined || app.loanId === null) {
       return toast.error('Loan not originated on-chain. Re-approve from the loan detail page with the vault running.');
     }
     setDisbursingId(app.id);
     try {
-      const adminKp = Keypair.fromSecretKey(Uint8Array.from(adminSecret as number[]));
-      const { core } = buildPrograms(connection, adminKp);
-      const admin = adminKp.publicKey;
-      const [config] = getConfigPda();
-      const [vault] = getVaultPda(app.vaultId ?? vaultId);
-
-      const vaultAccountInfo = await connection.getAccountInfo(vault);
-      if (!vaultAccountInfo) {
-        throw new Error('Vault not initialized — run Protocol Setup first');
-      }
-
-      const principalMicro = BigInt(Math.round(app.requestedUSDC * 1_000_000));
-      const [reservePda] = getVaultReservePda(vault);
-      const reserveAcc = await connection.getTokenAccountBalance(reservePda);
-      const reserveBalance = BigInt(reserveAcc.value.amount);
-
-      if (reserveBalance < principalMicro) {
-        throw new Error(`Insufficient Vault Reserves: ${formatUsdc(reserveBalance, 2)} available, ${app.requestedUSDC.toLocaleString()} required.`);
-      }
-
-      const [loanPda] = getLoanPda(vault, Number(app.loanId));
-      const borrower = new PublicKey(app.borrowerPubkey);
-
-      const [ikaCollateralPda] = getIkaCollateralPda(loanPda);
-      const ikaAcc = await (core as any).account.ikaCollateral.fetchNullable(ikaCollateralPda);
-
-      const tokenAccounts = await connection.getTokenAccountsByOwner(borrower, { mint: USDC_MINT });
-      if (tokenAccounts.value.length === 0) {
-        throw new Error('Borrower has no USDC token account');
-      }
-
-      await (core as any).methods
-        .disburseLoan()
-        .accounts({
-          admin, config, vault, loan: loanPda, vaultUsdcReserve: reservePda,
-          borrowerUsdcAta: tokenAccounts.value[0].pubkey,
-          tokenProgram: TOKEN_PROGRAM_ID, ikaCollateral: ikaAcc ? ikaCollateralPda : null,
-        })
-        .rpc({ commitment: 'confirmed' });
-
-      addLog(`✓ Capital Disbursed: $${app.requestedUSDC.toLocaleString()} transmitted to borrower.`);
-      toast.success(`Loan #${app.loanId} disbursed`);
-      vaultState.refetch();
+      throw new Error('Not yet migrated to Stellar — use the simulation panel instead.');
     } catch (e: any) {
       addLog(`✗ Disbursement Error: ${e.message}`);
       toast.error(`Disburse failed: ${e.message}`);
@@ -316,7 +264,7 @@ export default function LoansPage() {
                 
                 <div className="space-y-4">
                    {[
-                     { label: 'Authorized Admin', val: wallet?.publicKey.toBase58().slice(0, 8) + '...' },
+                     { label: 'Authorized Admin', val: (wallet.publicKey?.toBase58().slice(0, 8) ?? 'N/A') + '...' },
                      { label: 'Network State', val: 'Mainnet-Beta Simulation' },
                      { label: 'Vault ID', val: `#${vaultId}` },
                    ].map((item, i) => (
@@ -346,44 +294,14 @@ export default function LoansPage() {
 }
 
 function LoanActions({ app, onDisburse, isDisbursing }: { app: any, onDisburse: (app: any) => void, isDisbursing: boolean }) {
-  const { connection } = useConnection();
   const [onChainLoan, setOnChainLoan] = useState<any>(null);
   const [collateralLocked, setCollateralLocked] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
-    async function fetchState() {
-      if (!app.loanId) {
-        if (mounted) setLoading(false);
-        return;
-      }
-      try {
-        const [vault] = getVaultPda(app.vaultId ?? 0);
-        const [loanPda] = getLoanPda(vault, Number(app.loanId));
-        const { core } = buildPrograms(connection);
-        const [acc, ikaAcc] = await Promise.all([
-          (core as any).account.loan.fetchNullable(loanPda),
-          (core as any).account.ikaCollateral.fetchNullable(getIkaCollateralPda(loanPda)[0]),
-        ]);
-        if (mounted) {
-          setOnChainLoan(acc);
-          const status = ikaAcc ? Object.keys(ikaAcc.status)[0] : null;
-          setCollateralLocked(status === 'locked');
-        }
-      } catch (e) {
-        console.error('Failed to fetch loan state:', e);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-    fetchState();
-    const timer = setInterval(fetchState, 5000);
-    return () => {
-      mounted = false;
-      clearInterval(timer);
-    };
-  }, [app.loanId, app.vaultId, connection]);
+    // On-chain state fetching not yet migrated to Stellar
+    setLoading(false);
+  }, [app.loanId, app.vaultId]);
 
   if (loading) return <Skeleton className="h-14 w-full rounded-2xl bg-white/[0.02]" />;
 

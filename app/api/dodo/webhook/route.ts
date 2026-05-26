@@ -1,29 +1,16 @@
 /**
- * Dodo Payments webhook handler — the load-bearing component.
+ * Dodo Payments webhook handler (Stellar build).
  *
  * On a verified `payment.succeeded`:
  *   1. Atomic SQL transition pending -> paid (idempotency boundary)
- *   2. Server-side admin transfers USDC from admin's ATA to borrower's ATA
- *   3. SQL transition paid -> credited with the tx signature
+ *   2. Server-side admin transfers USDC from contract to borrower via Soroban
+ *   3. SQL transition paid -> credited with the tx hash
  *
  * Always returns 200 to suppress Dodo retry storms; failures are logged.
- *
- * Standard Webhooks signature scheme:
- *   HMAC-SHA256(secret, `${id}.${timestamp}.${rawBody}`) base64
- *   replay window 5 min
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  Connection,
-  PublicKey,
-  Transaction,
-} from '@solana/web3.js';
-import {
-  getAssociatedTokenAddress,
-  createAssociatedTokenAccountInstruction,
-  createTransferInstruction,
-} from '@solana/spl-token';
+import { Keypair, TransactionBuilder } from '@stellar/stellar-sdk';
 
 import { verifyWebhookSignature } from '@/app/lib/dodo';
 import { getAdminKeypair } from '@/app/lib/adminKeypair';
@@ -33,14 +20,14 @@ import {
   markFailed,
   type DodoIntent,
 } from '@/lib/dodoStore';
+import {
+  NETWORK_PASSPHRASE,
+  USDC_CONTRACT_ID,
+} from '@/app/lib/constants';
+import { addr, getRpcServer, getUsdcClient, nativeToScVal } from '@/app/lib/stellar';
 
 export const runtime = 'nodejs';
 
-const USDC_MINT_B58 =
-  process.env.NEXT_PUBLIC_USDC_MINT ?? 'CoSmAscHkm3KxFvsd3QvrLzzSX6Ke1qEfGvcWLPG1GJ1';
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? 'https://api.devnet.solana.com';
-
-// Always return 200 OK to avoid Dodo retry storms; log on the server.
 function ok(extra: Record<string, unknown> = {}) {
   return NextResponse.json({ ok: true, ...extra }, { status: 200 });
 }
@@ -72,7 +59,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'bad json' }, { status: 400 });
   }
 
-  // Dodo webhook payload uses `type` (Standard Webhooks spec confirmed in docs)
   const eventName = event.type ?? '';
   const paymentId = event.data?.payment_id;
 
@@ -92,7 +78,6 @@ export async function POST(req: NextRequest) {
     return ok({ event: eventName, skipped: true });
   }
 
-  // ── 1. Atomic transition. Only one webhook can win ──────────────────────
   let intent: DodoIntent | null;
   try {
     intent = await markPaidAtomic(paymentId);
@@ -102,88 +87,75 @@ export async function POST(req: NextRequest) {
   }
 
   if (!intent) {
-    // Either unknown payment_id or already processed (paid/credited).
     return ok({ payment_id: paymentId, deduped: true });
   }
 
-  // ── 2. Bridge: admin SPL transfer to borrower's USDC ATA ───────────────
-  let txSig: string | null = null;
+  let txHash: string | null = null;
   try {
-    txSig = await transferUsdcToBorrower(
+    txHash = await transferUsdcToBorrower(
       intent.borrower_pubkey,
       BigInt(intent.amount_usd_micro.toString()),
     );
   } catch (e) {
-    console.error('[dodo/webhook] SPL transfer failed', e);
-    // Do not flip back to pending — leave row in 'paid' so a manual operator
-    // can replay (future work). Always 200 so Dodo doesn't retry.
+    console.error('[dodo/webhook] USDC transfer failed', e);
     return ok({ error: 'transfer_failed', payment_id: paymentId });
   }
 
-  // ── 3. Mark credited with the tx sig ───────────────────────────────────
   try {
-    await markCredited(paymentId, txSig);
+    await markCredited(paymentId, txHash);
   } catch (e) {
     console.error('[dodo/webhook] markCredited failed', e);
   }
 
   console.log(
-    `[dodo/webhook] credited payment ${paymentId} with sig ${txSig} (loan ${intent.loan_id})`,
+    `[dodo/webhook] credited payment ${paymentId} with hash ${txHash} (loan ${intent.loan_id})`,
   );
 
-  return ok({ payment_id: paymentId, tx_sig: txSig });
+  return ok({ payment_id: paymentId, tx_hash: txHash });
 }
 
-/**
- * Transfers `amountUsdMicro` USDC from the admin's ATA to the borrower's ATA,
- * creating the borrower's ATA if it does not yet exist.
- *
- * Returns the confirmed transaction signature.
- */
 async function transferUsdcToBorrower(
-  borrowerPubkeyB58: string,
-  amountUsdMicro: bigint,
+  borrowerAddress: string,
+  amountMicro: bigint,
 ): Promise<string> {
   const admin = getAdminKeypair();
-  const conn = new Connection(RPC_URL, 'confirmed');
+  const server = getRpcServer();
+  const usdc = getUsdcClient();
 
-  const usdcMint = new PublicKey(USDC_MINT_B58);
-  const borrowerPubkey = new PublicKey(borrowerPubkeyB58);
+  const source = await server.getAccount(admin.publicKey());
 
-  const adminUsdcAta = await getAssociatedTokenAddress(usdcMint, admin.publicKey);
-  const borrowerUsdcAta = await getAssociatedTokenAddress(usdcMint, borrowerPubkey);
-
-  const tx = new Transaction();
-
-  // Create the borrower's ATA if missing — admin pays rent.
-  const borrowerAtaInfo = await conn.getAccountInfo(borrowerUsdcAta);
-  if (!borrowerAtaInfo) {
-    tx.add(
-      createAssociatedTokenAccountInstruction(
-        admin.publicKey,
-        borrowerUsdcAta,
-        borrowerPubkey,
-        usdcMint,
+  let tx = new TransactionBuilder(source, {
+    fee: '1000',
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(
+      usdc.contract.call(
+        'transfer',
+        addr(admin.publicKey()),
+        addr(borrowerAddress),
+        nativeToScVal(amountMicro, { type: 'i128' }),
       ),
-    );
-  }
+    )
+    .setTimeout(60)
+    .build();
 
-  // SPL transfer — note BigInt -> bigint cast is required by spl-token typings.
-  tx.add(
-    createTransferInstruction(
-      adminUsdcAta,
-      borrowerUsdcAta,
-      admin.publicKey,
-      amountUsdMicro,
-    ),
-  );
-
-  const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
-  tx.recentBlockhash = blockhash;
-  tx.feePayer = admin.publicKey;
+  tx = await server.prepareTransaction(tx);
   tx.sign(admin);
 
-  const sig = await conn.sendRawTransaction(tx.serialize(), { skipPreflight: false });
-  await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
-  return sig;
+  const sendResult = await server.sendTransaction(tx);
+  if (sendResult.status === 'ERROR') {
+    throw new Error(`USDC transfer failed: ${JSON.stringify(sendResult.errorResult)}`);
+  }
+
+  let status = await server.getTransaction(sendResult.hash);
+  const deadline = Date.now() + 30_000;
+  while (status.status === 'NOT_FOUND' && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 1_500));
+    status = await server.getTransaction(sendResult.hash);
+  }
+  if (status.status !== 'SUCCESS') {
+    throw new Error(`USDC transfer settled with status ${status.status}`);
+  }
+
+  return sendResult.hash;
 }

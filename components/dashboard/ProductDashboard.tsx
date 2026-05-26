@@ -1,15 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAnchorWallet, useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { AnchorProvider, BN, Program, type Idl } from '@coral-xyz/anchor';
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddressSync,
-  TOKEN_PROGRAM_ID,
-} from '@solana/spl-token';
-import { SystemProgram } from '@solana/web3.js';
+import { useWallet, useConnection } from '@/components/providers/stellar-wallet-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
@@ -29,13 +21,9 @@ import { toast } from 'sonner';
 
 import { TRANCHE_CONFIG, TrancheKind, USDC_MINT, VAULT_ID } from '@/app/lib/constants';
 import { formatNavQ, formatUsdc, parseUsdc, stateName, toBigInt } from '@/app/lib/format';
-import prismCoreIdl from '@/app/lib/idl/prism_core.json';
 import {
-  getConfigPda,
   getTrancheMintPda,
-  getTranchePda,
   getVaultPda,
-  getVaultReservePda,
 } from '@/app/lib/pda';
 import { Button } from '@/components/ui/button';
 import {
@@ -50,10 +38,6 @@ import { Input } from '@/components/ui/input';
 import { useVaultState } from '@/hooks/useVaultState';
 
 const Q64_ONE = 1n << 64n;
-
-function bn(value: bigint) {
-  return new BN(value.toString());
-}
 
 function apyLabel(bps: number) {
   if (bps === 0) return 'Residual';
@@ -81,9 +65,7 @@ interface ModalState {
 
 export function ProductDashboard() {
   const { connection } = useConnection();
-  const anchorWallet = useAnchorWallet();
   const { connected, publicKey } = useWallet();
-  const { setVisible } = useWalletModal();
   const queryClient = useQueryClient();
   const vaultState = useVaultState();
 
@@ -95,69 +77,29 @@ export function ProductDashboard() {
     enabled: !!publicKey,
     refetchInterval: 15_000,
     queryFn: async () => {
-      if (!publicKey) return 0n;
-      const ata = getAssociatedTokenAddressSync(USDC_MINT, publicKey);
-      try {
-        const info = await connection.getTokenAccountBalance(ata);
-        return BigInt(info.value.amount);
-      } catch {
-        return 0n;
-      }
+      // Not yet migrated to Stellar
+      return 0n;
     },
   });
 
   const userPositions = useQuery({
-    queryKey: ['user-positions', publicKey?.toBase58(), vaultState.data?.vaultPda.toBase58()],
+    queryKey: ['user-positions', publicKey?.toBase58(), vaultState.data?.vaultPda?.toString()],
     enabled: !!publicKey && !!vaultState.data,
     refetchInterval: 15_000,
     queryFn: async () => {
-      if (!publicKey || !vaultState.data) return null;
-      const { vaultPda, programIds } = vaultState.data;
+      // Not yet migrated to Stellar
       const results: Partial<Record<TrancheKind, bigint>> = {};
-      await Promise.all(
-        ([TrancheKind.Prime, TrancheKind.Core, TrancheKind.Alpha] as const).map(async (kind) => {
-          const [mintPda] = getTrancheMintPda(vaultPda, kind, programIds.core);
-          const ata = getAssociatedTokenAddressSync(mintPda, publicKey);
-          try {
-            const info = await connection.getTokenAccountBalance(ata);
-            results[kind] = BigInt(info.value.amount);
-          } catch {
-            results[kind] = 0n;
-          }
-        }),
-      );
+      results[TrancheKind.Prime] = 0n;
+      results[TrancheKind.Core] = 0n;
+      results[TrancheKind.Alpha] = 0n;
       return results;
     },
   });
 
   const deposit = useMutation({
     mutationFn: async ({ kind, rawAmount }: { kind: TrancheKind; rawAmount: bigint }) => {
-      if (!anchorWallet) throw new Error('Wallet not connected');
-      const provider = new AnchorProvider(connection, anchorWallet, { commitment: 'confirmed' });
-      const program = new Program(prismCoreIdl as Idl, provider);
-      const [configPda] = getConfigPda();
-      const [vaultPda] = getVaultPda(VAULT_ID);
-      const [tranchePda] = getTranchePda(vaultPda, kind);
-      const [trancheMintPda] = getTrancheMintPda(vaultPda, kind);
-      const [reservePda] = getVaultReservePda(vaultPda);
-      const userUsdcAta = getAssociatedTokenAddressSync(USDC_MINT, anchorWallet.publicKey);
-      const userTrancheAta = getAssociatedTokenAddressSync(trancheMintPda, anchorWallet.publicKey);
-      await (program.methods as any)
-        .deposit(kind, bn(rawAmount))
-        .accounts({
-          user: anchorWallet.publicKey,
-          config: configPda,
-          vault: vaultPda,
-          tranche: tranchePda,
-          trancheMint: trancheMintPda,
-          vaultUsdcReserve: reservePda,
-          userUsdcAta,
-          userTrancheAta,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc({ commitment: 'confirmed' });
+      if (!connected) throw new Error('Wallet not connected');
+      throw new Error('Not yet migrated to Stellar — use the simulation panel instead.');
     },
     onSuccess: () => {
       toast.success('Deposit confirmed');
@@ -172,30 +114,8 @@ export function ProductDashboard() {
 
   const withdraw = useMutation({
     mutationFn: async ({ kind, rawShares }: { kind: TrancheKind; rawShares: bigint }) => {
-      if (!anchorWallet) throw new Error('Wallet not connected');
-      const provider = new AnchorProvider(connection, anchorWallet, { commitment: 'confirmed' });
-      const program = new Program(prismCoreIdl as Idl, provider);
-      const [configPda] = getConfigPda();
-      const [vaultPda] = getVaultPda(VAULT_ID);
-      const [tranchePda] = getTranchePda(vaultPda, kind);
-      const [trancheMintPda] = getTrancheMintPda(vaultPda, kind);
-      const [reservePda] = getVaultReservePda(vaultPda);
-      const userUsdcAta = getAssociatedTokenAddressSync(USDC_MINT, anchorWallet.publicKey);
-      const userTrancheAta = getAssociatedTokenAddressSync(trancheMintPda, anchorWallet.publicKey);
-      await (program.methods as any)
-        .withdraw(kind, bn(rawShares))
-        .accounts({
-          user: anchorWallet.publicKey,
-          config: configPda,
-          vault: vaultPda,
-          tranche: tranchePda,
-          trancheMint: trancheMintPda,
-          vaultUsdcReserve: reservePda,
-          userUsdcAta,
-          userTrancheAta,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
-        .rpc({ commitment: 'confirmed' });
+      if (!connected) throw new Error('Wallet not connected');
+      throw new Error('Not yet migrated to Stellar — use the simulation panel instead.');
     },
     onSuccess: () => {
       toast.success('Withdrawal confirmed');
@@ -286,7 +206,6 @@ export function ProductDashboard() {
         ) : (
           <button
             type="button"
-            onClick={() => setVisible(true)}
             className="flex items-center gap-2 rounded-full border border-pink-500/30 bg-pink-500/10 px-5 py-2.5 text-sm font-semibold text-pink-300 transition-colors hover:bg-pink-500/20"
           >
             <Wallet className="h-4 w-4" />
@@ -509,7 +428,7 @@ export function ProductDashboard() {
                 </Button>
                 <Button
                   onClick={handleConfirm}
-                  disabled={isPending || parsedAmount === 0n || !anchorWallet}
+                  disabled={isPending || parsedAmount === 0n || !connected}
                   className="gap-2"
                 >
                   {isPending ? (

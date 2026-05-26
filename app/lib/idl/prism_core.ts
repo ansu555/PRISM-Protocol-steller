@@ -1,6 +1,6 @@
-import type { Idl } from '@coral-xyz/anchor';
+// Legacy IDL shim. The Soroban contracts don't use Anchor IDLs — contract
+// interaction happens through the Soroban SDK's native invocation pattern.
+// This file is kept so existing `import { IDL }` lines don't break.
 
-import prismCoreIdl from './prism_core.json';
-
-export type PrismCore = Idl;
-export const IDL = prismCoreIdl as Idl;
+export type PrismCore = Record<string, unknown>;
+export const IDL: PrismCore = {};
