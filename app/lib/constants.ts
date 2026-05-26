@@ -7,19 +7,32 @@
 
 // Deployed Soroban contract IDs (Soroban testnet, May 2026).
 // Override with NEXT_PUBLIC_* env vars if you redeploy.
+// NOTE: Redeployed 2026-05-25 with a test USDC (TUSDC) that the deployer can
+// mint freely — Circle's real testnet USDC requires browser-only faucet
+// interaction and we want a fully scriptable demo. Issuer of TUSDC is the
+// deployer (GDSI…HUXO).
 export const PRISM_CORE_CONTRACT_ID =
   process.env.NEXT_PUBLIC_PRISM_CORE_CONTRACT_ID ??
-  'CC35ET26VOV4O2KT5PJ64ZVVQGGS3CMJTPY35IGJFHWG6Y3X7XKWSU7V';
+  'CB5ISNJPZDN4XIO6AQEUN2N3ILSQDPY6FTUDT7IXXXHEMGBEAA3LUJNC';
 
 export const PRISM_AMM_CONTRACT_ID =
   process.env.NEXT_PUBLIC_PRISM_AMM_CONTRACT_ID ??
-  'CA4S4LSQ6VO5QRYLJY3UVKYRVSM2AG3SZ7MAGCLMZ3PILD3QCJM37YVV';
+  'CAH22DWPILDNYWXBNY7NTUY75FU2ZMJ63ALL2AJ4TPEHOYFYVEJ3YLPY';
 
-// Stellar Asset Contract for Circle's testnet USDC.
-// USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5 → SAC.
+// Test USDC (TUSDC:GDSI…HUXO) — deployer is issuer, can mint freely. Replace
+// with Circle's real testnet USDC SAC (CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA)
+// when going to a public-facing demo.
 export const USDC_CONTRACT_ID =
   process.env.NEXT_PUBLIC_USDC_CONTRACT_ID ??
-  'CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA';
+  'CDW6NVPNLRJN6SE4A44EHGUM45NEQ2ZCHN2OAXJQV6NRCCCZODS6KOOS';
+
+// Classic-asset reference for the SAC above, needed when users add the
+// trustline through Freighter ("Add asset" → manual entry).
+export const USDC_ASSET_CODE =
+  process.env.NEXT_PUBLIC_USDC_ASSET_CODE ?? 'TUSDC';
+export const USDC_ASSET_ISSUER =
+  process.env.NEXT_PUBLIC_USDC_ASSET_ISSUER ??
+  'GDSIRM73CJE7NMYFJFXFTDVYNNYTPE3J7OPBM7BUJ7RKNMQ45M26HUXO';
 
 // Legacy alias kept so old `import { USDC_MINT }` lines don't break.
 // New code should import `USDC_CONTRACT_ID` directly.

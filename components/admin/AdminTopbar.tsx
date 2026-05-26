@@ -1,6 +1,6 @@
 'use client';
 
-import { useConnection } from '@/components/providers/stellar-wallet-context';
+import { useConnection } from '@solana/wallet-adapter-react';
 import { ChevronDown } from 'lucide-react';
 import { getNetworkName, formatUsdc } from '@/app/lib/format';
 import { useVaultState } from '@/hooks/useVaultState';

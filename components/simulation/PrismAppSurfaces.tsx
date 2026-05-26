@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
-import { useWallet } from '@/components/providers/stellar-wallet-context';
+import { useWallet } from '@solana/wallet-adapter-react';
 import {
   ArrowDown,
   ArrowLeft,

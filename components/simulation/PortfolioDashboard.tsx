@@ -1,12 +1,13 @@
 'use client';
 
-import { useWallet } from '@/components/providers/stellar-wallet-context';
-
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import {
   Activity,
   RefreshCw,
   TriangleAlert,
 } from 'lucide-react';
+import type { PublicKey } from '@solana/web3.js';
 import { Q64_ONE, TRANCHE_CONFIG, TrancheKind } from '@/app/lib/constants';
 import { formatUsdc, shortKey, stateName, toBigInt } from '@/app/lib/format';
 import type { ProtocolEvent } from '@/app/lib/dune-sim';
@@ -104,7 +105,7 @@ function useDashboardData() {
     publicKey,
     walletLabel: connected && publicKey ? shortKey(publicKey) : 'Not connected',
     vaultLabel: raw ? shortKey(raw.vaultPda) : 'Vault #0',
-    vaultPda: raw?.vaultPda as any,
+    vaultPda: raw?.vaultPda as PublicKey | undefined,
     vaultStatus: stateName(raw?.vault?.state),
     tranches,
     userPositions: userPositions ?? [],
@@ -275,7 +276,7 @@ function relTime(unixSec: number): string {
 function HorizontalTicker() {
   const { data: duneEvents, isFetching } = useEvents();
   const { publicKey } = useWallet();
-  const setVisible = (_v: boolean) => {}; // wallet modal not available in Stellar
+  const { setVisible } = useWalletModal();
   const { data: balances } = useDuneBalances(publicKey?.toBase58() ?? '');
   const { entries: logEntries } = useSimulationLog();
 
@@ -370,7 +371,7 @@ function HorizontalTicker() {
 export default function PrismOverview() {
   const data = useDashboardData();
   const { connected } = useWallet();
-  const setVisible = (_v: boolean) => {}; // wallet modal not available in Stellar
+  const { setVisible } = useWalletModal();
 
   return (
     <div className="w-full max-w-[1800px] mx-auto space-y-6 pb-16">

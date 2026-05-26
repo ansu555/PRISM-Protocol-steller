@@ -20,17 +20,46 @@ import {
   Server,
   Loader2
 } from 'lucide-react';
-import { useWallet, useConnection } from '@/components/providers/stellar-wallet-context';
+import { BN } from '@coral-xyz/anchor';
+import { 
+  PublicKey, 
+  Transaction, 
+  Keypair, 
+  SystemProgram 
+} from '@solana/web3.js';
+import { 
+  TOKEN_PROGRAM_ID, 
+  ASSOCIATED_TOKEN_PROGRAM_ID, 
+  getAssociatedTokenAddress, 
+  createMintToInstruction, 
+  createAssociatedTokenAccountInstruction 
+} from '@solana/spl-token';
+import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
 import { toast } from 'sonner';
 
+import { buildPrograms } from '@/app/lib/program';
 import { formatUsdc } from '@/app/lib/format';
+import { PRISM_CORE_PROGRAM_ID, USDC_MINT, TrancheKind } from '@/app/lib/constants';
+import {
+  getConfigPda,
+  getVaultPda,
+  getTranchePda,
+  getTrancheMintPda,
+  getVaultReservePda,
+  getLossBucketPda,
+} from '@/app/lib/pda';
 import { useVaultState } from '@/hooks/useVaultState';
 import { useAdminVault } from '@/components/admin/AdminVaultContext';
 import { useLoanApplications } from '@/hooks/useLoanApplications';
+import adminSecret from '@/contracts/keys/admin.json';
 import { Skeleton } from '@/components/ui/skeleton';
 
+function getAdminKeypair() {
+  return Keypair.fromSecretKey(Uint8Array.from(adminSecret as number[]));
+}
+
 export default function CapitalPage() {
-  const wallet = useWallet();
+  const wallet = useAnchorWallet();
   const { connection } = useConnection();
   const { vaultId, addLog } = useAdminVault();
   const vaultState = useVaultState(vaultId);
@@ -91,10 +120,27 @@ export default function CapitalPage() {
   }
 
   async function mintFaucet() {
-    if (!wallet.connected) { toast.error('Connect wallet'); return; }
+    if (!wallet) { toast.error('Connect wallet'); return; }
     setBusy(true);
     try {
-      throw new Error('Not yet migrated to Stellar — use the simulation panel instead.');
+      const admin = wallet.publicKey;
+      const amount = Math.round(parseFloat(faucetAmount) * 1_000_000);
+      if (isNaN(amount) || amount <= 0) throw new Error('Invalid amount');
+      const ata = await getAssociatedTokenAddress(USDC_MINT, admin);
+      const ataInfo = await connection.getAccountInfo(ata);
+      const tx = new Transaction();
+      if (!ataInfo) {
+        tx.add(createAssociatedTokenAccountInstruction(admin, ata, admin, USDC_MINT));
+      }
+      tx.add(createMintToInstruction(USDC_MINT, ata, admin, BigInt(amount)));
+      tx.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
+      tx.feePayer = admin;
+      const signed = await wallet.signTransaction(tx);
+      const sig = await connection.sendRawTransaction(signed.serialize());
+      await connection.confirmTransaction(sig, 'confirmed');
+      log(`✓ Capital Injection: ${faucetAmount} USDC minted to authorized vault controller.`);
+      toast.success(`Successfully minted ${faucetAmount} USDC`);
+      vaultState.refetch();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       log(`✗ Injection Failure: ${msg}`);
@@ -216,7 +262,7 @@ export default function CapitalPage() {
                   <div className="flex flex-col justify-center gap-4 w-64">
                      <button
                        onClick={mintFaucet}
-                       disabled={busy || !wallet.connected}
+                       disabled={busy || !wallet}
                        className="group relative flex items-center justify-center gap-3 rounded-2xl bg-white px-6 py-5 text-sm font-bold text-black transition-all hover:bg-white/90 disabled:opacity-20 shadow-[0_0_40px_rgba(255,255,255,0.05)]"
                      >
                        {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
@@ -259,7 +305,7 @@ export default function CapitalPage() {
                       <span className="font-mono text-[9px] uppercase tracking-widest text-white/30">Admin Connectivity</span>
                    </div>
                    <div className="font-mono text-[10px] text-white/20 break-all">
-                      {wallet.publicKey?.toBase58() || 'Disconnected'}
+                      {wallet?.publicKey.toBase58() || 'Disconnected'}
                    </div>
                 </div>
              </div>

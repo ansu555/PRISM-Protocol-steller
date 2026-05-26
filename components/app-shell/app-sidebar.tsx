@@ -5,8 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { createPortal } from 'react-dom';
-import { useWallet } from '@/components/providers/stellar-wallet-context';
-
+import { useStellarWallet } from '@/components/providers/stellar-wallet-context';
 import {
   LayoutDashboard,
   WalletCards,
@@ -51,8 +50,7 @@ function SidebarWalletButton({
   walletOpen: boolean;
   setWalletOpen: (v: boolean) => void;
 }) {
-  const { publicKey, wallet, connected, disconnect } = useWallet();
-  const setVisible = (_v: boolean) => {}; // wallet modal not available in Stellar
+  const { address, connected, connect, disconnect } = useStellarWallet();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; bottom: number }>({ left: 248, bottom: 0 });
@@ -93,7 +91,7 @@ function SidebarWalletButton({
 
   const handleClick = () => {
     if (connected) setWalletOpen(!walletOpen);
-    else setVisible(true);
+    else void connect();
   };
 
   return (
@@ -107,19 +105,14 @@ function SidebarWalletButton({
         className="group/item flex w-full items-center gap-3 h-11 pl-4 pr-3"
       >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-pink-500/40 bg-pink-500/[0.18] text-pink-200 shadow-[0_0_15px_rgba(236,72,153,0.18)] transition-colors group-hover/item:bg-pink-500/[0.28]">
-          {connected && wallet?.adapter.icon ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={wallet.adapter.icon} alt="" className="h-[18px] w-[18px]" />
-          ) : (
-            <Wallet className="h-[18px] w-[18px]" strokeWidth={1.75} />
-          )}
+          <Wallet className="h-[18px] w-[18px]" strokeWidth={1.75} />
         </div>
         <span className="whitespace-nowrap font-mono text-sm text-pink-200/90 transition-opacity duration-200 opacity-0 group-hover/sidebar:opacity-100">
-          {connected && publicKey ? shortAddress(publicKey.toBase58()) : 'Connect Wallet'}
+          {connected && address ? shortAddress(address) : 'Connect Wallet'}
         </span>
       </button>
 
-      {portalTarget && walletOpen && connected && publicKey && createPortal(
+      {portalTarget && walletOpen && connected && address && createPortal(
         <div
           ref={dropdownRef}
           role="menu"
@@ -127,12 +120,12 @@ function SidebarWalletButton({
           className="fixed z-[80] w-56 overflow-hidden rounded-md border border-white/10 bg-black/95 shadow-2xl backdrop-blur"
         >
           <div className="border-b border-white/10 px-3 py-2 text-[11px] text-white/50">
-            Connected via {wallet?.adapter.name ?? 'wallet'}
+            Connected to Stellar testnet
           </div>
           <button
             type="button"
             onClick={() => {
-              navigator.clipboard.writeText(publicKey.toBase58());
+              navigator.clipboard.writeText(address);
               setWalletOpen(false);
             }}
             role="menuitem"
@@ -142,7 +135,7 @@ function SidebarWalletButton({
             Copy address
           </button>
           <a
-            href={`https://explorer.solana.com/address/${publicKey.toBase58()}?cluster=devnet`}
+            href={`https://stellar.expert/explorer/testnet/account/${address}`}
             target="_blank"
             rel="noreferrer"
             onClick={() => setWalletOpen(false)}
@@ -155,7 +148,7 @@ function SidebarWalletButton({
           <button
             type="button"
             onClick={() => {
-              disconnect();
+              void disconnect();
               setWalletOpen(false);
             }}
             role="menuitem"

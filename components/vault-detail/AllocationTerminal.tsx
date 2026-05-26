@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { TrancheKind } from '@/app/lib/constants';
 import { useDeposit } from '@/hooks/useDeposit';
-import { useWallet } from '@/components/providers/stellar-wallet-context';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { usePathname } from 'next/navigation';
 import { 
   ArrowRight, Shield, Zap, TrendingUp, Info, Loader2, BarChart, 

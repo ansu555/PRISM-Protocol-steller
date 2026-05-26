@@ -1,6 +1,6 @@
 'use client';
 
-import { useWallet } from '@/components/providers/stellar-wallet-context';
+import { useWallet } from '@solana/wallet-adapter-react';
 import {
   Activity,
   ArrowDown,

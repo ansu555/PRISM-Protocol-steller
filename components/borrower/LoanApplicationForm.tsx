@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useWallet } from '@/components/providers/stellar-wallet-context';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { toast } from 'sonner';
 import { useLoanApplications, type LoanApplication } from '@/hooks/useLoanApplications';
 

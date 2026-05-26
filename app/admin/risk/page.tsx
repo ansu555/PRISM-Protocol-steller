@@ -21,14 +21,35 @@ import {
   Globe,
   PieChart
 } from 'lucide-react';
+import { BN } from '@coral-xyz/anchor';
+import { Keypair, SystemProgram } from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
 import { toast } from 'sonner';
 
+import { buildPrograms } from '@/app/lib/program';
 import { formatUsdc } from '@/app/lib/format';
-import { TrancheKind } from '@/app/lib/constants';
+import { PRISM_CORE_PROGRAM_ID, TrancheKind } from '@/app/lib/constants';
+import {
+  getConfigPda,
+  getVaultPda,
+  getTranchePda,
+  getTrancheMintPda,
+  getVaultReservePda,
+  getLossBucketPda,
+  getLoanPda,
+  getCreditEventPda,
+  getIkaCollateralPda,
+} from '@/app/lib/pda';
 import { useVaultState } from '@/hooks/useVaultState';
 import { useLoanApplications } from '@/hooks/useLoanApplications';
 import { useAdminVault } from '@/components/admin/AdminVaultContext';
+import adminSecret from '@/contracts/keys/admin.json';
 import { Skeleton } from '@/components/ui/skeleton';
+
+function getAdminKeypair() {
+  return Keypair.fromSecretKey(Uint8Array.from(adminSecret as number[]));
+}
 
 const TRANCHE_METADATA = [
   { kind: TrancheKind.Prime, label: 'PRIME', color: 'text-sky-400', barColor: 'bg-sky-500/40', priority: 'Senior', risk: 'Lowest' },

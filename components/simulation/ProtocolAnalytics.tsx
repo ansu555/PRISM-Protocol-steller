@@ -57,7 +57,7 @@ function PageHeader() {
         <div className="flex items-center gap-4">
            <div className="flex flex-col items-end gap-1 px-5 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
              <span className="font-mono text-[10px] uppercase tracking-widest text-white/20">Program ID</span>
-             <span className="font-mono text-sm text-white/60">{shortKey(PRISM_CORE_PROGRAM_ID.toBase58())}</span>
+             <span className="font-mono text-sm text-white/60">{shortKey(PRISM_CORE_PROGRAM_ID)}</span>
            </div>
         </div>
       </div>

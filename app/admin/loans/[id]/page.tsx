@@ -17,19 +17,33 @@ import {
   Loader2,
   AlertTriangle
 } from 'lucide-react';
-import { useWallet, useConnection } from '@/components/providers/stellar-wallet-context';
+import { PublicKey, Keypair, SystemProgram } from '@solana/web3.js';
+import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
 import { toast } from 'sonner';
+import { BN } from '@coral-xyz/anchor';
 
 import { useLoanApplications } from '@/hooks/useLoanApplications';
 import { useVaultState } from '@/hooks/useVaultState';
-import { VAULT_ID } from '@/app/lib/constants';
+import { buildPrograms } from '@/app/lib/program';
+import { PRISM_CORE_PROGRAM_ID, VAULT_ID } from '@/app/lib/constants';
+import {
+  getConfigPda,
+  getVaultPda,
+  getLoanPda,
+  getIkaCollateralPda,
+} from '@/app/lib/pda';
+import adminSecret from '@/contracts/keys/admin.json';
 
 const DEFAULT_APR_BPS = 800;
+
+function getAdminKeypair() {
+  return Keypair.fromSecretKey(Uint8Array.from(adminSecret as number[]));
+}
 
 export default function LoanDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id } = use(params);
-  const wallet = useWallet();
+  const wallet = useAnchorWallet();
   const { connection } = useConnection();
   const { applications, approve, reject, updateStatus } = useLoanApplications();
 
@@ -71,10 +85,30 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
   async function handleApprove() {
     setBusy(true);
     try {
-      // On-chain origination not yet migrated to Stellar
+      const adminKp = getAdminKeypair();
+      const { core } = buildPrograms(connection, adminKp);
+      const admin = adminKp.publicKey;
+      const [config] = getConfigPda(PRISM_CORE_PROGRAM_ID);
+      const [vault] = getVaultPda(vaultId, PRISM_CORE_PROGRAM_ID);
+
       const loanId = Math.floor(Date.now() / 1000) >>> 0;
-      approve(id, loanId, DEFAULT_APR_BPS);
-      toast.success('Loan approval recorded (on-chain origination pending Stellar migration)');
+      const [loanPda] = getLoanPda(vault, loanId, PRISM_CORE_PROGRAM_ID);
+
+      const vaultAccountInfo = await connection.getAccountInfo(vault);
+      if (vaultAccountInfo) {
+        const principal = new BN(app!.requestedUSDC * 1_000_000);
+        const maturity = new BN(Math.floor(Date.now() / 1000) + app!.maturityDays * 24 * 60 * 60);
+        await core.methods
+          .initializeLoan(loanId, principal, DEFAULT_APR_BPS, maturity, new PublicKey(app!.borrowerPubkey))
+          .accounts({ admin, config, vault, loan: loanPda, systemProgram: SystemProgram.programId })
+          .rpc({ commitment: 'confirmed' });
+        toast.success('Loan originated on-chain');
+        approve(id, loanId, DEFAULT_APR_BPS);
+      } else {
+        toast.warning('Vault not initialized — approval recorded. Run Protocol Setup to originate on-chain.', { duration: 6000 });
+        updateStatus(id, 'approved');
+      }
+
       router.push('/admin/loans');
     } catch (e: any) {
       toast.error(`Approval failed: ${e.message}`);
@@ -97,10 +131,23 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   async function liquidate() {
-    if (!wallet.connected || app?.loanId === undefined) return;
+    if (!wallet || app?.loanId === undefined) return;
     setBusy(true);
     try {
-      throw new Error('Not yet migrated to Stellar — use the simulation panel instead.');
+      const adminKp = getAdminKeypair();
+      const { core } = buildPrograms(connection, adminKp);
+      const admin = adminKp.publicKey;
+      const [config] = getConfigPda(PRISM_CORE_PROGRAM_ID);
+      const [vault] = getVaultPda(vaultId, PRISM_CORE_PROGRAM_ID);
+      const [loanPda] = getLoanPda(vault, app.loanId, PRISM_CORE_PROGRAM_ID);
+      const [ikaCollateralPda] = getIkaCollateralPda(loanPda);
+
+      await core.methods
+        .liquidateIkaCollateral()
+        .accounts({ admin, config, vault, loan: loanPda, ikaCollateral: ikaCollateralPda })
+        .rpc({ commitment: 'confirmed' });
+
+      toast.success('Collateral liquidated — IKA Network signaled');
     } catch (e: any) {
       toast.error(`Liquidation failed: ${e.message}`);
     } finally {

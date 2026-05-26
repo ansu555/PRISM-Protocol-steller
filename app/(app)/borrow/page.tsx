@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useWallet } from '@/components/providers/stellar-wallet-context';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { useLoanApplications } from '@/hooks/useLoanApplications';
 import { BorrowerProvider } from '@/hooks/useBorrowerState';
-import { BorrowingWorkflow } from '@/components/borrower/BorrowingWorkflow';
+import { StellarBorrowForm } from '@/components/borrower/StellarBorrowForm';
 import { LoanIntelligencePanel } from '@/components/borrower/LoanIntelligencePanel';
 import { useAllVaults } from '@/hooks/useAllVaults';
 import { cn } from '@/lib/utils';
@@ -68,7 +68,7 @@ function PageHeader() {
               </span>
               <span className="h-1 w-1 rounded-full bg-white/20" />
               <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/30">
-                IKA Collateral
+                Stellar Soroban
               </span>
               <span className="ml-1 flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/[0.06] px-2 py-0.5">
                 <span className={cn('h-1.5 w-1.5 rounded-full', statusDot)} />
@@ -81,7 +81,7 @@ function PageHeader() {
               Credit Facility Application
             </h1>
             <p className="mt-3 font-mono text-xs text-white/40">
-              Institutional underwriting · Threshold custody · On-chain execution
+              Originate · Disburse · Repay · All on Soroban testnet
             </p>
           </div>
         </div>
@@ -245,7 +245,7 @@ function BorrowerPageInner() {
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
           {/* Left — Workflow */}
           <div className="min-w-0">
-            <BorrowingWorkflow />
+            <StellarBorrowForm />
           </div>
 
           {/* Right — Intelligence Panel */}

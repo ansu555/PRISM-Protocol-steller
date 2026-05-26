@@ -1,13 +1,22 @@
 /**
- * Mock Encrypt FHE oracle for the demo (Stellar build).
+ * Mock Encrypt FHE oracle for the demo.
  *
- * Signs a 73-byte attestation with a deterministic Ed25519 keypair.
- * On Stellar, loan_id is a u32 padded to 32 bytes (LE), not a pubkey.
+ * The real Encrypt oracle runs an FHE circuit that homomorphically computes
+ * `total_repaid < principal` on borrower-sealed credit data and signs the
+ * boolean result. For demo purposes we simulate this: always return
+ * `default_proven: true` and sign the 73-byte attestation with a deterministic
+ * Ed25519 keypair derived from a 32-byte zero seed.
+ *
+ * The corresponding pubkey is exposed as ENCRYPT_ORACLE_PUBKEY in
+ * app/lib/constants.ts and must be added to GlobalConfig.oracle_allowlist
+ * during initialize_global_config.
  */
 
 import { createPrivateKey, createPublicKey, sign } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
+import { PublicKey } from '@solana/web3.js';
 
+// Deterministic seed: 32-byte zero seed in dev. Override via env in prod.
 const seedHex =
   process.env.ENCRYPT_ORACLE_SECRET_SEED ?? '00'.repeat(32);
 
@@ -22,18 +31,18 @@ const oraclePrivateKey = createPrivateKey({
   format: 'der',
   type: 'pkcs8',
 });
-const oraclePubkeyBytes = createPublicKey(oraclePrivateKey)
-  .export({ type: 'spki', format: 'der' })
-  .slice(-32);
+const oraclePublicKey = new PublicKey(
+  createPublicKey(oraclePrivateKey).export({ type: 'spki', format: 'der' }).slice(-32),
+);
 
 function buildMessage(
-  loanId: number,
+  loanPubkeyB58: string,
   scoreCommitmentHex: string,
   defaultProven: boolean,
 ): Buffer {
   const buf = Buffer.alloc(73);
   Buffer.from('enc_atts').copy(buf, 0);
-  buf.writeUInt32LE(loanId, 8);
+  new PublicKey(loanPubkeyB58).toBuffer().copy(buf, 8);
   Buffer.from(scoreCommitmentHex, 'hex').copy(buf, 40);
   buf.writeUInt8(defaultProven ? 0x01 : 0x00, 72);
   return buf;
@@ -43,17 +52,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'invalid json' }, { status: 400 });
 
-  const { loan_id, loan_pubkey, score_commitment } = body as {
-    loan_id?: number;
+  const { loan_pubkey, score_commitment } = body as {
     loan_pubkey?: string;
     score_commitment?: string;
   };
 
-  const resolvedLoanId = loan_id ?? (loan_pubkey ? 1 : undefined);
-
-  if (resolvedLoanId === undefined || !score_commitment) {
+  if (!loan_pubkey || !score_commitment) {
     return NextResponse.json(
-      { error: 'missing: loan_id (or loan_pubkey), score_commitment' },
+      { error: 'missing: loan_pubkey, score_commitment' },
       { status: 400 },
     );
   }
@@ -65,13 +71,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // FHE result: in production the oracle decides this based on the homomorphic
+  // comparison. For demo, always prove default — the loan is in default state.
   const defaultProven = true;
-  const message = buildMessage(resolvedLoanId, score_commitment, defaultProven);
+
+  const message = buildMessage(loan_pubkey, score_commitment, defaultProven);
   const signature = sign(null, message, oraclePrivateKey);
 
   return NextResponse.json({
     signature: Buffer.from(signature).toString('hex'),
-    oracle_pubkey: Buffer.from(oraclePubkeyBytes).toString('hex'),
+    oracle_pubkey: oraclePublicKey.toBase58(),
     default_proven: defaultProven,
   });
 }
