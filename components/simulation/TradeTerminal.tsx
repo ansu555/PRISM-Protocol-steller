@@ -1,6 +1,6 @@
 'use client';
 
-import { useWallet } from '@/components/providers/stellar-wallet-provider';
+import { useWallet, useStellarWallet } from '@/components/providers/stellar-wallet-provider';
 import {
   Activity,
   ArrowDown,
@@ -25,8 +25,10 @@ import { useIdentityBalances } from '@/hooks/useIdentityBalances';
 import { useSwap, SWAP_DIR_USDC_TO_TRANCHE, type SwapDirection } from '@/hooks/useSwap';
 import { useEvents } from '@/hooks/useEvents';
 import { useSimulationLog } from '@/hooks/useSimulationLog';
+import { getNativeBalance } from '@/app/lib/horizon';
 
 import { KPIStrip } from '@/components/dashboard/KPIStrip';
+import { useQuery } from '@tanstack/react-query';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -226,17 +228,23 @@ function TradeMetric({ icon: Icon, label, value }: { icon: any; label: string; v
 
 // ─── Swap helpers ─────────────────────────────────────────────────────────────
 
-type SwapSide = 'usdc' | TrancheKind;
+type SwapSide = 'usdc' | 'xlm' | TrancheKind;
 
 const SIDE_INFO: Record<string, { symbol: string; color: string }> = {
   usdc: { symbol: 'USDC', color: '#4ade80' },
+  xlm:  { symbol: 'XLM',  color: '#9b7ff5' },
   [String(TrancheKind.Prime)]: { symbol: 'pPRIME', color: '#38596a' },
   [String(TrancheKind.Core)]:  { symbol: 'pCORE',  color: '#ad7b21' },
   [String(TrancheKind.Alpha)]: { symbol: 'pALPHA', color: '#9f442b' },
 };
 
 function sideKey(s: SwapSide): string {
-  return s === 'usdc' ? 'usdc' : String(s);
+  if (s === 'usdc' || s === 'xlm') return s;
+  return String(s);
+}
+
+function isBaseSide(s: SwapSide): s is 'usdc' | 'xlm' {
+  return s === 'usdc' || s === 'xlm';
 }
 
 // ─── TokenSelect (custom dropdown) ────────────────────────────────────────────
@@ -313,17 +321,33 @@ function cpAmountOut(amountIn: bigint, reserveIn: bigint, reserveOut: bigint, fe
 function SwapPanel({ data }: { data: TradeData }) {
   const vaultState = useVaultState();
   const { data: balances, isLoading: balsLoading } = useIdentityBalances();
+  const { address: identityAddress } = useIdentity();
+  const { address: walletAddress } = useStellarWallet();
+  const authority = walletAddress ?? identityAddress;
   const swap = useSwap();
+
+  // XLM native balance from Horizon (7-decimal stroop units converted to bigint)
+  const { data: xlmBalanceStr } = useQuery({
+    queryKey: ['xlm-balance', authority],
+    queryFn: () => getNativeBalance(authority),
+    refetchInterval: 8_000,
+    staleTime: 5_000,
+  });
+  // XLM balance in 7-decimal bigint (1 XLM = 10_000_000 stroops)
+  const xlmBalance = xlmBalanceStr
+    ? BigInt(Math.round(parseFloat(xlmBalanceStr) * 10_000_000))
+    : 0n;
 
   const [sellToken, setSellToken] = useState<SwapSide>('usdc');
   const [buyTrancheKind, setBuyTrancheKind] = useState<TrancheKind>(TrancheKind.Prime);
   const [amtStr, setAmtStr] = useState('');
   const [slippage, setSlippage] = useState('1.0');
 
+  const isFromBase = isBaseSide(sellToken);
   const isFromUsdc = sellToken === 'usdc';
-  const activeKind: TrancheKind = isFromUsdc ? buyTrancheKind : (sellToken as TrancheKind);
+  const activeKind: TrancheKind = isFromBase ? buyTrancheKind : (sellToken as TrancheKind);
   const direction: SwapDirection = isFromUsdc ? SWAP_DIR_USDC_TO_TRANCHE : 0;
-  const buyToken: SwapSide = isFromUsdc ? buyTrancheKind : 'usdc';
+  const buyToken: SwapSide = isFromBase ? buyTrancheKind : 'usdc';
 
   const poolTranche = vaultState.data?.tranches.find((t) => t.kind === activeKind);
   const ammTranche = poolTranche?.ammTrancheBalance ?? 0n;
@@ -352,12 +376,14 @@ function SwapPanel({ data }: { data: TradeData }) {
           : (amountOut * 1_000_000n) / amountIn) / 1_000_000
       : null;
 
-  const sellBalance = isFromUsdc
+  const sellBalance = sellToken === 'usdc'
     ? (balances?.usdc ?? 0n)
+    : sellToken === 'xlm'
+    ? xlmBalance
     : (balances?.tranches.find((t) => t.kind === sellToken)?.balance ?? 0n);
-  const buyBalance = buyToken === 'usdc'
+  const buyBalance = isBaseSide(buyToken as SwapSide)
     ? (balances?.usdc ?? 0n)
-    : (balances?.tranches.find((t) => t.kind === buyToken)?.balance ?? 0n);
+    : (balances?.tranches.find((t) => t.kind === (buyToken as TrancheKind))?.balance ?? 0n);
 
   const sellInfo = SIDE_INFO[sideKey(sellToken)];
   const buyInfo = SIDE_INFO[sideKey(buyToken)];
@@ -378,9 +404,9 @@ function SwapPanel({ data }: { data: TradeData }) {
   }
 
   function handleSellChange(v: string) {
-    const next: SwapSide = v === 'usdc' ? 'usdc' : (Number(v) as TrancheKind);
+    const next: SwapSide = v === 'usdc' ? 'usdc' : v === 'xlm' ? 'xlm' : (Number(v) as TrancheKind);
     setSellToken(next);
-    if (next !== 'usdc' && next === buyTrancheKind) {
+    if (!isBaseSide(next) && next === buyTrancheKind) {
       setBuyTrancheKind(next === TrancheKind.Prime ? TrancheKind.Core : TrancheKind.Prime);
     }
     setAmtStr('');
@@ -424,6 +450,7 @@ function SwapPanel({ data }: { data: TradeData }) {
                 onChange={handleSellChange}
                 options={[
                   { key: 'usdc',                          symbol: 'USDC',   color: '#4ade80' },
+                  { key: 'xlm',                           symbol: 'XLM',    color: '#9b7ff5' },
                   { key: String(TrancheKind.Prime),       symbol: 'pPRIME', color: '#7aa3bd' },
                   { key: String(TrancheKind.Core),        symbol: 'pCORE',  color: '#d4a449' },
                   { key: String(TrancheKind.Alpha),       symbol: 'pALPHA', color: '#d97a5d' },
@@ -458,7 +485,7 @@ function SwapPanel({ data }: { data: TradeData }) {
               </span>
             </div>
             <div className="flex items-center gap-4">
-              {isFromUsdc ? (
+              {isFromBase ? (
                 <TokenSelect
                   value={String(buyTrancheKind)}
                   onChange={(v) => { setBuyTrancheKind(Number(v) as TrancheKind); setAmtStr(''); }}
@@ -624,7 +651,16 @@ function MarginPanel() {
 
 function TradeSidebar({ data }: { data: TradeData }) {
   const holdings = useIdentityBalances();
-  
+  const { address: sidebarIdentity } = useIdentity();
+  const { address: sidebarWallet } = useStellarWallet();
+  const sidebarAuthority = sidebarWallet ?? sidebarIdentity;
+  const holdingsXlm = useQuery({
+    queryKey: ['xlm-balance', sidebarAuthority],
+    queryFn: () => getNativeBalance(sidebarAuthority),
+    refetchInterval: 8_000,
+    staleTime: 5_000,
+  });
+
   return (
     <aside className="space-y-6">
       <Card className="p-6">
@@ -664,9 +700,10 @@ function TradeSidebar({ data }: { data: TradeData }) {
         
         <div className="space-y-4">
           {[
-            { label: 'USDC', balance: holdings.data?.usdc ?? 0n, color: '#4ade80' },
+            { label: 'USDC',   balance: holdings.data?.usdc ?? 0n, color: '#4ade80' },
+            { label: 'XLM',    balance: (() => { const s = holdingsXlm.data; return s ? BigInt(Math.round(parseFloat(s) * 10_000_000)) : 0n; })(), color: '#9b7ff5' },
             { label: 'pPRIME', balance: holdings.data?.tranches.find(t => t.kind === TrancheKind.Prime)?.balance ?? 0n, color: '#38596a' },
-            { label: 'pCORE', balance: holdings.data?.tranches.find(t => t.kind === TrancheKind.Core)?.balance ?? 0n, color: '#ad7b21' },
+            { label: 'pCORE',  balance: holdings.data?.tranches.find(t => t.kind === TrancheKind.Core)?.balance ?? 0n, color: '#ad7b21' },
             { label: 'pALPHA', balance: holdings.data?.tranches.find(t => t.kind === TrancheKind.Alpha)?.balance ?? 0n, color: '#9f442b' },
           ].map(item => (
             <div key={item.label} className="flex items-center justify-between group">

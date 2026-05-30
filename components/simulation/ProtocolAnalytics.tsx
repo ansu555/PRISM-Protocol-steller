@@ -238,15 +238,19 @@ export function ProtocolAnalytics() {
                         <span className="font-mono text-xs text-white/40">{shortKey(e.signer)}</span>
                       </td>
                       <td className="px-8 py-5 text-right">
-                        <a 
-                          href={`https://stellar.expert/explorer/testnet/tx/${e.signature}`} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 font-mono text-[10px] text-white/20 hover:text-white/60 transition-colors uppercase tracking-widest group-hover:text-white/40"
-                        >
-                          {e.signature.slice(0, 8)}...
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
+                        {e.signature ? (
+                          <a
+                            href={`https://stellar.expert/explorer/testnet/tx/${e.signature}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 font-mono text-[10px] text-white/20 hover:text-white/60 transition-colors uppercase tracking-widest group-hover:text-white/40"
+                          >
+                            {e.signature.slice(0, 8)}…{e.signature.slice(-4)}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          <span className="font-mono text-[10px] text-white/10 uppercase tracking-widest">—</span>
+                        )}
                       </td>
                     </tr>
                   ))

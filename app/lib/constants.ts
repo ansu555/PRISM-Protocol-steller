@@ -13,7 +13,7 @@
 // deployer (GDSI…HUXO).
 export const PRISM_CORE_CONTRACT_ID =
   process.env.NEXT_PUBLIC_PRISM_CORE_CONTRACT_ID ??
-  'CB5ISNJPZDN4XIO6AQEUN2N3ILSQDPY6FTUDT7IXXXHEMGBEAA3LUJNC';
+  'CCULBBT4PA64GWXSKT4G7HOYQ4RXRNYY2JP5MZ2G73VKRFAJ6CHB3RZK';
 
 // Legacy internal AMM — kept as a shim so old imports don't break.
 // Phase 4 deletes this. New swap paths go through SOROSWAP_ROUTER_ID.
@@ -46,15 +46,15 @@ export const REFLECTOR_CONTRACT_ID =
 // when going to a public-facing demo.
 export const USDC_CONTRACT_ID =
   process.env.NEXT_PUBLIC_USDC_CONTRACT_ID ??
-  'CDW6NVPNLRJN6SE4A44EHGUM45NEQ2ZCHN2OAXJQV6NRCCCZODS6KOOS';
+  'CDJND4DUKT4CJELQCFLNYQM345WECQ6JQORCKVXAT3HYPBOY4YLZZNAH';
 
 // Classic-asset reference for the SAC above, needed when users add the
 // trustline through Freighter ("Add asset" → manual entry).
 export const USDC_ASSET_CODE =
-  process.env.NEXT_PUBLIC_USDC_ASSET_CODE ?? 'TUSDC';
+  process.env.NEXT_PUBLIC_USDC_ASSET_CODE ?? 'PTUSDC';
 export const USDC_ASSET_ISSUER =
   process.env.NEXT_PUBLIC_USDC_ASSET_ISSUER ??
-  'GDSIRM73CJE7NMYFJFXFTDVYNNYTPE3J7OPBM7BUJ7RKNMQ45M26HUXO';
+  'GCZFPAJEJHMQPZ4BQUWUEBV7KJQ7GEKDF4FAWYUW4NOIRSWXCMDEOESW';
 
 // Legacy alias kept so old `import { USDC_MINT }` lines don't break.
 // New code should import `USDC_CONTRACT_ID` directly.

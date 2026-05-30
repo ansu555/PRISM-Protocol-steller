@@ -203,6 +203,16 @@ impl PrismCore {
         Ok(())
     }
 
+    /// Transfer contract admin rights to a new address.
+    /// Requires the current admin's auth. Irreversible without the new admin's key.
+    pub fn update_admin(env: Env, new_admin: Address) -> Result<(), PrismError> {
+        let mut cfg = storage::read_config(&env);
+        cfg.admin.require_auth();
+        cfg.admin = new_admin;
+        storage::write_config(&env, &cfg);
+        Ok(())
+    }
+
     /// Add an oracle pubkey to the global allowlist.
     ///
     /// Admin-only. Fails if the key is already allowlisted or the list is full.

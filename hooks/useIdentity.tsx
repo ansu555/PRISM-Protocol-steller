@@ -52,7 +52,7 @@ const IdentityContext = createContext<IdentityContextValue | null>(null);
 // fail.
 const ADMIN_ADDRESS_HINT =
   process.env.NEXT_PUBLIC_ADMIN_ADDRESS ??
-  'GDSIRM73CJE7NMYFJFXFTDVYNNYTPE3J7OPBM7BUJ7RKNMQ45M26HUXO';
+  'GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO';
 
 function makeRole(
   role: Role,
