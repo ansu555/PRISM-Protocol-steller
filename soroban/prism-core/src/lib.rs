@@ -50,13 +50,22 @@ pub use state::{
     EncryptStatus, GlobalConfig, Loan, LoanState, Tranche, TrancheKind, Vault, VaultState,
 };
 
-use soroban_sdk::{contract, contractimpl, token, Address, Bytes, BytesN, Env, Vec};
+use soroban_sdk::{contract, contractimpl, token, vec, Address, Bytes, BytesN, Env, String, Vec};
 
 #[contract]
 pub struct PrismCore;
 
 #[contractimpl]
 impl PrismCore {
+    // ──────────────────────────────────────────────────────────────────────
+    // Phase-0 smoke test
+    // ──────────────────────────────────────────────────────────────────────
+
+    /// Toolchain / deploy sanity check: returns ["Hello", <to>].
+    pub fn hello(env: Env, to: String) -> Vec<String> {
+        vec![&env, String::from_str(&env, "Hello"), to]
+    }
+
     // ──────────────────────────────────────────────────────────────────────
     // Initialization
     // ──────────────────────────────────────────────────────────────────────

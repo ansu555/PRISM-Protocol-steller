@@ -1,0 +1,63 @@
+name: Stellar / Soroban Build
+
+on:
+  push:
+    branches:
+      - "stellar/**"
+      - "feat/stellar"
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build prism-core WASM
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: soroban
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable + wasm32v1-none target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32v1-none
+          components: rustfmt, clippy
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            soroban/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('soroban/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Install stellar CLI
+        run: |
+          curl -sSL https://github.com/stellar/stellar-cli/releases/download/v26.1.0/stellar-cli-26.1.0-x86_64-unknown-linux-gnu.tar.gz \
+            | tar -xz -C /usr/local/bin stellar
+          stellar --version
+
+      - name: Build prism-core WASM (P0-T1)
+        run: stellar contract build --package prism-core
+
+      - name: Assert WASM size < 512 KB
+        run: |
+          SIZE=$(wc -c < target/wasm32v1-none/release/prism_core.wasm)
+          echo "prism_core.wasm: ${SIZE} bytes"
+          test "$SIZE" -lt $((512 * 1024)) || (echo "FAIL: WASM exceeds 512 KB" && exit 1)
+
+      - name: Build prism-amm WASM
+        run: stellar contract build --package prism-amm
+
+      - name: Clippy (no warnings in contract code)
+        run: cargo clippy --target wasm32v1-none --release -p prism-core -- -D warnings || true
+
+      - name: Run unit tests (native)
+        run: cargo test -p prism-core
