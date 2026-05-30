@@ -278,7 +278,7 @@ export function LoanIntelligencePanel() {
               const vaults = allVaults.data ?? [];
               const activeCount = vaults.length;
               const globalTvl = vaults.reduce((sum, v) =>
-                sum + v.tranches.reduce((s, t) => s + t.totalAssets, 0n), 0n);
+                sum + v.tranches.reduce((s, t) => s + BigInt((t.totalAssets ?? 0n) as bigint), 0n), 0n);
               return (
                 <>
                   <Metric

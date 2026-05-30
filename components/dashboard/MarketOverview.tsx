@@ -144,7 +144,7 @@ export function MarketOverview() {
                     <div className="font-mono text-[10px] uppercase tracking-widest text-white/30 mb-2">Market #{vault.id}</div>
                     <div className="flex items-center justify-between relative z-10">
                        <span className="font-display text-sm text-white/80 group-hover:text-white transition-colors">Structured Alpha</span>
-                       <span className="font-mono text-xs text-amber-500">{(vault.tranches[2]?.targetApyBps / 100).toFixed(1)}%</span>
+                       <span className="font-mono text-xs text-amber-500">{(Number(vault.tranches[2]?.targetApyBps ?? 0) / 100).toFixed(1)}%</span>
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                  </div>

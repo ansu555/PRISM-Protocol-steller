@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Banknote, CheckCircle2, Loader2 } from 'lucide-react';
 
 import { VAULT_ID } from '@/app/lib/constants';
-import { getCoreClient, nativeToScVal as ntsv, addr } from '@/app/lib/stellar';
+import { getCoreClient, nativeToScVal as ntsv, addr, keypairSigner } from '@/app/lib/stellar';
 import { useIdentity } from '@/hooks/useIdentity';
 
 interface LoanRepaymentProps {
@@ -28,7 +28,7 @@ export function LoanRepayment({ loanId, vaultId = VAULT_ID }: LoanRepaymentProps
     try {
       // 7-decimal USDC: 1 USDC = 10_000_000 base units
       const amountBaseUnits = BigInt(Math.round(amountUsd * 10_000_000));
-      const borrower = identity.identities.borrower.keypair;
+      const borrower = keypairSigner(identity.identities.borrower.keypair);
       const core = getCoreClient();
 
       const result = await core.invoke(borrower, 'repay_loan', [

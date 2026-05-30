@@ -145,10 +145,10 @@ export class ContractClient {
     // Poll until the tx settles.
     const finalStatus = await pollTransaction(sendResult.hash);
     if (finalStatus.status !== 'SUCCESS') {
+      const resultXdr =
+        'resultXdr' in finalStatus ? finalStatus.resultXdr?.toXDR('base64') ?? '' : '';
       throw new Error(
-        `Soroban invoke ${method} settled with status ${finalStatus.status}: ${
-          finalStatus.resultXdr ?? ''
-        }`,
+        `Soroban invoke ${method} settled with status ${finalStatus.status}: ${resultXdr}`,
       );
     }
 

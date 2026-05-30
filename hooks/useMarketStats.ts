@@ -22,7 +22,7 @@ export function useMarketStats() {
   
   // Calculate average prime yield (target APY)
   const primeYields = vaults
-    .map(v => v.tranches?.[0]?.targetApyBps || 0)
+    .map(v => Number(v.tranches?.[0]?.targetApyBps ?? 0))
     .filter(y => y > 0);
     
   const avgPrimeYield = primeYields.length > 0 

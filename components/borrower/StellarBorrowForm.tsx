@@ -367,7 +367,7 @@ export function StellarBorrowForm() {
             </div>
           ) : (
             (activeLoans.data ?? []).map((loan) => {
-              const stateLabel = loanStateLabel(loan.state as Record<string, unknown>);
+              const stateLabel = loanStateLabel(loan.state);
               const c = loanStateColor(stateLabel);
               return (
                 <div key={loan.id} className="grid grid-cols-2 md:grid-cols-5 gap-3 px-5 py-3">

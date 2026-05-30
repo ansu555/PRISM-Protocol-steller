@@ -32,7 +32,13 @@ import {
   VAULT_ID,
 } from '@/app/lib/constants';
 import { delta, formatNavQ, formatUsdc, parseUsdc } from '@/app/lib/format';
-import { getCoreClient, getUsdcClient, nativeToScVal as ntsv, addr } from '@/app/lib/stellar';
+import {
+  getCoreClient,
+  getUsdcClient,
+  nativeToScVal as ntsv,
+  addr,
+  keypairSigner,
+} from '@/app/lib/stellar';
 import { explorerTxUrl } from '@/app/lib/horizon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,7 +63,7 @@ function mmKeypair(): Keypair {
   const seed = new Uint8Array(32);
   // Deterministic seed: spell out "PRISM-MM" in the first bytes
   [0x50, 0x52, 0x49, 0x53, 0x4d, 0x2d, 0x4d, 0x4d].forEach((b, i) => { seed[i] = b; });
-  return Keypair.fromRawEd25519Seed(seed);
+  return Keypair.fromRawEd25519Seed(Buffer.from(seed));
 }
 
 function formatError(error: unknown) {
@@ -246,7 +252,7 @@ export function ActionPanel() {
   const deposit = useMutation({
     mutationFn: async () => {
       const amount = parseUsdc(depositAmount);
-      const signer = identity.keypair;
+      const signer = keypairSigner(identity.keypair);
       const before = await takeSnapshot(signer.publicKey(), investorTranche, VAULT_ID);
       const core = getCoreClient();
       const result = await core.invoke(signer, 'deposit', [
@@ -272,7 +278,7 @@ export function ActionPanel() {
   const withdraw = useMutation({
     mutationFn: async () => {
       const shares = parseUsdc(withdrawShares);
-      const signer = identity.keypair;
+      const signer = keypairSigner(identity.keypair);
       const before = await takeSnapshot(signer.publicKey(), investorTranche, VAULT_ID);
       const core = getCoreClient();
       const result = await core.invoke(signer, 'withdraw', [
@@ -298,8 +304,8 @@ export function ActionPanel() {
   const accrueYield = useMutation({
     mutationFn: async () => {
       const amount = parseUsdc(yieldAmount);
-      const admin = identity.identities.admin.keypair;
-      const borrower = identity.identities.borrower.keypair;
+      const admin = keypairSigner(identity.identities.admin.keypair);
+      const borrower = keypairSigner(identity.identities.borrower.keypair);
       const before = await takeSnapshot(borrower.publicKey(), TrancheKind.Prime, VAULT_ID);
       const core = getCoreClient();
       const result = await core.invoke(admin, 'accrue_yield', [
@@ -325,9 +331,8 @@ export function ActionPanel() {
   const triggerDefault = useMutation({
     mutationFn: async () => {
       const amount = parseUsdc(lossAmount);
-      const admin = identity.identities.admin.keypair;
+      const admin = keypairSigner(identity.identities.admin.keypair);
       const before = await takeSnapshot(admin.publicKey(), TrancheKind.Alpha, VAULT_ID);
-      const seq = Number(vaultState.data?.vault?.credit_event_seq ?? 0);
       const core = getCoreClient();
       const result = await core.invoke(admin, 'trigger_credit_event', [
         addr(admin.publicKey()),
@@ -352,17 +357,17 @@ export function ActionPanel() {
   });
 
   // ── Encrypt FHE flow ─────────────────────────────────────────────────────
-  const loanId = `${VAULT_ID}-0`;
+  const demoLoanId = 0;
   const verifyEncryptDefault = useVerifyEncryptDefault();
   const attachEncryptScore = useAttachEncryptScore();
-  const encryptHealth = useEncryptHealth(loanId);
+  const encryptHealth = useEncryptHealth(demoLoanId);
 
   async function deriveDemoCommitment(): Promise<Uint8Array> {
     const borrowerKey = Keypair.fromPublicKey(
       identity.identities.borrower.keypair.publicKey(),
     ).rawPublicKey();
     if (globalThis.crypto?.subtle) {
-      const digest = await globalThis.crypto.subtle.digest('SHA-256', borrowerKey);
+      const digest = await globalThis.crypto.subtle.digest('SHA-256', new Uint8Array(borrowerKey));
       return new Uint8Array(digest);
     }
     const { createHash } = await import('node:crypto');
@@ -371,14 +376,11 @@ export function ActionPanel() {
 
   const attachFheScore = useMutation({
     mutationFn: async () => {
-      const borrower = identity.identities.borrower.keypair;
       const commitment = await deriveDemoCommitment();
       await attachEncryptScore.mutateAsync({
-        borrower,
         loanId: 0,
-        vaultId: VAULT_ID,
         commitment,
-        encryptOracle: ENCRYPT_ORACLE_PUBKEY,
+        encryptOraclePubkey: Uint8Array.from(Buffer.from(ENCRYPT_ORACLE_PUBKEY, 'hex')),
       });
     },
     onError: (error) => toast.error(formatError(error)),
@@ -386,7 +388,7 @@ export function ActionPanel() {
 
   const verifyDefaultViaFhe = useMutation({
     mutationFn: async () => {
-      const admin = identity.identities.admin.keypair;
+      const admin = keypairSigner(identity.identities.admin.keypair);
       const core = getCoreClient();
       const health = await core.read<Record<string, unknown>>('get_encrypt_health', [
         ntsv(VAULT_ID, { type: 'u32' }),
@@ -397,11 +399,9 @@ export function ActionPanel() {
           'No FHE health record found. The borrower must run "Attach FHE Score" first.',
         );
       }
-      const seq = Number(vaultState.data?.vault?.credit_event_seq ?? 0);
       const before = await takeSnapshot(admin.publicKey(), TrancheKind.Alpha, VAULT_ID);
       const commitment = new Uint8Array(health.score_commitment as number[]);
       const result = await verifyEncryptDefault.mutateAsync({
-        signer: admin,
         vaultId: VAULT_ID,
         loanId: 0,
         scoreCommitment: commitment,
@@ -437,7 +437,7 @@ export function ActionPanel() {
 
   const marketReaction = useMutation({
     mutationFn: async () => {
-      const mm = mmKeypair();
+      const mm = keypairSigner(mmKeypair());
       const mmAddress = mm.publicKey();
       const core = getCoreClient();
 
@@ -490,8 +490,8 @@ export function ActionPanel() {
 
   const disburse = useMutation({
     mutationFn: async () => {
-      const admin = identity.identities.admin.keypair;
-      const borrower = identity.identities.borrower.keypair;
+      const admin = keypairSigner(identity.identities.admin.keypair);
+      const borrower = keypairSigner(identity.identities.borrower.keypair);
       const before = await takeSnapshot(borrower.publicKey(), TrancheKind.Prime, VAULT_ID);
       const core = getCoreClient();
       const result = await core.invoke(admin, 'disburse_loan', [
@@ -517,7 +517,7 @@ export function ActionPanel() {
 
   const repay = useMutation({
     mutationFn: async () => {
-      const borrower = identity.identities.borrower.keypair;
+      const borrower = keypairSigner(identity.identities.borrower.keypair);
       const amount = parseUsdc(loanAmount);
       const before = await takeSnapshot(borrower.publicKey(), TrancheKind.Prime, VAULT_ID);
       const core = getCoreClient();
@@ -546,8 +546,8 @@ export function ActionPanel() {
 
   const initialize = useMutation({
     mutationFn: async () => {
-      const admin = identity.identities.admin.keypair;
-      const borrower = identity.identities.borrower.keypair;
+      const admin = keypairSigner(identity.identities.admin.keypair);
+      const borrower = keypairSigner(identity.identities.borrower.keypair);
       const core = getCoreClient();
 
       // initialize_global_config if not present
