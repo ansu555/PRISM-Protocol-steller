@@ -72,7 +72,7 @@ export function InfrastructureSection({ id = "infra" }: { id?: string }) {
               <p className={`mt-5 text-lg text-muted-foreground leading-relaxed max-w-lg transition-all duration-1000 delay-100 ${
                 isVisible ? "opacity-100" : "opacity-0"
               }`}>
-                Two Soroban contracts on Stellar. Vault logic in <span className="font-mono">prism_core</span>. Market layer in <span className="font-mono">prism_amm</span>. No backend, no off-chain trust.
+                Two Anchor programs on Solana. Vault logic in <span className="font-mono">prism_core</span>. Market layer in <span className="font-mono">prism_amm</span>. No backend, no off-chain trust.
               </p>
             </div>
           </div>

@@ -1,21 +1,34 @@
 'use client';
 
 import { useMemo } from 'react';
-import { ArrowUpRight, ArrowDownRight, Activity, Briefcase, TrendingUp, Layers } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Activity, Briefcase, Layers, TrendingUp } from 'lucide-react';
 import { TrancheKind, Q64_ONE } from '@/app/lib/constants';
 import { formatUsdc } from '@/app/lib/format';
 import { useUserPosition } from '@/hooks/useUserPosition';
 import { useVaultState } from '@/hooks/useVaultState';
-import { useWallet } from '@/components/providers/stellar-wallet-provider';
-import { useWalletModal } from '@/components/providers/stellar-wallet-provider';
+import { useNavHistory, type NavHistoryMap } from '@/hooks/useNavHistory';
+import { useWallet, useWalletModal } from '@/components/providers/stellar-wallet-provider';
+
+// ─── Design tokens (matched to Dashboard) ─────────────────────────────────────
+
+const ACCENT   = '#e54b73';   // same as dashboard
+const EMERALD  = '#10b981';
+const ROSE     = '#f43f5e';
 
 // ─── Sparkline ────────────────────────────────────────────────────────────────
+// Matches KPIStrip.tsx: thin stroke, no fill, low opacity — analytical not cinematic
 
-const PINK = '#e879a0';
-const EMERALD = '#10b981';
-const ROSE = '#f43f5e';
-
-function Sparkline({ points, color = PINK, height = 32 }: { points: number[]; color?: string; height?: number }) {
+function Sparkline({
+  points,
+  color = ACCENT,
+  height = 20,
+  showFill = false,
+}: {
+  points: number[];
+  color?: string;
+  height?: number;
+  showFill?: boolean;
+}) {
   const VW = 100;
   const VH = height;
   const min = Math.min(...points);
@@ -30,22 +43,37 @@ function Sparkline({ points, color = PINK, height = 32 }: { points: number[]; co
     })
     .join(' ');
 
-  const areaCoords = `0,${VH} ${coords} ${VW},${VH}`;
+  const gradId = `sg-${color.replace('#', '')}-${height}`;
 
   return (
-    <svg width="100%" height={VH} viewBox={`0 0 ${VW} ${VH}`} preserveAspectRatio="none" className="block">
-      <defs>
-        <linearGradient id={`grad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polyline points={areaCoords} fill={`url(#grad-${color.replace('#', '')})`} stroke="none" vectorEffect="non-scaling-stroke" />
+    <svg
+      width="100%"
+      height={VH}
+      viewBox={`0 0 ${VW} ${VH}`}
+      preserveAspectRatio="none"
+      className="block opacity-[0.35]"
+    >
+      {showFill && (
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.12" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+      )}
+      {showFill && (
+        <polyline
+          points={`0,${VH} ${coords} ${VW},${VH}`}
+          fill={`url(#${gradId})`}
+          stroke="none"
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
       <polyline
         points={coords}
         fill="none"
         stroke={color}
-        strokeWidth="1.8"
+        strokeWidth="1.2"
         strokeLinecap="round"
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
@@ -54,14 +82,13 @@ function Sparkline({ points, color = PINK, height = 32 }: { points: number[]; co
   );
 }
 
-// ─── Mock historical data (deterministic by seed) ─────────────────────────────
+// ─── Mock historical data ─────────────────────────────────────────────────────
 
 function generateGrowth(seed: number, baseValue: number, growthPct: number, points = 30): number[] {
   const result: number[] = [];
   const target = baseValue * (1 + growthPct / 100);
   const step = (target - baseValue) / (points - 1);
   for (let i = 0; i < points; i++) {
-    // Pseudo-random noise based on seed
     const noise = Math.sin(seed * (i + 1) * 0.7) * baseValue * 0.015;
     result.push(baseValue + step * i + noise);
   }
@@ -70,13 +97,25 @@ function generateGrowth(seed: number, baseValue: number, growthPct: number, poin
 
 // ─── Tranche metadata ─────────────────────────────────────────────────────────
 
-const TRANCHE_INFO: Record<TrancheKind, { label: string; sub: string; color: string; bg: string; border: string; apyBase: number }> = {
-  [TrancheKind.Prime]: { label: 'Prime',  sub: 'Senior · Protected',     color: '#4a7d94', bg: 'rgba(45,78,92,0.30)',  border: 'border-[#3d6678]/40', apyBase: 5.0 },
-  [TrancheKind.Core]:  { label: 'Core',   sub: 'Mezzanine · Balanced',   color: '#c8963a', bg: 'rgba(107,74,16,0.30)', border: 'border-[#8f6518]/40', apyBase: 8.0 },
-  [TrancheKind.Alpha]: { label: 'Alpha',  sub: 'Equity · First Loss',    color: '#c07060', bg: 'rgba(92,36,22,0.30)',  border: 'border-[#7a3020]/40', apyBase: 15.0 },
+const TRANCHE_INFO: Record<TrancheKind, {
+  label: string; sub: string; color: string;
+  bg: string; border: string; apyBase: number;
+}> = {
+  [TrancheKind.Prime]: {
+    label: 'Prime',  sub: 'Senior · Protected',
+    color: '#647b8c', bg: 'rgba(50,61,70,0.04)', border: 'rgba(100,123,140,0.18)', apyBase: 5.0,
+  },
+  [TrancheKind.Core]: {
+    label: 'Core',   sub: 'Mezzanine · Balanced',
+    color: '#b29b70', bg: 'rgba(178,155,112,0.04)', border: 'rgba(178,155,112,0.18)', apyBase: 8.0,
+  },
+  [TrancheKind.Alpha]: {
+    label: 'Alpha',  sub: 'Equity · First Loss',
+    color: '#b07073', bg: 'rgba(176,112,115,0.04)', border: 'rgba(176,112,115,0.18)', apyBase: 15.0,
+  },
 };
 
-// ─── Hook: aggregated positions data ──────────────────────────────────────────
+// ─── Data hook ────────────────────────────────────────────────────────────────
 
 function usePositionsData() {
   const { data: userPositions } = useUserPosition();
@@ -89,112 +128,50 @@ function usePositionsData() {
       const tranche = tranches.find((t) => t.kind === pos.kind);
       const navQ = tranche?.navPerShareQ ?? Q64_ONE;
       const currentValue = (pos.balance * navQ) / Q64_ONE;
-      // Mock cost basis: assume invested at NAV 1.0 (simplified)
       const investedValue = pos.balance;
       const growthAbs = currentValue - investedValue;
-      const growthPct = investedValue > 0n ? Number((growthAbs * 10000n) / investedValue) / 100 : 0;
+      const growthPct = investedValue > 0n
+        ? Number((growthAbs * 10000n) / investedValue) / 100
+        : 0;
       const meta = TRANCHE_INFO[pos.kind];
 
       return {
-        kind: pos.kind,
-        meta,
+        kind: pos.kind, meta,
         balance: pos.balance,
         invested: investedValue,
-        currentValue,
-        growthAbs,
-        growthPct,
-        apy: meta.apyBase,
-        vaultId: 0,
+        currentValue, growthAbs, growthPct,
+        apy: meta.apyBase, vaultId: 0,
       };
     }).filter((p) => p.balance > 0n);
 
-    const totalInvested = positions.reduce((s, p) => s + p.invested, 0n);
-    const totalCurrent = positions.reduce((s, p) => s + p.currentValue, 0n);
-    const totalGrowthAbs = totalCurrent - totalInvested;
-    const totalGrowthPct = totalInvested > 0n ? Number((totalGrowthAbs * 10000n) / totalInvested) / 100 : 0;
-
-    const bestPerformer = [...positions].sort((a, b) => b.growthPct - a.growthPct)[0];
-
-    const dailyYield = positions.reduce((s, p) => {
-      const annualYield = (Number(p.currentValue) * p.apy) / 100;
-      return s + BigInt(Math.floor(annualYield / 365));
+    const totalInvested    = positions.reduce((s, p) => s + p.invested,      0n);
+    const totalCurrent     = positions.reduce((s, p) => s + p.currentValue,   0n);
+    const totalGrowthAbs   = totalCurrent - totalInvested;
+    const totalGrowthPct   = totalInvested > 0n
+      ? Number((totalGrowthAbs * 10000n) / totalInvested) / 100
+      : 0;
+    const bestPerformer    = [...positions].sort((a, b) => b.growthPct - a.growthPct)[0];
+    const dailyYield       = positions.reduce((s, p) => {
+      const annual = (Number(p.currentValue) * p.apy) / 100;
+      return s + BigInt(Math.floor(annual / 365));
     }, 0n);
 
     return {
-      positions,
-      totalInvested,
-      totalCurrent,
-      totalGrowthAbs,
-      totalGrowthPct,
-      bestPerformer,
-      dailyYield,
+      positions, totalInvested, totalCurrent,
+      totalGrowthAbs, totalGrowthPct, bestPerformer, dailyYield,
       isLoading: vaultState.isLoading,
     };
   }, [userPositions, vaultState.data, vaultState.isLoading]);
 }
 
-// ─── Page Header ──────────────────────────────────────────────────────────────
-
-function PositionsHeader({ totalCurrent, totalGrowthPct }: { totalCurrent: bigint; totalGrowthPct: number }) {
-  const isPositive = totalGrowthPct >= 0;
-  return (
-    <div className="relative overflow-hidden rounded-xl border border-white/[0.10] backdrop-blur-md bg-white/[0.04]">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse 70% 80% at 100% 0%, rgba(232,121,160,0.10) 0%, transparent 55%), radial-gradient(ellipse 50% 60% at 0% 100%, rgba(168,85,247,0.08) 0%, transparent 50%)',
-        }}
-      />
-      <div className="relative flex flex-col gap-6 px-8 py-7 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-3">
-            <span className="font-mono text-xs uppercase tracking-[0.3em] text-white/30">
-              PRISM Protocol · Portfolio
-            </span>
-            <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/[0.08] px-2.5 py-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-mono text-[11px] uppercase tracking-widest text-emerald-400/80">Live</span>
-            </span>
-          </div>
-          <h1 className="font-display text-5xl leading-none text-white tracking-tight">My Positions</h1>
-          <p className="mt-2 font-mono text-sm text-white/30">
-            Track every investment · Real-time NAV · Per-position growth
-          </p>
-        </div>
-
-        <div className="flex items-center gap-6">
-          <div className="hidden sm:block text-right">
-            <div className="font-mono text-xs uppercase tracking-[0.18em] text-white/25 mb-1">
-              Portfolio Value
-            </div>
-            <div className="font-mono text-3xl font-medium text-white/90 tabular-nums">
-              ${formatUsdc(totalCurrent, 2)}
-            </div>
-          </div>
-          <div className="hidden sm:block w-px h-12 bg-white/[0.06]" />
-          <div className="hidden sm:block text-right">
-            <div className="font-mono text-xs uppercase tracking-[0.18em] text-white/25 mb-1">
-              Total Return
-            </div>
-            <div className={`font-mono text-3xl font-medium tabular-nums flex items-center justify-end gap-1.5 ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {isPositive ? <ArrowUpRight className="h-6 w-6" /> : <ArrowDownRight className="h-6 w-6" />}
-              {isPositive ? '+' : ''}{totalGrowthPct.toFixed(2)}%
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── KPI Strip ────────────────────────────────────────────────────────────────
+// ─── KPI Strip — matches Dashboard KPIStrip card style exactly ───────────────
 
 function PortfolioKPIs({
-  totalInvested, totalCurrent, totalGrowthAbs, totalGrowthPct, dailyYield, activeCount, bestPerformer,
+  totalInvested, totalCurrent, totalGrowthAbs, totalGrowthPct,
+  dailyYield, activeCount, bestPerformer,
 }: {
-  totalInvested: bigint; totalCurrent: bigint; totalGrowthAbs: bigint; totalGrowthPct: number;
+  totalInvested: bigint; totalCurrent: bigint;
+  totalGrowthAbs: bigint; totalGrowthPct: number;
   dailyYield: bigint; activeCount: number; bestPerformer: any;
 }) {
   const isPositive = totalGrowthAbs >= 0n;
@@ -203,17 +180,17 @@ function PortfolioKPIs({
     {
       label: 'Total Invested',
       value: `$${formatUsdc(totalInvested, 2)}`,
-      sub: `Across ${activeCount} positions`,
-      subColor: 'text-white/30',
-      sparkData: generateGrowth(1, 100, 8),
-      sparkColor: PINK,
+      sub: `Across ${activeCount} position${activeCount !== 1 ? 's' : ''}`,
+      subColor: 'text-white/25',
+      spark: generateGrowth(1, 100, 8),
+      sparkColor: ACCENT,
     },
     {
       label: 'Current Value',
       value: `$${formatUsdc(totalCurrent, 2)}`,
       sub: 'Mark-to-market NAV',
-      subColor: 'text-white/30',
-      sparkData: generateGrowth(2, 100, Number(totalGrowthPct) || 5),
+      subColor: 'text-white/25',
+      spark: generateGrowth(2, 100, Number(totalGrowthPct) || 5),
       sparkColor: EMERALD,
     },
     {
@@ -221,74 +198,92 @@ function PortfolioKPIs({
       value: `${isPositive ? '+' : ''}$${formatUsdc(isPositive ? totalGrowthAbs : -totalGrowthAbs, 2)}`,
       sub: `${isPositive ? '+' : ''}${totalGrowthPct.toFixed(2)}% all-time`,
       subColor: isPositive ? 'text-emerald-400/80' : 'text-rose-400/80',
-      sparkData: generateGrowth(3, 100, Number(totalGrowthPct) || 0),
+      spark: generateGrowth(3, 100, Number(totalGrowthPct) || 0),
       sparkColor: isPositive ? EMERALD : ROSE,
     },
     {
       label: 'Daily Yield',
       value: `$${formatUsdc(dailyYield, 2)}`,
       sub: dailyYield > 0n ? 'Compounding daily' : 'Accrues on deposit',
-      subColor: dailyYield > 0n ? 'text-emerald-400/80' : 'text-white/25',
-      sparkData: generateGrowth(4, 100, 12),
-      sparkColor: PINK,
+      subColor: dailyYield > 0n ? 'text-emerald-400/80' : 'text-white/20',
+      spark: generateGrowth(4, 100, 12),
+      sparkColor: ACCENT,
     },
     {
       label: 'Best Performer',
       value: bestPerformer ? bestPerformer.meta.label : '—',
       sub: bestPerformer ? `+${bestPerformer.growthPct.toFixed(2)}% return` : 'No positions',
-      subColor: bestPerformer ? 'text-emerald-400/80' : 'text-white/25',
-      sparkData: generateGrowth(5, 100, bestPerformer?.growthPct || 0),
+      subColor: bestPerformer ? 'text-emerald-400/80' : 'text-white/20',
+      spark: generateGrowth(5, 100, bestPerformer?.growthPct || 0),
       sparkColor: EMERALD,
     },
     {
       label: 'Active Positions',
       value: activeCount.toString(),
       sub: activeCount > 0 ? 'Tranches funded' : 'Open a position →',
-      subColor: activeCount > 0 ? 'text-white/40' : 'text-[#eca8d6]/70',
-      sparkData: [activeCount, activeCount, activeCount, activeCount, activeCount],
-      sparkColor: PINK,
+      subColor: activeCount > 0 ? 'text-white/30' : `text-[#e54b73]/60`,
+      spark: Array(12).fill(activeCount),
+      sparkColor: ACCENT,
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 overflow-hidden rounded-xl border border-white/[0.10] backdrop-blur-md bg-white/[0.04] divide-x divide-white/[0.08]">
+    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-5">
       {kpis.map((k) => (
-        <div key={k.label} className="group flex flex-col gap-2 px-5 py-5 transition-colors hover:bg-white/[0.04] overflow-hidden">
-          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-white/30">{k.label}</span>
-          <div className="font-mono text-[22px] font-medium leading-none text-white/90 tabular-nums">
+        <div
+          key={k.label}
+          className="flex flex-col gap-2 p-5 rounded-2xl border border-white/[0.03] bg-[#0c0c0f] transition-all duration-200 hover:border-white/[0.06] overflow-hidden"
+        >
+          <span className="font-mono text-[9px] uppercase tracking-wider text-white/30 font-semibold">
+            {k.label}
+          </span>
+          <div className="font-mono text-xl font-medium leading-none text-white/80 tabular-nums">
             {k.value}
           </div>
-          <div className="w-full">
-            <Sparkline points={k.sparkData} color={k.sparkColor} height={28} />
+          <div className="w-full py-1">
+            <Sparkline points={k.spark} color={k.sparkColor} height={20} />
           </div>
-          <span className={`font-mono text-[11px] ${k.subColor}`}>{k.sub}</span>
+          <span className={`font-mono text-[9px] leading-tight ${k.subColor}`}>
+            {k.sub}
+          </span>
         </div>
       ))}
     </div>
   );
 }
 
-// ─── Portfolio Growth Chart (large) ───────────────────────────────────────────
+// ─── Portfolio Growth Chart ───────────────────────────────────────────────────
 
-function PortfolioGrowthChart({ totalCurrent, totalGrowthPct }: { totalCurrent: bigint; totalGrowthPct: number }) {
-  const baseValue = Number(totalCurrent) > 0 ? Number(totalCurrent) / (1 + totalGrowthPct / 100) : 100;
+function PortfolioGrowthChart({
+  totalCurrent, totalGrowthPct,
+}: { totalCurrent: bigint; totalGrowthPct: number }) {
+  const baseValue = Number(totalCurrent) > 0
+    ? Number(totalCurrent) / (1 + totalGrowthPct / 100)
+    : 100;
   const points = generateGrowth(7, baseValue, totalGrowthPct, 60);
+  const isPositive = totalGrowthPct >= 0;
+  const lineColor = isPositive ? EMERALD : ROSE;
 
   const ranges = ['1D', '1W', '1M', '3M', '1Y', 'ALL'] as const;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-white/[0.10] backdrop-blur-md bg-white/[0.04]">
-      <div className="flex items-center justify-between px-8 py-5 border-b border-white/[0.07]">
+    <div className="rounded-2xl border border-white/[0.03] bg-[#0c0c0f] overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.03]">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-white/30">Capital Growth</p>
-          <h2 className="mt-1.5 font-display text-2xl text-white">Portfolio Performance</h2>
+          <p className="font-mono text-[9px] uppercase tracking-wider text-white/25 font-semibold">
+            Capital Growth
+          </p>
+          <h2 className="mt-1 font-sans text-base font-medium text-white">Portfolio Performance</h2>
         </div>
-        <div className="flex items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.02] p-1">
+        <div className="flex items-center gap-0.5 rounded-lg border border-white/[0.03] bg-white/[0.01] p-0.5">
           {ranges.map((r, i) => (
             <button
               key={r}
-              className={`px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-widest transition-colors ${
-                i === 4 ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/70'
+              className={`px-2.5 py-1 rounded-md font-mono text-[9px] uppercase tracking-widest transition-colors ${
+                i === 4
+                  ? 'bg-white/[0.08] text-white font-semibold'
+                  : 'text-white/30 hover:text-white/60'
               }`}
             >
               {r}
@@ -297,24 +292,22 @@ function PortfolioGrowthChart({ totalCurrent, totalGrowthPct }: { totalCurrent: 
         </div>
       </div>
 
-      <div className="px-8 py-7">
-        <div className="flex items-end justify-between mb-5">
+      {/* Body */}
+      <div className="px-6 py-5">
+        <div className="flex items-end justify-between mb-4">
           <div>
-            <div className="font-mono text-3xl font-medium text-white/90 tabular-nums leading-none">
+            <div className="font-mono text-2xl font-medium text-white/90 tabular-nums leading-none">
               ${formatUsdc(totalCurrent, 2)}
             </div>
-            <div className={`mt-2 font-mono text-sm ${totalGrowthPct >= 0 ? 'text-emerald-400/80' : 'text-rose-400/80'}`}>
-              {totalGrowthPct >= 0 ? '+' : ''}{totalGrowthPct.toFixed(2)}% all-time return
+            <div className={`mt-1.5 font-mono text-[10px] font-semibold ${isPositive ? 'text-emerald-400/80' : 'text-rose-400/80'}`}>
+              {isPositive ? '+' : ''}{totalGrowthPct.toFixed(2)}% all-time return
             </div>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/[0.05]">
-            <Activity className="h-3 w-3 text-emerald-400" />
-            <span className="font-mono text-[10px] uppercase tracking-widest text-emerald-400/80">NAV synced</span>
           </div>
         </div>
 
-        <div className="h-48 -mx-2">
-          <Sparkline points={points} color={totalGrowthPct >= 0 ? EMERALD : ROSE} height={192} />
+        {/* Chart area — flat, clean, no glow */}
+        <div className="h-36 -mx-1">
+          <Sparkline points={points} color={lineColor} height={144} showFill />
         </div>
       </div>
     </div>
@@ -323,88 +316,123 @@ function PortfolioGrowthChart({ totalCurrent, totalGrowthPct }: { totalCurrent: 
 
 // ─── Position Card ────────────────────────────────────────────────────────────
 
-function PositionCard({ position }: { position: any }) {
-  const isPositive = position.growthPct >= 0;
-  const sparkData = generateGrowth(position.kind + 1, 100, position.growthPct, 24);
+const MS_24H = 24 * 60 * 60_000;
+const SPARK_POINTS = 30;
+
+function PositionCard({ position, history }: { position: any; history: NavHistoryMap }) {
+  const kindHistory = history[position.kind as TrancheKind] ?? [];
+
+  // Real sparkline — last SPARK_POINTS NAV readings, fallback to mock
+  const sparkData = kindHistory.length >= 2
+    ? kindHistory.slice(-SPARK_POINTS).map((p) => p.navPerShare)
+    : generateGrowth(position.kind + 1, 100, position.growthPct, SPARK_POINTS);
+
+  // Real 24h delta — find the point closest to 24h ago, compare to latest
+  const now = Date.now();
+  const latest = kindHistory[kindHistory.length - 1];
+  const point24hAgo = kindHistory.filter((p) => p.timestamp <= now - MS_24H).pop();
+  const change24h =
+    point24hAgo && latest
+      ? ((latest.navPerShare - point24hAgo.navPerShare) / point24hAgo.navPerShare) * 100
+      : position.growthPct; // fallback: all-time return if <24h of data
+
+  const hasRealDelta = !!point24hAgo && kindHistory.length >= 2;
+
+  const isPositive = change24h >= 0;
+  const lineColor = isPositive ? EMERALD : ROSE;
 
   return (
-    <div
-      className="group relative overflow-hidden rounded-xl border border-white/[0.08] backdrop-blur-md bg-white/[0.03] transition-all hover:border-white/[0.18] hover:bg-white/[0.05]"
-      style={{
-        backgroundImage: `radial-gradient(ellipse 40% 70% at 100% 0%, ${position.meta.bg} 0%, transparent 60%)`,
-      }}
-    >
+    <div className="group relative rounded-2xl border border-white/[0.03] bg-[#0c0c0f] overflow-hidden transition-all duration-200 hover:border-white/[0.07]">
+
       {/* Header */}
-      <div className="px-6 py-5 border-b border-white/[0.06] flex items-start justify-between gap-4">
+      <div className="px-5 py-4 flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <span
-              className="inline-block h-2 w-2 rounded-full"
+              className="inline-block h-1.5 w-1.5 rounded-full"
               style={{ backgroundColor: position.meta.color }}
             />
-            <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/40">
+            <span className="font-mono text-[9px] uppercase tracking-wider text-white/30 font-semibold">
               {position.meta.sub}
             </span>
           </div>
-          <h3 className="font-display text-2xl text-white tracking-tight">{position.meta.label}</h3>
-          <p className="mt-1 font-mono text-[11px] text-white/30">
+          <h3 className="font-sans text-lg font-semibold text-white tracking-tight">
+            {position.meta.label}
+          </h3>
+          <p className="mt-0.5 font-mono text-[9px] text-white/20">
             Vault #{position.vaultId} · Tranche
           </p>
         </div>
-        <div className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full border ${
-          isPositive ? 'border-emerald-500/20 bg-emerald-500/[0.06]' : 'border-rose-500/20 bg-rose-500/[0.06]'
-        }`}>
-          {isPositive ? (
-            <ArrowUpRight className={`h-3.5 w-3.5 ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`} />
-          ) : (
-            <ArrowDownRight className="h-3.5 w-3.5 text-rose-400" />
-          )}
-          <span className={`font-mono text-xs font-bold tabular-nums ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isPositive ? '+' : ''}{position.growthPct.toFixed(2)}%
+
+        {/* Return badge */}
+        <div className="shrink-0 flex flex-col items-end gap-0.5">
+          <div
+            className={`flex items-center gap-1 px-2 py-1 rounded border font-mono text-[10px] font-bold tabular-nums ${
+              isPositive
+                ? 'border-emerald-500/15 text-emerald-400 bg-emerald-500/[0.04]'
+                : 'border-rose-500/15 text-rose-400 bg-rose-500/[0.04]'
+            }`}
+          >
+            {isPositive
+              ? <ArrowUpRight className="h-3 w-3" />
+              : <ArrowDownRight className="h-3 w-3" />}
+            {isPositive ? '+' : ''}{change24h.toFixed(2)}%
+          </div>
+          <span className="font-mono text-[8px] uppercase tracking-wider text-white/20">
+            {hasRealDelta ? '24h' : 'all-time'}
           </span>
         </div>
       </div>
 
-      {/* Chart */}
-      <div className="px-6 pt-5 pb-3 h-24">
-        <Sparkline points={sparkData} color={isPositive ? EMERALD : ROSE} height={80} />
+      {/* Mini sparkline — flat, subtle, no glow */}
+      <div className="px-5 pb-4 h-14">
+        <Sparkline points={sparkData} color={lineColor} height={48} showFill />
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-x-6 gap-y-4 px-6 py-5 border-t border-white/[0.06] bg-white/[0.01]">
+      {/* Stats grid */}
+      <div className="border-t border-white/[0.03] px-5 py-4 grid grid-cols-2 gap-x-4 gap-y-4">
         <div>
-          <div className="font-mono text-[10px] uppercase tracking-widest text-white/30 mb-1.5">Invested</div>
-          <div className="font-mono text-base font-medium text-white/80 tabular-nums">
+          <div className="font-mono text-[9px] uppercase tracking-wider text-white/25 font-semibold mb-1">
+            Invested
+          </div>
+          <div className="font-mono text-sm font-medium text-white/70 tabular-nums">
             ${formatUsdc(position.invested, 2)}
           </div>
         </div>
         <div className="text-right">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-white/30 mb-1.5">Current Value</div>
-          <div className="font-mono text-base font-medium text-white tabular-nums">
+          <div className="font-mono text-[9px] uppercase tracking-wider text-white/25 font-semibold mb-1">
+            Current Value
+          </div>
+          <div className="font-mono text-sm font-medium text-white/90 tabular-nums">
             ${formatUsdc(position.currentValue, 2)}
           </div>
         </div>
         <div>
-          <div className="font-mono text-[10px] uppercase tracking-widest text-white/30 mb-1.5">Net P&L</div>
-          <div className={`font-mono text-base font-medium tabular-nums ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+          <div className="font-mono text-[9px] uppercase tracking-wider text-white/25 font-semibold mb-1">
+            Net P&amp;L
+          </div>
+          <div className={`font-mono text-sm font-medium tabular-nums ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
             {isPositive ? '+' : '-'}${formatUsdc(isPositive ? position.growthAbs : -position.growthAbs, 2)}
           </div>
         </div>
         <div className="text-right">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-white/30 mb-1.5">APY</div>
-          <div className="font-mono text-base font-medium text-emerald-400 tabular-nums">
+          <div className="font-mono text-[9px] uppercase tracking-wider text-white/25 font-semibold mb-1">
+            APY
+          </div>
+          <div className="font-mono text-sm font-medium text-emerald-400 tabular-nums">
             {position.apy.toFixed(2)}%
           </div>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-3 border-t border-white/[0.04] flex items-center justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-white/30">
+      <div className="border-t border-white/[0.03] px-5 py-3 flex items-center justify-between">
+        <span className="font-mono text-[9px] uppercase tracking-wider text-white/25 font-semibold">
           Shares: {formatUsdc(position.balance, 2)}
         </span>
-        <button className="font-mono text-[10px] uppercase tracking-widest text-white/50 hover:text-white transition-colors flex items-center gap-1">
-          Manage <ArrowUpRight className="h-3 w-3" />
+        <button className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-white/35 hover:text-white/70 transition-colors group/btn">
+          Manage
+          <ArrowUpRight className="h-3 w-3 group-hover/btn:text-[#e54b73] transition-colors" />
         </button>
       </div>
     </div>
@@ -415,56 +443,69 @@ function PositionCard({ position }: { position: any }) {
 
 function EmptyPositions() {
   return (
-    <div className="rounded-xl border border-dashed border-white/[0.10] bg-white/[0.02] py-16 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] mb-5">
-        <Briefcase className="h-6 w-6 text-white/30" />
+    <div className="rounded-2xl border border-dashed border-white/[0.04] bg-[#0c0c0f] py-14 text-center">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.03] bg-white/[0.02] mb-4">
+        <Briefcase className="h-5 w-5 text-white/25" strokeWidth={1.5} />
       </div>
-      <h3 className="font-display text-2xl text-white tracking-tight">No active positions</h3>
-      <p className="mt-2 font-mono text-sm text-white/40">Deposit into a tranche to start earning.</p>
+      <h3 className="font-sans text-base font-medium text-white/80 tracking-tight">
+        No active positions
+      </h3>
+      <p className="mt-1.5 font-mono text-[10px] text-white/30">
+        Deposit into a tranche to start earning.
+      </p>
       <a
         href="/earn"
-        className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/[0.15] bg-white/[0.04] px-5 py-2 font-mono text-xs uppercase tracking-widest text-white/80 hover:bg-white/[0.08] transition-colors"
+        className="mt-5 inline-flex items-center gap-2 rounded-xl border border-white/[0.04] bg-white/[0.01] px-5 py-2.5 font-mono text-[9px] uppercase tracking-wider text-white/60 hover:bg-white/[0.03] hover:text-white/80 transition-all font-semibold"
       >
-        Browse Markets <ArrowUpRight className="h-3.5 w-3.5" />
+        Browse Markets
+        <ArrowUpRight className="h-3 w-3" />
       </a>
     </div>
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// ─── Connect Wall ─────────────────────────────────────────────────────────────
+
+function ConnectWall({ onConnect }: { onConnect: () => void }) {
+  return (
+    <div className="w-full max-w-sm mx-auto mt-16 flex flex-col items-center text-center px-6 pb-16">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/[0.03] bg-[#0c0c0f] mb-6">
+        <Briefcase className="h-7 w-7 text-white/20" strokeWidth={1.5} />
+      </div>
+      <h1 className="font-sans text-xl font-semibold text-white tracking-tight mb-2">
+        Portfolio Exposure
+      </h1>
+      <p className="font-mono text-[10px] text-white/35 leading-relaxed mb-8 max-w-xs">
+        Connect your wallet to view active tranches, real-time NAV growth, and accumulated protocol yield.
+      </p>
+      <button
+        onClick={onConnect}
+        className="rounded-xl bg-white px-6 py-3 font-mono text-[10px] font-bold uppercase tracking-wider text-black transition-all hover:opacity-90 active:scale-[0.98]"
+      >
+        Connect Wallet
+      </button>
+    </div>
+  );
+}
+
+// ─── Main Export ──────────────────────────────────────────────────────────────
 
 export function PositionsOverview() {
   const { connected } = useWallet();
   const { setVisible } = useWalletModal();
   const data = usePositionsData();
+  const { history } = useNavHistory();
 
   if (!connected) {
-    return (
-      <div className="w-full max-w-4xl mx-auto mt-20 flex flex-col items-center justify-center text-center px-6">
-        <div className="relative mb-10">
-          <div className="absolute inset-0 bg-white/20 blur-[100px] rounded-full" />
-          <div className="relative flex h-24 w-24 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-2xl">
-            <Briefcase className="h-10 w-10 text-white/40" strokeWidth={1.5} />
-          </div>
-        </div>
-        <h1 className="font-display text-4xl text-white tracking-tight mb-4">Portfolio Exposure</h1>
-        <p className="max-w-md text-white/40 leading-relaxed mb-10">
-          Connect your wallet to view your active tranches, real-time NAV growth, and accumulated protocol yield.
-        </p>
-        <button 
-          onClick={() => setVisible(true)}
-          className="rounded-xl bg-white px-8 py-4 font-mono text-[13px] font-bold uppercase tracking-widest text-black transition-all hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] shadow-[0_20px_50px_rgba(255,255,255,0.1)]"
-        >
-          Connect Wallet to View Positions
-        </button>
-      </div>
-    );
+    return <ConnectWall onConnect={() => setVisible(true)} />;
   }
 
   return (
     <div className="w-full max-w-[1800px] mx-auto space-y-6 pb-16">
-      <PositionsHeader totalCurrent={data.totalCurrent} totalGrowthPct={data.totalGrowthPct} />
+      {/* Page header */}
 
+
+      {/* KPI strip */}
       <PortfolioKPIs
         totalInvested={data.totalInvested}
         totalCurrent={data.totalCurrent}
@@ -475,14 +516,20 @@ export function PositionsOverview() {
         bestPerformer={data.bestPerformer}
       />
 
-      <PortfolioGrowthChart totalCurrent={data.totalCurrent} totalGrowthPct={data.totalGrowthPct} />
+      {/* Growth chart */}
+      <PortfolioGrowthChart
+        totalCurrent={data.totalCurrent}
+        totalGrowthPct={data.totalGrowthPct}
+      />
 
-      {/* Section header */}
-      <div className="flex items-center gap-3 pt-2">
-        <Layers className="h-4 w-4 text-white/30" />
-        <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-white/40">Position Detail</span>
-        <div className="h-px flex-1 bg-white/[0.06]" />
-        <span className="font-mono text-[11px] uppercase tracking-widest text-white/25">
+      {/* Position cards section */}
+      <div className="flex items-center gap-3 pt-1">
+        <Layers className="h-3.5 w-3.5 text-white/20" />
+        <span className="font-mono text-[9px] uppercase tracking-wider text-white/30 font-semibold">
+          Position Detail
+        </span>
+        <div className="h-px flex-1 bg-white/[0.04]" />
+        <span className="font-mono text-[9px] uppercase tracking-wider text-white/20 font-semibold">
           {data.positions.length} active
         </span>
       </div>
@@ -492,7 +539,7 @@ export function PositionsOverview() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {data.positions.map((p) => (
-            <PositionCard key={p.kind} position={p} />
+            <PositionCard key={p.kind} position={p} history={history} />
           ))}
         </div>
       )}

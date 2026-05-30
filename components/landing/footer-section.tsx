@@ -11,10 +11,10 @@ const footerLinks = {
     { name: "Ecosystem", href: "/#integrations" },
   ],
   Developers: [
-    { name: "Documentation", href: "#", disabled: true },
-    { name: "Soroban contracts", href: "/#infra" },
-    { name: "Contract bindings", href: "/#developers" },
-    { name: "Testnet status", href: "#" },
+    { name: "Documentation", href: DOCS_URL },
+    { name: "Anchor programs", href: "/#infra" },
+    { name: "Typed IDL", href: "/#developers" },
+    { name: "Devnet status", href: "#" },
   ],
   Company: [
     { name: "About", href: "#" },
@@ -139,7 +139,7 @@ export function FooterSection() {
               </a>
 
               <p className="text-white/50 leading-relaxed mb-6 max-w-xs text-sm">
-                Programmable credit risk on Stellar. Split deposits into tranches, distribute yield by waterfall, and let markets price the risk.
+                Programmable credit risk on Solana. Split deposits into tranches, distribute yield by waterfall, and let markets price the risk.
               </p>
 
               {/* Social Links */}
@@ -162,30 +162,21 @@ export function FooterSection() {
               <div key={title}>
                 <h3 className="text-sm font-medium text-white mb-4">{title}</h3>
                 <ul className="space-y-3">
-                  {links.map((link) => {
-                    const isDisabled = "disabled" in link && link.disabled;
-                    return (
-                      <li key={link.name}>
-                        {isDisabled ? (
-                          <span className="text-sm text-white/20 cursor-not-allowed inline-flex items-center gap-2">
-                            {link.name}
+                  {links.map((link) => (
+                    <li key={link.name}>
+                      <a
+                        href={link.href}
+                        className="text-sm text-white/40 hover:text-white transition-colors inline-flex items-center gap-2"
+                      >
+                        {link.name}
+                        {"badge" in link && link.badge && (
+                          <span className="text-xs px-2 py-0.5 bg-white text-black rounded-full">
+                            {link.badge}
                           </span>
-                        ) : (
-                          <a
-                            href={link.href}
-                            className="text-sm text-white/40 hover:text-white transition-colors inline-flex items-center gap-2"
-                          >
-                            {link.name}
-                            {"badge" in link && link.badge && (
-                              <span className="text-xs px-2 py-0.5 bg-white text-black rounded-full">
-                                {link.badge}
-                              </span>
-                            )}
-                          </a>
                         )}
-                      </li>
-                    );
-                  })}
+                      </a>
+                    </li>
+                  ))}
                 </ul>
               </div>
             ))}

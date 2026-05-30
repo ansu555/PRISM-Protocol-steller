@@ -1,37 +1,44 @@
 import type { ReactNode } from "react";
-import { AppSidebar } from "@/components/app-shell/app-sidebar";
+import { AppNavbar } from "@/components/app-shell/app-navbar";
 import { AppProviders } from "@/components/providers/app-providers";
 
 export default function AppShellLayout({ children }: { children: ReactNode }) {
   return (
     <AppProviders>
-      <div className="relative flex h-screen w-full bg-black text-white overflow-hidden">
-        {/* Full-viewport background decorators — behind everything */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 z-0"
-          style={{
-            background:
-              "radial-gradient(circle at 12% 10%, rgba(236,72,153,0.15) 0%, transparent 35%), radial-gradient(circle at 88% 12%, rgba(168,85,247,0.15) 0%, transparent 35%), radial-gradient(circle at 50% 90%, rgba(139,92,246,0.08) 0%, transparent 40%)",
-          }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 z-0 opacity-20"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)",
-            backgroundSize: "48px 48px",
-          }}
-        />
+      <div className="relative flex h-screen w-full bg-black text-white overflow-hidden p-3 sm:p-4 md:p-6 lg:p-8">
+        {/* Subtle grid lines background overlay */}
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-[0.06]">
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={`h-${i}`}
+              className="absolute h-px bg-white/10"
+              style={{
+                top: `${12.5 * (i + 1)}%`,
+                left: 0,
+                right: 0,
+              }}
+            />
+          ))}
+          {[...Array(12)].map((_, i) => (
+            <div
+              key={`v-${i}`}
+              className="absolute w-px bg-white/10"
+              style={{
+                left: `${8.33 * (i + 1)}%`,
+                top: 0,
+                bottom: 0,
+              }}
+            />
+          ))}
+        </div>
 
-        {/* Left Sidebar */}
-        <AppSidebar />
+        {/* Main Full-Screen Layout Canvas */}
+        <div className="relative flex flex-1 flex-col min-w-0 h-full z-10">
+          {/* Top Navbar */}
+          <AppNavbar />
 
-        {/* Main Content Area */}
-        <div className="relative flex flex-1 flex-col pl-[72px] min-w-0 h-screen">
-          {/* Page Content Scroller */}
-          <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
+          {/* Main Page Area */}
+          <main className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
             {children}
           </main>
         </div>

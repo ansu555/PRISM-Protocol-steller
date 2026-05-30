@@ -1,5 +1,3 @@
-'use client';
-
 // Soroban client helpers — single place to spin up RPC + contract callers.
 //
 // Soroban contract interaction helpers.
@@ -86,11 +84,13 @@ export class ContractClient {
   async read<T = unknown>(method: string, args: xdr.ScVal[] = []): Promise<T> {
     const server = getRpcServer();
     // We need *some* account to build the simulation tx, but it won't be
-    // signed or submitted. Use a deterministic placeholder.
-    // Use a well-known testnet address as the simulation source. If it's
-    // unfunded, fall back to a properly-constructed Account so TransactionBuilder
-    // (which calls incrementSequenceNumber) doesn't throw.
-    const SIM_SOURCE = 'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN';
+    // signed or submitted. Use the deployed admin address as simulation source —
+    // it exists on testnet and has a valid sequence number.
+    // IMPORTANT: the original GAAZI4... address was 55 chars (invalid), causing
+    // every read() call to silently throw "accountId is invalid".
+    const SIM_SOURCE =
+      process.env.NEXT_PUBLIC_ADMIN_ADDRESS ??
+      'GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO';
     const sourceAccount = await server
       .getAccount(SIM_SOURCE)
       .catch(() => new Account(SIM_SOURCE, '0'));

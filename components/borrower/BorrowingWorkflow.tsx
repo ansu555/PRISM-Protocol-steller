@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useWallet } from '@/components/providers/stellar-wallet-context';
+import { useStellarWallet } from '@/components/providers/stellar-wallet-context';
 import {
   ShieldCheck,
   Building2,
@@ -1123,7 +1123,7 @@ function StepTracking({
 
 // ─── MAIN WORKFLOW ────────────────────────────────────────────────────────────
 export function BorrowingWorkflow() {
-  const { publicKey, connected } = useWallet();
+  const { address: publicKey, connected } = useStellarWallet();
   const { submit, getByBorrower } = useLoanApplications();
   const {
     amount, setAmount,
@@ -1135,7 +1135,7 @@ export function BorrowingWorkflow() {
     currentStep, setCurrentStep,
   } = useBorrowerState();
 
-  const existingApp = publicKey ? getByBorrower(publicKey.toBase58()) : undefined;
+  const existingApp = publicKey ? getByBorrower(publicKey) : undefined;
 
   useEffect(() => {
     if (existingApp && selectedVaultId === null) {
@@ -1169,7 +1169,7 @@ export function BorrowingWorkflow() {
     if (!publicKey || isSubmitting) return;
     setIsSubmitting(true);
     submit({
-      borrowerPubkey: publicKey.toBase58(),
+      borrowerPubkey: publicKey,
       requestedUSDC: Number(amount),
       maturityDays: duration,
       purpose: PURPOSES.find((p) => p.value === purpose)?.label ?? purpose,
@@ -1580,7 +1580,7 @@ export function BorrowingWorkflow() {
       <div className="animate-in fade-in slide-in-from-bottom-1 duration-300" key={currentStep}>
         {currentStep === 1 && (
           <StepProfile
-            publicKey={publicKey?.toBase58() ?? ''}
+            publicKey={publicKey ?? ''}
             borrowerType={borrowerType}
             setBorrowerType={setBorrowerType}
           />
@@ -1612,7 +1612,7 @@ export function BorrowingWorkflow() {
         )}
         {currentStep === 6 && (
           <StepSubmission
-            publicKey={publicKey?.toBase58() ?? ''}
+            publicKey={publicKey ?? ''}
             amount={amount}
             duration={duration}
             purpose={purpose}

@@ -64,7 +64,7 @@ export function useAllVaults() {
         Array.from({ length: MAX_VAULTS_TO_PROBE }, (_, id) =>
           core
             .read<VaultSnapshot | null>('get_vault', [nativeToScVal(id, { type: 'u32' })])
-            .catch(() => null)
+            .catch((err) => { console.warn(`[useAllVaults] get_vault(${id}) failed:`, err?.message ?? err); return null; })
             .then((v) => (v ? { id, vault: v } : null)),
         ),
       );

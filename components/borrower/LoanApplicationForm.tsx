@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useWallet } from '@/components/providers/stellar-wallet-provider';
+import { useStellarWallet } from '@/components/providers/stellar-wallet-provider';
 import { toast } from 'sonner';
 import { useLoanApplications, type LoanApplication } from '@/hooks/useLoanApplications';
 
@@ -32,10 +32,10 @@ const STATUS_UI: Record<LoanApplication['status'], { label: string; cls: string 
 };
 
 export function LoanApplicationForm({ onSubmitted }: Props) {
-  const { publicKey, connected } = useWallet();
+  const { address: publicKey, connected } = useStellarWallet();
   const { submit, getByBorrower } = useLoanApplications();
 
-  const existing = publicKey ? getByBorrower(publicKey.toBase58()) : undefined;
+  const existing = publicKey ? getByBorrower(publicKey) : undefined;
 
   const [amount, setAmount] = useState('10000');
   const [maturityDays, setMaturityDays] = useState(90);
@@ -141,7 +141,7 @@ export function LoanApplicationForm({ onSubmitted }: Props) {
     setSubmitting(true);
     try {
       submit({
-        borrowerPubkey: publicKey!.toBase58(),
+        borrowerPubkey: publicKey!,
         requestedUSDC: usd,
         maturityDays,
         purpose,
@@ -237,7 +237,7 @@ export function LoanApplicationForm({ onSubmitted }: Props) {
           
           <div className="flex flex-col items-center gap-1.5">
             <div className="font-mono text-[11px] text-white/40 bg-white/[0.03] px-3 py-1 rounded-full border border-white/5">
-              {publicKey.toBase58().slice(0, 12)}…{publicKey.toBase58().slice(-12)}
+              {publicKey.slice(0, 12)}…{publicKey.slice(-12)}
             </div>
           </div>
         </div>
