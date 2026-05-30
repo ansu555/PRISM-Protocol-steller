@@ -31,6 +31,10 @@
 
 - `pause()`
 - `unpause()`
+- `add_oracle_to_allowlist(oracle_pubkey)`
+- `remove_oracle_from_allowlist(oracle_pubkey)`
+- `rotate_oracle_allowlist_key(old_oracle_pubkey, new_oracle_pubkey)`
+- `is_oracle_allowlisted(oracle_pubkey)`
 
 ### Capital flows
 

@@ -85,5 +85,36 @@ This records payout attestation metadata on-chain.
 
 1. Keep API route message builders and contract parsers byte-identical.
 2. Keep oracle pubkeys in contract allowlist before first use.
-3. Rotate signing seeds by environment.
-4. Treat all signer seeds as secrets, never client-visible variables.
+3. Use managed signer env vars only; deterministic hardcoded fallback keys are no longer accepted.
+4. Routes expose `key_id` in responses to support controlled cutover during key rotation.
+5. Oracle endpoints enforce request throttling and return:
+   - `x-ratelimit-limit`
+   - `x-ratelimit-remaining`
+   - `x-ratelimit-reset`
+6. Treat all signer seeds as secrets, never client-visible variables.
+
+## 5. Managed Key Rotation
+
+Each route supports:
+
+- primary key seed (`*_SEED`)
+- optional next key seed (`*_SEED_NEXT`)
+- active key selector (`*_ACTIVE_KEY_ID`)
+- explicit key identifiers (`*_PRIMARY_KEY_ID`, `*_NEXT_KEY_ID`)
+
+Rotation flow:
+
+1. Add new oracle pubkey on-chain with `add_oracle_to_allowlist`.
+2. Set `*_SEED_NEXT` and `*_NEXT_KEY_ID`.
+3. Validate signatures by passing `key_id=<next_key_id>` to the route.
+4. Flip `*_ACTIVE_KEY_ID` to the next key id.
+5. Revoke old pubkey on-chain with `remove_oracle_from_allowlist` once cutover is complete.
+
+## 6. Observability
+
+Oracle routes emit operational events into `protocol_events` with event types:
+
+- `OracleAttestationSigned`
+- `OracleRateLimitBlocked`
+- `OracleAttestationRejected`
+- `OracleAttestationError`

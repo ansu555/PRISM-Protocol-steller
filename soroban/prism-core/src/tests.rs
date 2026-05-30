@@ -150,6 +150,58 @@ fn pause_unpause_flips_flag() {
     assert!(!client.get_config().paused);
 }
 
+#[test]
+fn oracle_allowlist_admin_flow() {
+    let (env, client, admin, usdc) = setup();
+    let allowlist: Vec<BytesN<32>> = Vec::new(&env);
+    client.init_config(&admin, &usdc, &500_u32, &allowlist);
+
+    let pk1 = BytesN::from_array(&env, &[1u8; 32]);
+    let pk2 = BytesN::from_array(&env, &[2u8; 32]);
+    let pk3 = BytesN::from_array(&env, &[3u8; 32]);
+
+    client.add_oracle_to_allowlist(&pk1);
+    assert!(client.is_oracle_allowlisted(&pk1));
+
+    let dup = client.try_add_oracle_to_allowlist(&pk1);
+    assert_eq!(
+        dup.err().unwrap().unwrap(),
+        PrismError::OracleAlreadyAllowlisted
+    );
+
+    client.add_oracle_to_allowlist(&pk2);
+    assert!(client.is_oracle_allowlisted(&pk2));
+
+    client.rotate_oracle_allowlist_key(&pk1, &pk3);
+    assert!(!client.is_oracle_allowlisted(&pk1));
+    assert!(client.is_oracle_allowlisted(&pk3));
+
+    client.remove_oracle_from_allowlist(&pk2);
+    assert!(!client.is_oracle_allowlisted(&pk2));
+
+    let missing = client.try_remove_oracle_from_allowlist(&pk2);
+    assert_eq!(
+        missing.err().unwrap().unwrap(),
+        PrismError::OracleNotAllowlisted
+    );
+}
+
+#[test]
+fn oracle_allowlist_respects_max_size() {
+    let (env, client, admin, usdc) = setup();
+    let mut allowlist: Vec<BytesN<32>> = Vec::new(&env);
+    for i in 0u8..8u8 {
+        allowlist.push_back(BytesN::from_array(&env, &[i; 32]));
+    }
+    client.init_config(&admin, &usdc, &500_u32, &allowlist);
+
+    let overflow = client.try_add_oracle_to_allowlist(&BytesN::from_array(&env, &[99u8; 32]));
+    assert_eq!(
+        overflow.err().unwrap().unwrap(),
+        PrismError::OracleAllowlistFull
+    );
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Phase 2 — full lifecycle harness
 // ──────────────────────────────────────────────────────────────────────────────

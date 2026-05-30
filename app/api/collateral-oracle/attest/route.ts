@@ -18,29 +18,26 @@
  *   byte  72       status (0x01=Attached, 0x02=Released, 0x03=Liquidated)
  */
 
-import { createPrivateKey, createPublicKey, sign } from 'node:crypto';
+import { sign } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 
-// Dev seed: 32 bytes of 0x01 (differs from Encrypt oracle which uses all zeros).
-// Override with COLLATERAL_ORACLE_SEED in prod.
-const seedHex =
-  process.env.COLLATERAL_ORACLE_SEED ?? process.env.COLLATERAL_ORACLE_SEED_DEV ?? '01'.repeat(32);
+import {
+  enforceOracleRateLimit,
+  loadManagedOracleSigner,
+  recordOracleOperationalEvent,
+  selectOracleSigner,
+} from '@/app/lib/oracle-security';
 
-const SEED = Buffer.from(seedHex, 'hex');
-if (SEED.length !== 32) {
-  throw new Error('COLLATERAL_ORACLE_SEED must be 32 bytes (64 hex chars)');
-}
-
-const PKCS8_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
-const privateKey = createPrivateKey({
-  key: Buffer.concat([PKCS8_PREFIX, SEED]),
-  format: 'der',
-  type: 'pkcs8',
+const signerBundle = loadManagedOracleSigner({
+  oracleName: 'collateral',
+  primarySeedEnv: 'COLLATERAL_ORACLE_SEED',
+  legacySeedEnvs: ['IKA_TEST_ORACLE_SECRET_SEED'],
+  devSeedEnv: 'COLLATERAL_ORACLE_SEED_DEV',
+  nextSeedEnv: 'COLLATERAL_ORACLE_SEED_NEXT',
+  activeKeyIdEnv: 'COLLATERAL_ORACLE_ACTIVE_KEY_ID',
+  primaryKeyIdEnv: 'COLLATERAL_ORACLE_PRIMARY_KEY_ID',
+  nextKeyIdEnv: 'COLLATERAL_ORACLE_NEXT_KEY_ID',
 });
-const oraclePubkeyHex = createPublicKey(privateKey)
-  .export({ type: 'spki', format: 'der' })
-  .slice(-32)
-  .toString('hex');
 
 const STATUS_MAP: Record<string, number> = {
   attached: 0x01,
@@ -70,8 +67,39 @@ function buildCollateralMessage(params: {
 }
 
 export async function POST(req: NextRequest) {
+  const rate = enforceOracleRateLimit(
+    req,
+    'collateral-oracle-attest',
+    'COLLATERAL_ORACLE_RATE_LIMIT_PER_MINUTE',
+  );
+  const rateHeaders = {
+    'x-ratelimit-limit': String(rate.limit),
+    'x-ratelimit-remaining': String(rate.remaining),
+    'x-ratelimit-reset': String(rate.resetAtEpochSeconds),
+  };
+  if (!rate.allowed) {
+    await recordOracleOperationalEvent({
+      route: '/api/collateral-oracle/attest',
+      oracle: 'collateral',
+      outcome: 'rate_limited',
+      clientKey: rate.clientKey,
+      success: false,
+    });
+    return NextResponse.json({ error: 'rate limit exceeded' }, { status: 429, headers: rateHeaders });
+  }
+
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: 'invalid json' }, { status: 400 });
+  if (!body) {
+    await recordOracleOperationalEvent({
+      route: '/api/collateral-oracle/attest',
+      oracle: 'collateral',
+      outcome: 'invalid_request',
+      clientKey: rate.clientKey,
+      success: false,
+      detail: { error: 'invalid json' },
+    });
+    return NextResponse.json({ error: 'invalid json' }, { status: 400, headers: rateHeaders });
+  }
 
   const {
     loan_id,
@@ -81,6 +109,7 @@ export async function POST(req: NextRequest) {
     valued_at_ts = '0',
     nonce,
     status = 'attached',
+    key_id,
   } = body as {
     loan_id?: number;
     chain_id?: number;
@@ -89,20 +118,67 @@ export async function POST(req: NextRequest) {
     valued_at_ts?: string;
     nonce?: string;
     status?: string;
+    key_id?: string;
   };
 
   if (loan_id === undefined || nonce === undefined) {
-    return NextResponse.json({ error: 'missing: loan_id, nonce' }, { status: 400 });
+    await recordOracleOperationalEvent({
+      route: '/api/collateral-oracle/attest',
+      oracle: 'collateral',
+      outcome: 'invalid_request',
+      clientKey: rate.clientKey,
+      success: false,
+      detail: { error: 'missing: loan_id, nonce' },
+    });
+    return NextResponse.json({ error: 'missing: loan_id, nonce' }, { status: 400, headers: rateHeaders });
   }
   if (typeof loan_id !== 'number' || !Number.isInteger(loan_id) || loan_id < 0) {
-    return NextResponse.json({ error: 'loan_id must be a non-negative integer' }, { status: 400 });
+    await recordOracleOperationalEvent({
+      route: '/api/collateral-oracle/attest',
+      oracle: 'collateral',
+      outcome: 'invalid_request',
+      clientKey: rate.clientKey,
+      success: false,
+      detail: { error: 'loan_id must be a non-negative integer' },
+    });
+    return NextResponse.json(
+      { error: 'loan_id must be a non-negative integer' },
+      { status: 400, headers: rateHeaders },
+    );
   }
   const statusByte = STATUS_MAP[status.toLowerCase()];
   if (statusByte === undefined) {
+    await recordOracleOperationalEvent({
+      route: '/api/collateral-oracle/attest',
+      oracle: 'collateral',
+      outcome: 'invalid_request',
+      clientKey: rate.clientKey,
+      success: false,
+      detail: { error: 'invalid status', status },
+    });
     return NextResponse.json(
       { error: 'status must be one of: attached, released, liquidated' },
-      { status: 400 },
+      { status: 400, headers: rateHeaders },
     );
+  }
+
+  const signer = (() => {
+    try {
+      return selectOracleSigner(signerBundle, key_id);
+    } catch (error) {
+      return error as Error;
+    }
+  })();
+  if (signer instanceof Error) {
+    await recordOracleOperationalEvent({
+      route: '/api/collateral-oracle/attest',
+      oracle: 'collateral',
+      outcome: 'invalid_request',
+      clientKey: rate.clientKey,
+      success: false,
+      detail: { error: signer.message },
+    });
+    return NextResponse.json({ error: signer.message }, { status: 400, headers: rateHeaders });
   }
 
   const message = buildCollateralMessage({
@@ -115,12 +191,23 @@ export async function POST(req: NextRequest) {
     statusByte,
   });
 
-  const signature = sign(null, message, privateKey);
+  const signature = sign(null, message, signer.privateKey);
+
+  await recordOracleOperationalEvent({
+    route: '/api/collateral-oracle/attest',
+    oracle: 'collateral',
+    outcome: 'signed',
+    signer,
+    clientKey: rate.clientKey,
+    success: true,
+    detail: { loan_id, status, nonce, key_id: signer.keyId },
+  });
 
   return NextResponse.json({
     signature: Buffer.from(signature).toString('hex'),
-    oracle_pubkey_hex: oraclePubkeyHex,
+    oracle_pubkey_hex: signer.publicKeyHex,
     message_hex: message.toString('hex'),
     status,
-  });
+    key_id: signer.keyId,
+  }, { headers: rateHeaders });
 }

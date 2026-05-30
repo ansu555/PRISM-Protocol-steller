@@ -134,15 +134,14 @@ export const POOL_NAMES: Record<number, string> = {
   3: 'Growth Capital Market',
 };
 
-// Ed25519 pubkey of the demo Encrypt FHE oracle. 32-byte hex (no Stellar StrKey
-// wrapping — these are raw oracle keys, used by `env.crypto().ed25519_verify`
-// inside the contract). The mock oracle at /api/encrypt-oracle/* uses the
-// matching secret (deterministic zero seed).
+// Ed25519 pubkey of the Encrypt oracle (32-byte hex, no Stellar StrKey wrapping).
+// Used for local/demo UI defaults; production should always set
+// NEXT_PUBLIC_ENCRYPT_ORACLE_PUBKEY_HEX explicitly.
 export const ENCRYPT_ORACLE_PUBKEY_HEX =
   process.env.NEXT_PUBLIC_ENCRYPT_ORACLE_PUBKEY_HEX ??
   '3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29';
 
-// Demo Cloak oracle pubkey (deterministic 0x11... seed).
+// Cloak oracle pubkey (local/demo default shown; override in production).
 export const CLOAK_ORACLE_PUBKEY_HEX =
   process.env.NEXT_PUBLIC_CLOAK_ORACLE_PUBKEY_HEX ??
   '8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c';

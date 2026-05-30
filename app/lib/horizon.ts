@@ -123,6 +123,38 @@ export async function getRecentTransactions(
   return data._embedded?.records ?? [];
 }
 
+export interface HorizonOperation {
+  id: string;
+  type: string;
+  transaction_hash: string;
+  source_account?: string;
+  from?: string;
+  to?: string;
+  asset_code?: string;
+  asset_issuer?: string;
+  amount?: string;
+  successful?: boolean;
+  transaction_successful?: boolean;
+}
+
+/**
+ * Fetch operations for a specific transaction hash.
+ * Useful for better event classification than memo-only heuristics.
+ */
+export async function getTransactionOperations(
+  transactionHash: string,
+  limit = 20,
+): Promise<HorizonOperation[]> {
+  const url = `${HORIZON_URL}/transactions/${transactionHash}/operations?limit=${limit}&order=asc&include_failed=true`;
+  const res = await fetch(url);
+  if (res.status === 404) return [];
+  if (!res.ok) {
+    throw new Error(`Horizon tx operations error: ${res.status} ${res.statusText}`);
+  }
+  const data = (await res.json()) as { _embedded: { records: HorizonOperation[] } };
+  return data._embedded?.records ?? [];
+}
+
 // ── Explorer links ─────────────────────────────────────────────────────────────
 
 /**

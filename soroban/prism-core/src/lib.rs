@@ -60,6 +60,8 @@ pub use state::{
 
 use soroban_sdk::{contract, contractimpl, token, vec, Address, Bytes, BytesN, Env, String, Vec};
 
+const MAX_ORACLE_ALLOWLIST_KEYS: u32 = 8;
+
 #[contract]
 pub struct PrismCore;
 
@@ -199,6 +201,96 @@ impl PrismCore {
         cfg.paused = false;
         storage::write_config(&env, &cfg);
         Ok(())
+    }
+
+    /// Add an oracle pubkey to the global allowlist.
+    ///
+    /// Admin-only. Fails if the key is already allowlisted or the list is full.
+    pub fn add_oracle_to_allowlist(
+        env: Env,
+        oracle_pubkey: BytesN<32>,
+    ) -> Result<(), PrismError> {
+        let mut cfg = storage::read_config(&env);
+        cfg.admin.require_auth();
+
+        if cfg.oracle_allowlist.contains(&oracle_pubkey) {
+            return Err(PrismError::OracleAlreadyAllowlisted);
+        }
+        if cfg.oracle_allowlist.len() >= MAX_ORACLE_ALLOWLIST_KEYS {
+            return Err(PrismError::OracleAllowlistFull);
+        }
+
+        cfg.oracle_allowlist.push_back(oracle_pubkey);
+        storage::write_config(&env, &cfg);
+        Ok(())
+    }
+
+    /// Remove an oracle pubkey from the global allowlist.
+    ///
+    /// Admin-only. Fails if the key is not currently allowlisted.
+    pub fn remove_oracle_from_allowlist(
+        env: Env,
+        oracle_pubkey: BytesN<32>,
+    ) -> Result<(), PrismError> {
+        let mut cfg = storage::read_config(&env);
+        cfg.admin.require_auth();
+
+        if !cfg.oracle_allowlist.contains(&oracle_pubkey) {
+            return Err(PrismError::OracleNotAllowlisted);
+        }
+
+        let mut next = Vec::new(&env);
+        for i in 0..cfg.oracle_allowlist.len() {
+            let key = cfg.oracle_allowlist.get(i).ok_or(PrismError::NotInitialized)?;
+            if key != oracle_pubkey {
+                next.push_back(key);
+            }
+        }
+
+        cfg.oracle_allowlist = next;
+        storage::write_config(&env, &cfg);
+        Ok(())
+    }
+
+    /// Atomically replace one allowlisted oracle pubkey with another.
+    ///
+    /// Admin-only. Useful for key rotation without a two-transaction gap.
+    pub fn rotate_oracle_allowlist_key(
+        env: Env,
+        old_oracle_pubkey: BytesN<32>,
+        new_oracle_pubkey: BytesN<32>,
+    ) -> Result<(), PrismError> {
+        let mut cfg = storage::read_config(&env);
+        cfg.admin.require_auth();
+
+        if !cfg.oracle_allowlist.contains(&old_oracle_pubkey) {
+            return Err(PrismError::OracleNotAllowlisted);
+        }
+        if old_oracle_pubkey != new_oracle_pubkey
+            && cfg.oracle_allowlist.contains(&new_oracle_pubkey)
+        {
+            return Err(PrismError::OracleAlreadyAllowlisted);
+        }
+
+        let mut next = Vec::new(&env);
+        for i in 0..cfg.oracle_allowlist.len() {
+            let key = cfg.oracle_allowlist.get(i).ok_or(PrismError::NotInitialized)?;
+            if key == old_oracle_pubkey {
+                next.push_back(new_oracle_pubkey.clone());
+            } else {
+                next.push_back(key);
+            }
+        }
+
+        cfg.oracle_allowlist = next;
+        storage::write_config(&env, &cfg);
+        Ok(())
+    }
+
+    /// Lightweight check for operations tooling.
+    pub fn is_oracle_allowlisted(env: Env, oracle_pubkey: BytesN<32>) -> bool {
+        let cfg = storage::read_config(&env);
+        cfg.oracle_allowlist.contains(&oracle_pubkey)
     }
 
     // ──────────────────────────────────────────────────────────────────────

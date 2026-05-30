@@ -1,0 +1,60 @@
+name: Stellar / Mainnet Gates
+
+on:
+  workflow_dispatch:
+    inputs:
+      audit_report_url:
+        description: External audit report URL
+        required: true
+        type: string
+      audit_signed_off:
+        description: Confirm external audit sign-off is complete
+        required: true
+        type: boolean
+
+jobs:
+  readiness:
+    name: Mainnet readiness gate
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: soroban
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate audit inputs
+        run: |
+          if [ -z "${{ inputs.audit_report_url }}" ]; then
+            echo "audit_report_url is required"
+            exit 1
+          fi
+          if [ "${{ inputs.audit_signed_off }}" != "true" ]; then
+            echo "audit_signed_off must be true to pass the gate"
+            exit 1
+          fi
+          echo "Audit report: ${{ inputs.audit_report_url }}"
+
+      - name: Install Rust stable + wasm32v1-none target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32v1-none
+
+      - name: Install stellar CLI
+        run: |
+          curl -sSL https://github.com/stellar/stellar-cli/releases/download/v26.1.0/stellar-cli-26.1.0-x86_64-unknown-linux-gnu.tar.gz \
+            | tar -xz -C /usr/local/bin stellar
+          stellar --version
+
+      - name: Build prism-core WASM
+        run: stellar contract build --package prism-core
+
+      - name: Assert WASM size < 512 KB
+        run: |
+          SIZE=$(wc -c < target/wasm32v1-none/release/prism_core.wasm)
+          echo "prism_core.wasm: ${SIZE} bytes"
+          test "$SIZE" -lt $((512 * 1024)) || (echo "FAIL: WASM exceeds 512 KB" && exit 1)
+
+      - name: Run unit tests (native)
+        run: cargo test -p prism-core

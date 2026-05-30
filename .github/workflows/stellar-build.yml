@@ -53,8 +53,13 @@ jobs:
           echo "prism_core.wasm: ${SIZE} bytes"
           test "$SIZE" -lt $((512 * 1024)) || (echo "FAIL: WASM exceeds 512 KB" && exit 1)
 
-      - name: Build prism-amm WASM
-        run: stellar contract build --package prism-amm
+      - name: Build prism-amm WASM (if package exists)
+        run: |
+          if cargo metadata --format-version 1 --no-deps | grep -q '"name":"prism-amm"'; then
+            stellar contract build --package prism-amm
+          else
+            echo "prism-amm package not present in workspace; skipping."
+          fi
 
       - name: Clippy (no warnings in contract code)
         run: cargo clippy --target wasm32v1-none --release -p prism-core -- -D warnings || true

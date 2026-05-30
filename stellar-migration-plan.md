@@ -45,6 +45,18 @@ Ship a production-ready Soroban credit protocol where:
 
 ## 3. Workstreams
 
+### Progress update (2026-05-30)
+
+- Implemented:
+  - on-chain oracle allowlist management (`add_oracle_to_allowlist`, `remove_oracle_from_allowlist`, `rotate_oracle_allowlist_key`)
+  - managed oracle key selection in API routes (primary/next key ids, env-backed seeds)
+  - oracle route abuse controls (rate-limit headers + 429 handling) and operational event logging
+  - stronger event classification in the indexer (memo + operation-type aware), with summary output in `/api/events`
+  - allowlist operation runbook + helper script: `soroban/scripts/oracle-allowlist.sh`
+- Still pending:
+  - external audit execution/sign-off
+  - final mainnet launch decision and permissionless rollout checkpoint sign-off
+
 ### W1 - Contract hardening
 
 1. Keep `prism_core` as single source of truth for risk logic and state transitions.

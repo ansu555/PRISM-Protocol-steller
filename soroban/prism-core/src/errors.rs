@@ -32,6 +32,8 @@ pub enum PrismError {
     EncryptCommitmentMismatch = 32,
     EncryptDefaultNotProven = 33,
     OracleNotAllowlisted = 34,
+    OracleAllowlistFull = 35,
+    OracleAlreadyAllowlisted = 36,
 
     // ── Cloak batch payout ────────────────────────────────────────────────────
     CloakPayoutAlreadyRecorded = 40,
