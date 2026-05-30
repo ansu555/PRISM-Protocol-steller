@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { Connection } from '@solana/web3.js';
-import { listEvents, addEvent } from '@/lib/eventStore';
+
+import { addEvent, listEvents } from '@/lib/eventStore';
 import { fetchOnChainEvents } from '@/app/lib/onchain-indexer';
 
 export async function GET(req: NextRequest) {
@@ -10,47 +10,43 @@ export async function GET(req: NextRequest) {
 
   if (sync) {
     try {
-      const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://soroban-testnet.stellar.org';
-      const connection = new Connection(rpcUrl, 'confirmed');
-      const chainEvents = await fetchOnChainEvents(connection, limit);
-      
-      // Upsert into DB
-      for (const e of chainEvents) {
+      const chainEvents = await fetchOnChainEvents(limit);
+      for (const event of chainEvents) {
         await addEvent({
-          signature: e.signature,
-          eventType: e.eventType,
-          signer: e.signer,
-          success: e.success,
-          timestamp: e.timestamp,
-          message: `On-chain event: ${e.eventType}`,
-          metadata: { logs: e.logs }
+          signature: event.signature,
+          eventType: event.eventType,
+          signer: event.signer,
+          success: event.success,
+          timestamp: event.timestamp,
+          message: `Stellar event: ${event.eventType}`,
+          metadata: { logs: event.logs },
         });
       }
-    } catch (err) {
-      console.error('On-chain sync failed:', err);
+    } catch (error) {
+      console.error('Stellar event sync failed:', error);
     }
   }
 
   try {
     const events = await listEvents(limit);
-    // Convert DB rows to the standard ProtocolEvent format used by the frontend
-    const formatted = events.map(e => ({
-      signature: e.signature,
-      timestamp: Number(e.timestamp),
-      success: e.success,
-      eventType: e.event_type,
-      signer: e.signer,
-      message: e.message
-    }));
-    return NextResponse.json({ events: formatted });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({
+      events: events.map((event) => ({
+        signature: event.signature,
+        timestamp: Number(event.timestamp),
+        success: event.success,
+        eventType: event.event_type,
+        signer: event.signer,
+        message: event.message,
+      })),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  let body: any;
+  let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
@@ -59,17 +55,17 @@ export async function POST(req: NextRequest) {
 
   try {
     await addEvent({
-      signature: body.signature,
-      eventType: body.eventType,
-      signer: body.signer,
-      success: body.success ?? true,
-      timestamp: body.timestamp || Math.floor(Date.now() / 1000),
-      message: body.message,
-      metadata: body.metadata
+      signature: String(body.signature ?? crypto.randomUUID()),
+      eventType: String(body.eventType ?? 'Manual'),
+      signer: String(body.signer ?? 'system'),
+      success: body.success !== false,
+      timestamp: Number(body.timestamp ?? Math.floor(Date.now() / 1000)),
+      message: String(body.message ?? ''),
+      metadata: body.metadata as Record<string, unknown> | undefined,
     });
     return NextResponse.json({ ok: true });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

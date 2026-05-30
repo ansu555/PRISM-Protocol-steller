@@ -160,6 +160,45 @@ pub struct EncryptLoanHealth {
     pub default_proven_ts: u64,
 }
 
+// ── PRISM Collateral Oracle ──────────────────────────────────────────────────
+
+#[contracttype]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CollateralStatus {
+    /// Registered via attach_collateral but not yet oracle-verified.
+    Pending,
+    /// Oracle attested status=0x01: collateral locked, disburse allowed.
+    Attached,
+    /// Oracle attested status=0x02: collateral released on full repayment.
+    Released,
+    /// Oracle attested status=0x03: collateral liquidated, loss cascade fired.
+    Liquidated,
+}
+
+/// 73-byte attestation message layout (§6.6 of stellar-migration-plan.md):
+///   bytes  0..8    b"col_atts"
+///   bytes  8..12   loan_id (u32 LE)
+///   bytes 12..16   chain_id (u32 LE)
+///   bytes 16..48   asset_address (32 bytes)
+///   bytes 48..56   amount_usd_micro (u64 LE)
+///   bytes 56..64   valued_at_ts (i64 LE)
+///   bytes 64..72   nonce (u64 LE)
+///   byte  72       status (0x01=Attached, 0x02=Released, 0x03=Liquidated)
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CollateralRecord {
+    pub loan_id: u32,
+    pub borrower: Address,
+    /// Ed25519 pubkey of the PRISM Collateral Oracle authorised for this loan.
+    pub oracle_pubkey: BytesN<32>,
+    pub chain_id: u32,
+    pub asset_address: BytesN<32>,
+    pub amount_usd_micro: u64,
+    pub valued_at_ts: i64,
+    pub last_nonce: u64,
+    pub status: CollateralStatus,
+}
+
 // ── Cloak batch payout ───────────────────────────────────────────────────────
 
 #[contracttype]

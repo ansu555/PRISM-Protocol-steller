@@ -1,22 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { useAnchorWallet, useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { AnchorProvider, BN, Program, type Idl } from '@coral-xyz/anchor';
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddressSync,
-  TOKEN_PROGRAM_ID,
-} from '@solana/spl-token';
-import { SystemProgram } from '@solana/web3.js';
+import { useMemo, useState } from 'react';
+import { TransactionBuilder } from '@stellar/stellar-sdk';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
   ArrowDownToLine,
   ArrowUpFromLine,
   Database,
-  ExternalLink,
   Landmark,
   Loader2,
   RefreshCw,
@@ -27,16 +18,21 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { TRANCHE_CONFIG, TrancheKind, USDC_MINT, VAULT_ID } from '@/app/lib/constants';
-import { formatNavQ, formatUsdc, parseUsdc, stateName, toBigInt } from '@/app/lib/format';
-import prismCoreIdl from '@/app/lib/idl/prism_core.json';
 import {
-  getConfigPda,
-  getTrancheMintPda,
-  getTranchePda,
-  getVaultPda,
-  getVaultReservePda,
-} from '@/app/lib/pda';
+  NETWORK_PASSPHRASE,
+  Q64_ONE,
+  TRANCHE_CONFIG,
+  TrancheKind,
+  USDC_CONTRACT_ID,
+} from '@/app/lib/constants';
+import { formatNavQ, formatUsdc, parseUsdc, stateName, toBigInt } from '@/app/lib/format';
+import {
+  addr,
+  getCoreClient,
+  getRpcServer,
+  getUsdcClient,
+  nativeToScVal,
+} from '@/app/lib/stellar';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -47,13 +43,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import {
+  useStellarWallet,
+  useWalletModal,
+} from '@/components/providers/stellar-wallet-provider';
+import { useDeposit } from '@/hooks/useDeposit';
+import { useUserPosition } from '@/hooks/useUserPosition';
 import { useVaultState } from '@/hooks/useVaultState';
-
-const Q64_ONE = 1n << 64n;
-
-function bn(value: bigint) {
-  return new BN(value.toString());
-}
 
 function apyLabel(bps: number) {
   if (bps === 0) return 'Residual';
@@ -79,134 +75,105 @@ interface ModalState {
   mode: ModalMode;
 }
 
-export function ProductDashboard() {
-  const { connection } = useConnection();
-  const anchorWallet = useAnchorWallet();
-  const { connected, publicKey } = useWallet();
-  const { setVisible } = useWalletModal();
+function useWithdraw() {
+  const wallet = useStellarWallet();
   const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      kind,
+      rawShares,
+      vaultId,
+    }: {
+      kind: TrancheKind;
+      rawShares: bigint;
+      vaultId: number;
+    }) => {
+      if (!wallet.address) throw new Error('Connect a Stellar wallet first');
+
+      const core = getCoreClient();
+      const server = getRpcServer();
+      const source = await server.getAccount(wallet.address);
+
+      let tx = new TransactionBuilder(source, {
+        fee: '1000',
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
+        .addOperation(
+          core.contract.call(
+            'withdraw',
+            addr(wallet.address),
+            nativeToScVal(vaultId, { type: 'u32' }),
+            nativeToScVal(kind, { type: 'u32' }),
+            nativeToScVal(rawShares, { type: 'i128' }),
+          ),
+        )
+        .setTimeout(60)
+        .build();
+
+      tx = await server.prepareTransaction(tx);
+      const signedXdr = await wallet.signTransaction(tx.toXDR());
+      const signedTx = TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
+      const sendResult = await server.sendTransaction(signedTx as never);
+      if (sendResult.status === 'ERROR') {
+        throw new Error(`Withdrawal submission failed: ${JSON.stringify(sendResult.errorResult)}`);
+      }
+
+      let status = await server.getTransaction(sendResult.hash);
+      const deadline = Date.now() + 30_000;
+      while (status.status === 'NOT_FOUND' && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 1_500));
+        status = await server.getTransaction(sendResult.hash);
+      }
+      if (status.status !== 'SUCCESS') {
+        throw new Error(`Withdrawal failed: status=${status.status}`);
+      }
+      return sendResult.hash;
+    },
+    onSuccess: (hash) => {
+      toast.success('Withdrawal confirmed', {
+        description: `TX ${hash.slice(0, 8)}...${hash.slice(-8)}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['vault-state'] });
+      queryClient.invalidateQueries({ queryKey: ['user-position'] });
+      queryClient.invalidateQueries({ queryKey: ['user-usdc'] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message.slice(0, 200) : String(err)),
+  });
+}
+
+export function ProductDashboard() {
+  const wallet = useStellarWallet();
+  const { setVisible } = useWalletModal();
   const vaultState = useVaultState();
+  const deposit = useDeposit();
+  const withdraw = useWithdraw();
+  const userPositionsQuery = useUserPosition();
 
   const [modal, setModal] = useState<ModalState | null>(null);
   const [amount, setAmount] = useState('');
 
+  const connected = Boolean(wallet.address);
+  const walletAddress = wallet.address;
+
   const userUsdcBalance = useQuery({
-    queryKey: ['user-usdc', publicKey?.toBase58()],
-    enabled: !!publicKey,
+    queryKey: ['user-usdc', walletAddress, USDC_CONTRACT_ID],
+    enabled: Boolean(walletAddress),
     refetchInterval: 15_000,
     queryFn: async () => {
-      if (!publicKey) return 0n;
-      const ata = getAssociatedTokenAddressSync(USDC_MINT, publicKey);
-      try {
-        const info = await connection.getTokenAccountBalance(ata);
-        return BigInt(info.value.amount);
-      } catch {
-        return 0n;
-      }
+      if (!walletAddress) return 0n;
+      const bal = await getUsdcClient().read<bigint | number | string>('balance', [addr(walletAddress)]);
+      return toBigInt(bal);
     },
   });
 
-  const userPositions = useQuery({
-    queryKey: ['user-positions', publicKey?.toBase58(), vaultState.data?.vaultPda.toBase58()],
-    enabled: !!publicKey && !!vaultState.data,
-    refetchInterval: 15_000,
-    queryFn: async () => {
-      if (!publicKey || !vaultState.data) return null;
-      const { vaultPda, programIds } = vaultState.data;
-      const results: Partial<Record<TrancheKind, bigint>> = {};
-      await Promise.all(
-        ([TrancheKind.Prime, TrancheKind.Core, TrancheKind.Alpha] as const).map(async (kind) => {
-          const [mintPda] = getTrancheMintPda(vaultPda, kind, programIds.core);
-          const ata = getAssociatedTokenAddressSync(mintPda, publicKey);
-          try {
-            const info = await connection.getTokenAccountBalance(ata);
-            results[kind] = BigInt(info.value.amount);
-          } catch {
-            results[kind] = 0n;
-          }
-        }),
-      );
-      return results;
-    },
-  });
-
-  const deposit = useMutation({
-    mutationFn: async ({ kind, rawAmount }: { kind: TrancheKind; rawAmount: bigint }) => {
-      if (!anchorWallet) throw new Error('Wallet not connected');
-      const provider = new AnchorProvider(connection, anchorWallet, { commitment: 'confirmed' });
-      const program = new Program(prismCoreIdl as Idl, provider);
-      const [configPda] = getConfigPda();
-      const [vaultPda] = getVaultPda(VAULT_ID);
-      const [tranchePda] = getTranchePda(vaultPda, kind);
-      const [trancheMintPda] = getTrancheMintPda(vaultPda, kind);
-      const [reservePda] = getVaultReservePda(vaultPda);
-      const userUsdcAta = getAssociatedTokenAddressSync(USDC_MINT, anchorWallet.publicKey);
-      const userTrancheAta = getAssociatedTokenAddressSync(trancheMintPda, anchorWallet.publicKey);
-      await (program.methods as any)
-        .deposit(kind, bn(rawAmount))
-        .accounts({
-          user: anchorWallet.publicKey,
-          config: configPda,
-          vault: vaultPda,
-          tranche: tranchePda,
-          trancheMint: trancheMintPda,
-          vaultUsdcReserve: reservePda,
-          userUsdcAta,
-          userTrancheAta,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc({ commitment: 'confirmed' });
-    },
-    onSuccess: () => {
-      toast.success('Deposit confirmed');
-      setModal(null);
-      setAmount('');
-      queryClient.invalidateQueries({ queryKey: ['vault-state'] });
-      queryClient.invalidateQueries({ queryKey: ['user-positions'] });
-      queryClient.invalidateQueries({ queryKey: ['user-usdc'] });
-    },
-    onError: (err) => toast.error(err instanceof Error ? err.message.slice(0, 200) : String(err)),
-  });
-
-  const withdraw = useMutation({
-    mutationFn: async ({ kind, rawShares }: { kind: TrancheKind; rawShares: bigint }) => {
-      if (!anchorWallet) throw new Error('Wallet not connected');
-      const provider = new AnchorProvider(connection, anchorWallet, { commitment: 'confirmed' });
-      const program = new Program(prismCoreIdl as Idl, provider);
-      const [configPda] = getConfigPda();
-      const [vaultPda] = getVaultPda(VAULT_ID);
-      const [tranchePda] = getTranchePda(vaultPda, kind);
-      const [trancheMintPda] = getTrancheMintPda(vaultPda, kind);
-      const [reservePda] = getVaultReservePda(vaultPda);
-      const userUsdcAta = getAssociatedTokenAddressSync(USDC_MINT, anchorWallet.publicKey);
-      const userTrancheAta = getAssociatedTokenAddressSync(trancheMintPda, anchorWallet.publicKey);
-      await (program.methods as any)
-        .withdraw(kind, bn(rawShares))
-        .accounts({
-          user: anchorWallet.publicKey,
-          config: configPda,
-          vault: vaultPda,
-          tranche: tranchePda,
-          trancheMint: trancheMintPda,
-          vaultUsdcReserve: reservePda,
-          userUsdcAta,
-          userTrancheAta,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
-        .rpc({ commitment: 'confirmed' });
-    },
-    onSuccess: () => {
-      toast.success('Withdrawal confirmed');
-      setModal(null);
-      setAmount('');
-      queryClient.invalidateQueries({ queryKey: ['vault-state'] });
-      queryClient.invalidateQueries({ queryKey: ['user-positions'] });
-      queryClient.invalidateQueries({ queryKey: ['user-usdc'] });
-    },
-    onError: (err) => toast.error(err instanceof Error ? err.message.slice(0, 200) : String(err)),
-  });
+  const userPositions = useMemo(() => {
+    const record: Partial<Record<TrancheKind, bigint>> = {};
+    for (const pos of userPositionsQuery.data ?? []) {
+      record[pos.kind] = pos.balance;
+    }
+    return record;
+  }, [userPositionsQuery.data]);
 
   function openModal(kind: TrancheKind, mode: ModalMode) {
     setAmount('');
@@ -232,36 +199,35 @@ export function ProductDashboard() {
   const isPending = deposit.isPending || withdraw.isPending;
 
   function handleConfirm() {
-    if (!modal || !anchorWallet) return;
+    if (!modal || !walletAddress) return;
     const raw = parseUsdc(amount);
     if (raw === 0n) return;
     if (modal.mode === 'deposit') {
-      deposit.mutate({ kind: modal.kind, rawAmount: raw });
+      deposit.mutate({ trancheKind: modal.kind, usdcAmount: raw });
     } else {
-      withdraw.mutate({ kind: modal.kind, rawShares: raw });
+      withdraw.mutate({ kind: modal.kind, rawShares: raw, vaultId: data?.vault?.id ?? 0 });
     }
   }
 
   return (
     <div className="space-y-6">
-      {/* Protocol Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/40 p-5">
         <div>
           <div className="flex items-center gap-2">
             <Database className="h-4 w-4 text-white/50" />
-            <h1 className="text-sm font-semibold text-white">PRISM Protocol · Devnet</h1>
+            <h1 className="text-sm font-semibold text-white">PRISM Protocol · Stellar Testnet</h1>
           </div>
           {isLoading ? (
             <div className="mt-2 flex items-center gap-2 text-xs text-white/40">
               <RefreshCw className="h-3 w-3 animate-spin" />
-              Loading vault state…
+              Loading vault state...
             </div>
           ) : (
             <div className="mt-1 flex items-center gap-3 font-mono text-xs text-white/50">
               <span
                 className={[
                   'rounded-md px-2 py-0.5 text-[11px] uppercase',
-                  vaultStateName === 'Active'
+                  vaultStateName === 'active'
                     ? 'bg-emerald-400/15 text-emerald-300'
                     : 'bg-amber-400/15 text-amber-300',
                 ].join(' ')}
@@ -274,13 +240,13 @@ export function ProductDashboard() {
           )}
         </div>
 
-        {connected && publicKey ? (
+        {connected && walletAddress ? (
           <div className="text-right font-mono text-xs text-white/40">
             <div className="text-white/60">
-              {publicKey.toBase58().slice(0, 6)}…{publicKey.toBase58().slice(-4)}
+              {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
             </div>
             <div className="mt-0.5">
-              USDC {userUsdcBalance.data !== undefined ? formatUsdc(userUsdcBalance.data, 2) : '—'}
+              USDC {userUsdcBalance.data !== undefined ? formatUsdc(userUsdcBalance.data, 2) : '--'}
             </div>
           </div>
         ) : (
@@ -295,7 +261,6 @@ export function ProductDashboard() {
         )}
       </div>
 
-      {/* Tranche Cards */}
       <div className="grid gap-4 xl:grid-cols-3">
         {isLoading
           ? [0, 1, 2].map((i) => (
@@ -305,39 +270,35 @@ export function ProductDashboard() {
               />
             ))
           : data?.tranches.map((tranche) => {
-              const userShares = userPositions.data?.[tranche.kind] ?? 0n;
+              const userShares = userPositions[tranche.kind] ?? 0n;
               const userValue =
                 tranche.navPerShareQ > 0n
                   ? (userShares * tranche.navPerShareQ) / Q64_ONE
                   : 0n;
               const targetBps = tranche.account?.targetApyBps as number | undefined;
+              const visual = TRANCHE_CONFIG[tranche.kind];
 
               return (
                 <article
                   key={tranche.key}
                   className={[
                     'flex flex-col rounded-xl border p-6 transition-shadow hover:shadow-lg',
-                    tranche.border,
-                    tranche.bg,
+                    visual.border,
+                    visual.bg,
                   ].join(' ')}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <Landmark className={['h-4 w-4', tranche.tone].join(' ')} />
+                        <Landmark className={['h-4 w-4', visual.tone].join(' ')} />
                         <h2 className="text-base font-bold text-white">{tranche.label}</h2>
                       </div>
                       <p className={['mt-0.5 text-xs', riskColor(tranche.kind)].join(' ')}>
                         {riskLabel(tranche.kind)}
                       </p>
                     </div>
-                    <span
-                      className={[
-                        'rounded-md px-2 py-1 font-mono text-sm font-semibold',
-                        tranche.tone,
-                      ].join(' ')}
-                    >
-                      {targetBps !== undefined ? apyLabel(targetBps) : '—'}
+                    <span className={['rounded-md px-2 py-1 font-mono text-sm font-semibold', visual.tone].join(' ')}>
+                      {targetBps !== undefined ? apyLabel(targetBps) : '--'}
                     </span>
                   </div>
 
@@ -368,7 +329,6 @@ export function ProductDashboard() {
                     </div>
                   </div>
 
-                  {/* User position */}
                   <div className="mt-5 rounded-lg border border-white/10 bg-black/30 p-3">
                     <div className="text-xs text-white/45">Your position</div>
                     {connected ? (
@@ -377,7 +337,7 @@ export function ProductDashboard() {
                           {formatUsdc(userShares, 4)} shares
                         </span>
                         <span className="font-mono text-xs text-white/50">
-                          ≈ {formatUsdc(userValue, 2)} USDC
+                          approx. {formatUsdc(userValue, 2)} USDC
                         </span>
                       </div>
                     ) : (
@@ -385,7 +345,6 @@ export function ProductDashboard() {
                     )}
                   </div>
 
-                  {/* Action buttons */}
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <Button
                       size="sm"
@@ -412,7 +371,6 @@ export function ProductDashboard() {
             })}
       </div>
 
-      {/* Error banner */}
       {vaultState.error ? (
         <div className="flex items-start gap-3 rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -425,7 +383,6 @@ export function ProductDashboard() {
         </div>
       ) : null}
 
-      {/* Waterfall legend */}
       <div className="rounded-xl border border-white/10 bg-black/30 p-5">
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/40">
           How it works
@@ -434,41 +391,39 @@ export function ProductDashboard() {
           <div className="flex items-start gap-2">
             <TrendingUp className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400/70" />
             <span>
-              <span className="text-white/80">Yield waterfall</span> — Prime paid first, Core
-              second, Alpha gets the residual.
+              <span className="text-white/80">Yield waterfall</span> pays Prime first, Core
+              second, then Alpha.
             </span>
           </div>
           <div className="flex items-start gap-2">
             <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400/70" />
             <span>
-              <span className="text-white/80">Loss cascade</span> — Alpha absorbs losses first,
+              <span className="text-white/80">Loss cascade</span> writes Alpha down first,
               then Core, then Prime.
             </span>
           </div>
           <div className="flex items-start gap-2">
             <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-400/70" />
             <span>
-              <span className="text-white/80">NAV tokens</span> — Each share appreciates or
-              depreciates in USDC value based on on-chain yield and loss events.
+              <span className="text-white/80">SEP-41 shares</span> track each tranche NAV on
+              Soroban.
             </span>
           </div>
         </div>
       </div>
 
-      {/* Deposit / Withdraw Dialog */}
       <Dialog open={!!modal} onOpenChange={(open) => !open && setModal(null)}>
         <DialogContent className="border-white/10 bg-zinc-950 sm:max-w-md">
           {modal && modalTranche ? (
             <>
               <DialogHeader>
                 <DialogTitle className="text-white">
-                  {modal.mode === 'deposit' ? 'Deposit into' : 'Withdraw from'}{' '}
-                  {modalTranche.label}
+                  {modal.mode === 'deposit' ? 'Deposit into' : 'Withdraw from'} {modalTranche.label}
                 </DialogTitle>
                 <DialogDescription className="text-white/50">
                   {modal.mode === 'deposit'
                     ? `Enter the amount of USDC to deposit. You have ${formatUsdc(userUsdcBalance.data ?? 0n, 2)} USDC available.`
-                    : `Enter the number of shares to burn. You hold ${formatUsdc(userPositions.data?.[modal.kind] ?? 0n, 4)} shares.`}
+                    : `Enter the number of shares to burn. You hold ${formatUsdc(userPositions[modal.kind] ?? 0n, 4)} shares.`}
                 </DialogDescription>
               </DialogHeader>
 
@@ -480,7 +435,7 @@ export function ProductDashboard() {
                   <Input
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.000000"
+                    placeholder="0.0000000"
                     className="border-white/10 bg-white/5 font-mono text-white"
                     disabled={isPending}
                   />
@@ -509,13 +464,13 @@ export function ProductDashboard() {
                 </Button>
                 <Button
                   onClick={handleConfirm}
-                  disabled={isPending || parsedAmount === 0n || !anchorWallet}
+                  disabled={isPending || parsedAmount === 0n || !walletAddress}
                   className="gap-2"
                 >
                   {isPending ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Awaiting signature…
+                      Awaiting signature...
                     </>
                   ) : modal.mode === 'deposit' ? (
                     'Deposit'

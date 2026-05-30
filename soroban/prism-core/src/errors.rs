@@ -39,6 +39,20 @@ pub enum PrismError {
     CloakBatchIdMismatch = 42,
     CloakPayoutNotConfirmed = 43,
 
+    // ── PRISM Collateral Oracle ───────────────────────────────────────────────
+    /// attach_collateral has not been called for this loan.
+    CollateralNotAttached = 60,
+    /// Collateral already verified (status != Pending); cannot re-verify.
+    CollateralAlreadyVerified = 61,
+    /// Status byte in attestation message doesn't match the expected transition.
+    CollateralStatusMismatch = 62,
+    /// Attestation message is malformed (wrong length or wrong prefix).
+    CollateralInvalidMessage = 63,
+    /// Nonce in attestation has already been used (replay protection).
+    CollateralNonceReused = 64,
+    /// disburse_loan blocked: collateral record exists but not yet verified.
+    CollateralNotVerified = 65,
+
     // ── Setup ────────────────────────────────────────────────────────────────
     AlreadyInitialized = 50,
     NotInitialized = 51,

@@ -1,5 +1,4 @@
 import React from "react"
-import './buffer-polyfill';
 import type { Metadata } from 'next'
 import { Instrument_Sans, Instrument_Serif, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'

@@ -49,7 +49,7 @@ export function useStellarWallet(): StellarWalletContext {
   return ctx;
 }
 
-// ── Compatibility shims so legacy useWallet()/useConnection() callers compile ─
+// Compatibility helpers for components that still expect the old wallet hook shape.
 
 /** Stellar wallet hook (also serves as compatibility shim for legacy imports). */
 export function useWallet() {
@@ -80,8 +80,31 @@ export function useWallet() {
   };
 }
 
-/** Drop-in replacement for `useConnection()`. Returns a fake connection
- *  object whose only useful method is `rpcEndpoint` for cache-keying. */
+export function useAnchorWallet() {
+  const w = useContext(StellarWalletCtx);
+  if (!w?.address) return null;
+  return {
+    publicKey: { toBase58: () => w.address!, toString: () => w.address! },
+    signTransaction: async () => {
+      throw new Error('Use useStellarWallet().signTransaction(xdr) for Stellar transactions.');
+    },
+    signAllTransactions: async () => {
+      throw new Error('Batch transaction signing is not wired for the Stellar build.');
+    },
+  };
+}
+
+export function useWalletModal() {
+  const w = useStellarWallet();
+  return {
+    visible: false,
+    setVisible: (visible: boolean) => {
+      if (visible) void w.connect();
+    },
+  };
+}
+
+/** Returns the active Soroban RPC endpoint for cache-keying and display. */
 export function useConnection() {
   return {
     connection: {

@@ -14,8 +14,8 @@
 use soroban_sdk::{contracttype, Env};
 
 use crate::state::{
-    CloakPayoutRecord, CreditEvent, EncryptLoanHealth, GlobalConfig, Loan, Tranche, TrancheKind,
-    Vault,
+    CloakPayoutRecord, CollateralRecord, CreditEvent, EncryptLoanHealth, GlobalConfig, Loan,
+    Tranche, TrancheKind, Vault,
 };
 
 #[contracttype]
@@ -35,10 +35,15 @@ pub enum DataKey {
     EncryptHealth(u32),
     /// Persistent, keyed by (vault_id, batch counter).
     CloakPayout(u32, u32),
+    /// u128 tracking cumulative USDC absorbed by the loss cascade for this vault.
+    /// Maintains: reserve == Σ tranche.total_assets + loss_bucket_balance.
+    LossBucketBalance(u32),
     /// Monotonic counter for loan ids issued by this contract.
     NextLoanId,
     /// Monotonic counter for cloak payout records per vault.
     NextCloakSeq(u32),
+    /// PRISM Collateral Oracle record, keyed by loan_id.
+    Collateral(u32),
 }
 
 // TTL extension thresholds. Soroban data has rent — if not bumped, it expires.
@@ -206,4 +211,37 @@ pub fn next_cloak_seq(env: &Env, vault_id: u32) -> u32 {
         .persistent()
         .set(&DataKey::NextCloakSeq(vault_id), &next);
     next
+}
+
+// ── PRISM Collateral Oracle (Persistent) ────────────────────────────────────
+
+pub fn write_collateral(env: &Env, rec: &CollateralRecord) {
+    let key = DataKey::Collateral(rec.loan_id);
+    env.storage().persistent().set(&key, rec);
+    env.storage()
+        .persistent()
+        .extend_ttl(&key, PERSISTENT_BUMP_LOW, PERSISTENT_BUMP_HIGH);
+}
+
+pub fn read_collateral(env: &Env, loan_id: u32) -> Option<CollateralRecord> {
+    env.storage()
+        .persistent()
+        .get(&DataKey::Collateral(loan_id))
+}
+
+// ── Loss bucket balance (Persistent) ────────────────────────────────────────
+
+pub fn read_loss_bucket_balance(env: &Env, vault_id: u32) -> u128 {
+    env.storage()
+        .persistent()
+        .get(&DataKey::LossBucketBalance(vault_id))
+        .unwrap_or(0)
+}
+
+pub fn write_loss_bucket_balance(env: &Env, vault_id: u32, balance: u128) {
+    let key = DataKey::LossBucketBalance(vault_id);
+    env.storage().persistent().set(&key, &balance);
+    env.storage()
+        .persistent()
+        .extend_ttl(&key, PERSISTENT_BUMP_LOW, PERSISTENT_BUMP_HIGH);
 }

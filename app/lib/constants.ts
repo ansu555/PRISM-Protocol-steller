@@ -15,9 +15,31 @@ export const PRISM_CORE_CONTRACT_ID =
   process.env.NEXT_PUBLIC_PRISM_CORE_CONTRACT_ID ??
   'CB5ISNJPZDN4XIO6AQEUN2N3ILSQDPY6FTUDT7IXXXHEMGBEAA3LUJNC';
 
+// Legacy internal AMM — kept as a shim so old imports don't break.
+// Phase 4 deletes this. New swap paths go through SOROSWAP_ROUTER_ID.
 export const PRISM_AMM_CONTRACT_ID =
   process.env.NEXT_PUBLIC_PRISM_AMM_CONTRACT_ID ??
   'CAH22DWPILDNYWXBNY7NTUY75FU2ZMJ63ALL2AJ4TPEHOYFYVEJ3YLPY';
+
+// ── Soroswap (Phase 2) ───────────────────────────────────────────────────────
+// Soroswap is the Uniswap-V2 CPMM on Stellar. We use it for pTranche/USDC pools.
+// Source: https://github.com/soroswap/core (public/testnet.contracts.json)
+export const SOROSWAP_ROUTER_ID =
+  process.env.NEXT_PUBLIC_SOROSWAP_ROUTER_ID ??
+  'CCJUD55AG6W5HAI5LRVNKAE5WDP5XGZBUDS5WNTIVDU7O264UZZE7BRD';
+
+export const SOROSWAP_FACTORY_ID =
+  process.env.NEXT_PUBLIC_SOROSWAP_FACTORY_ID ??
+  'CDP3HMUH6SMS3S7NPGNDJLULCOXXEPSHY4JKUKMBNQMATHDHWXRRJTBY';
+
+// ── Reflector oracle (Phase 2) ───────────────────────────────────────────────
+// Reflector is the decentralized price oracle on Stellar Soroban (SEP-40).
+// Set NEXT_PUBLIC_REFLECTOR_CONTRACT_ID to the testnet instance when running
+// against testnet (Reflector testnet is permissioned — request access at
+// https://reflector.network). Mainnet address is the public Reflector Pulse feed.
+export const REFLECTOR_CONTRACT_ID =
+  process.env.NEXT_PUBLIC_REFLECTOR_CONTRACT_ID ??
+  'CCYOZJCOPG34LLQQ7N24YXBM7QM2ZKJKR2Z7LSYXQBGKM2KTEOXKBAX';
 
 // Test USDC (TUSDC:GDSI…HUXO) — deployer is issuer, can mint freely. Replace
 // with Circle's real testnet USDC SAC (CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA)

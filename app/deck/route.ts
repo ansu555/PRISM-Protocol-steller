@@ -1,14 +1,16 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-static';
-export const revalidate = false;
+export const dynamic = 'force-dynamic';
 
 const DECK_FILE = 'pitch-deck-20260511-173017.html';
 
 export function GET() {
   const filePath = join(process.cwd(), DECK_FILE);
+  if (!existsSync(filePath)) {
+    return new Response('Pitch deck not yet available.', { status: 404 });
+  }
   let html = readFileSync(filePath, 'utf-8');
 
   // The standalone HTML uses `public/...` paths so it works when opened

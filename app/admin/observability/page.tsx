@@ -4,57 +4,27 @@ import { useState } from 'react';
 import { Copy, Database, Eye, Filter, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { useVaultState } from '@/hooks/useVaultState';
+import { ACTIVE_CONTRACTS, CONTRACTS } from '@/app/lib/addresses';
+import { formatNavQ, formatUsdc, shortKey } from '@/app/lib/format';
+import { TrancheKind } from '@/app/lib/constants';
 import { useAdminVault } from '@/components/admin/AdminVaultContext';
-import { formatUsdc, formatNavQ } from '@/app/lib/format';
-import { PRISM_CORE_PROGRAM_ID, PRISM_AMM_PROGRAM_ID, TrancheKind, USDC_MINT } from '@/app/lib/constants';
-import {
-  getConfigPda,
-  getVaultPda,
-  getTranchePda,
-  getTrancheMintPda,
-  getVaultReservePda,
-  getLossBucketPda,
-  getLoanPda,
-  getPoolPda,
-  getPoolTrancheReservePda,
-  getPoolQuoteReservePda,
-  getLpMintPda,
-} from '@/app/lib/pda';
+import { useVaultState } from '@/hooks/useVaultState';
 
 function copyToClipboard(text: string, label: string) {
   navigator.clipboard.writeText(text);
   toast.success(`Copied ${label}`);
 }
 
-function PdaRow({
-  label,
-  pubkey,
-  balance,
-  note,
-}: {
-  label: string;
-  pubkey: import('@solana/web3.js').PublicKey;
-  balance?: string;
-  note?: string;
-}) {
-  const addr = pubkey.toBase58();
+function AddressRow({ label, value, note, balance }: { label: string; value: string; note?: string; balance?: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-white/[0.04] bg-white/[0.015] px-4 py-2.5 hover:bg-white/[0.03] transition-colors">
+    <div className="flex items-center gap-3 rounded-lg border border-white/[0.04] bg-white/[0.015] px-4 py-2.5 transition-colors hover:bg-white/[0.03]">
       <div className="w-40 shrink-0">
         <div className="font-mono text-[10px] text-white/60">{label}</div>
         {note && <div className="font-mono text-[9px] text-white/22">{note}</div>}
       </div>
-      <div className="flex-1 font-mono text-[10px] text-white/35 truncate">{addr}</div>
-      {balance !== undefined && (
-        <div className="shrink-0 font-mono text-[10px] text-emerald-400/70 w-24 text-right">
-          {balance}
-        </div>
-      )}
-      <button
-        onClick={() => copyToClipboard(addr, label)}
-        className="shrink-0 flex h-5 w-5 items-center justify-center rounded text-white/20 transition-colors hover:text-white/60"
-      >
+      <div className="flex-1 truncate font-mono text-[10px] text-white/35">{value}</div>
+      {balance !== undefined && <div className="w-28 shrink-0 text-right font-mono text-[10px] text-emerald-400/70">{balance}</div>}
+      <button onClick={() => copyToClipboard(value, label)} className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-white/20 transition-colors hover:text-white/60">
         <Copy className="h-3 w-3" />
       </button>
     </div>
@@ -64,104 +34,44 @@ function PdaRow({
 export default function ObservabilityPage() {
   const { vaultId, log, clearLog } = useAdminVault();
   const [logFilter, setLogFilter] = useState('');
-  const [pdaOpen, setPdaOpen] = useState(true);
+  const [registryOpen, setRegistryOpen] = useState(true);
   const vaultState = useVaultState(vaultId);
   const vd = vaultState.data;
 
-  // Derive all PDAs
-  const [config] = getConfigPda(PRISM_CORE_PROGRAM_ID);
-  const [vault] = getVaultPda(vaultId, PRISM_CORE_PROGRAM_ID);
-  const [trancheP] = getTranchePda(vault, TrancheKind.Prime, PRISM_CORE_PROGRAM_ID);
-  const [trancheC] = getTranchePda(vault, TrancheKind.Core, PRISM_CORE_PROGRAM_ID);
-  const [trancheA] = getTranchePda(vault, TrancheKind.Alpha, PRISM_CORE_PROGRAM_ID);
-  const [mintP] = getTrancheMintPda(vault, TrancheKind.Prime, PRISM_CORE_PROGRAM_ID);
-  const [mintC] = getTrancheMintPda(vault, TrancheKind.Core, PRISM_CORE_PROGRAM_ID);
-  const [mintA] = getTrancheMintPda(vault, TrancheKind.Alpha, PRISM_CORE_PROGRAM_ID);
-  const [reserve] = getVaultReservePda(vault, PRISM_CORE_PROGRAM_ID);
-  const [lossBucket] = getLossBucketPda(vault, PRISM_CORE_PROGRAM_ID);
-  const [loan] = getLoanPda(vault, 0, PRISM_CORE_PROGRAM_ID);
-  const [poolP] = getPoolPda(mintP, PRISM_AMM_PROGRAM_ID);
-  const [poolC] = getPoolPda(mintC, PRISM_AMM_PROGRAM_ID);
-  const [poolA] = getPoolPda(mintA, PRISM_AMM_PROGRAM_ID);
-  const [poolPTrRes] = getPoolTrancheReservePda(mintP, PRISM_AMM_PROGRAM_ID);
-  const [poolCTrRes] = getPoolTrancheReservePda(mintC, PRISM_AMM_PROGRAM_ID);
-  const [poolATrRes] = getPoolTrancheReservePda(mintA, PRISM_AMM_PROGRAM_ID);
-  const [poolPQRes] = getPoolQuoteReservePda(mintP, PRISM_AMM_PROGRAM_ID);
-  const [poolCQRes] = getPoolQuoteReservePda(mintC, PRISM_AMM_PROGRAM_ID);
-  const [poolAQRes] = getPoolQuoteReservePda(mintA, PRISM_AMM_PROGRAM_ID);
-  const [lpMintP] = getLpMintPda(mintP, PRISM_AMM_PROGRAM_ID);
-  const [lpMintC] = getLpMintPda(mintC, PRISM_AMM_PROGRAM_ID);
-  const [lpMintA] = getLpMintPda(mintA, PRISM_AMM_PROGRAM_ID);
-
-  const reserveBal = vd?.reserveBalance;
-  const lossBal = vd?.lossBucketBalance;
-  const getTranche = (k: TrancheKind) => vd?.tranches.find((t) => t.kind === k);
+  const getTranche = (kind: TrancheKind) => vd?.tranches.find((tranche) => tranche.kind === kind);
   const tP = getTranche(TrancheKind.Prime);
   const tC = getTranche(TrancheKind.Core);
   const tA = getTranche(TrancheKind.Alpha);
 
   const filteredLog = logFilter
-    ? log.filter((l) => l.toLowerCase().includes(logFilter.toLowerCase()))
+    ? log.filter((line) => line.toLowerCase().includes(logFilter.toLowerCase()))
     : log;
 
-  type PdaEntry = { label: string; pubkey: import('@solana/web3.js').PublicKey; balance?: string; note?: string };
-  type PdaGroup = { title: string; rows: PdaEntry[] };
-
-  const PDA_GROUPS: PdaGroup[] = [
+  const groups = [
     {
-      title: 'Core Protocol',
+      title: 'Core Contracts',
       rows: [
-        { label: 'Global Config',  pubkey: config,  note: 'prism-core' },
-        { label: 'Vault #' + vaultId, pubkey: vault, note: 'credit pool' },
-        { label: 'Vault Reserve',  pubkey: reserve, balance: reserveBal !== undefined ? `$${formatUsdc(reserveBal, 2)}` : undefined, note: 'USDC token acct' },
-        { label: 'Loss Bucket',    pubkey: lossBucket, balance: lossBal !== undefined ? `$${formatUsdc(lossBal, 2)}` : undefined, note: 'USDC token acct' },
-        { label: 'Loan #0',        pubkey: loan, note: 'current loan' },
+        { label: 'prism_core', value: ACTIVE_CONTRACTS.prismCore, note: `vault #${vaultId}` },
+        { label: 'USDC SAC', value: ACTIVE_CONTRACTS.usdc, balance: vd?.reserveBalance !== undefined ? `$${formatUsdc(vd.reserveBalance, 2)}` : undefined },
+        { label: 'Soroswap Router', value: ACTIVE_CONTRACTS.soroswapRouter },
+        { label: 'Soroswap Factory', value: ACTIVE_CONTRACTS.soroswapFactory },
+        { label: 'Reflector', value: ACTIVE_CONTRACTS.reflector },
       ],
     },
     {
-      title: 'Tranches',
+      title: 'Tranche Tokens',
       rows: [
-        { label: 'Prime Tranche',  pubkey: trancheP, balance: tP ? `$${formatUsdc(tP.totalAssets, 0)} · NAV ${formatNavQ(tP.navPerShareQ)}` : undefined },
-        { label: 'Prime Mint',     pubkey: mintP, note: 'LP token mint' },
-        { label: 'Core Tranche',   pubkey: trancheC, balance: tC ? `$${formatUsdc(tC.totalAssets, 0)} · NAV ${formatNavQ(tC.navPerShareQ)}` : undefined },
-        { label: 'Core Mint',      pubkey: mintC, note: 'LP token mint' },
-        { label: 'Alpha Tranche',  pubkey: trancheA, balance: tA ? `$${formatUsdc(tA.totalAssets, 0)} · NAV ${formatNavQ(tA.navPerShareQ)}` : undefined },
-        { label: 'Alpha Mint',     pubkey: mintA, note: 'LP token mint' },
+        { label: 'Prime pToken', value: tP?.mint || 'not initialized', balance: tP ? `$${formatUsdc(tP.totalAssets, 0)} · NAV ${formatNavQ(tP.navPerShareQ)}` : undefined },
+        { label: 'Core pToken', value: tC?.mint || 'not initialized', balance: tC ? `$${formatUsdc(tC.totalAssets, 0)} · NAV ${formatNavQ(tC.navPerShareQ)}` : undefined },
+        { label: 'Alpha pToken', value: tA?.mint || 'not initialized', balance: tA ? `$${formatUsdc(tA.totalAssets, 0)} · NAV ${formatNavQ(tA.navPerShareQ)}` : undefined },
       ],
     },
     {
-      title: 'AMM Pools — Prime',
+      title: 'Network Endpoints',
       rows: [
-        { label: 'Prime Pool',         pubkey: poolP },
-        { label: 'Prime LP Mint',      pubkey: lpMintP },
-        { label: 'Prime Tranche Res.', pubkey: poolPTrRes, balance: tP ? `${formatUsdc(tP.ammTrancheBalance, 0)} tPRIME` : undefined },
-        { label: 'Prime Quote Res.',   pubkey: poolPQRes, balance: tP ? `$${formatUsdc(tP.ammQuoteBalance, 0)}` : undefined },
-      ],
-    },
-    {
-      title: 'AMM Pools — Core',
-      rows: [
-        { label: 'Core Pool',         pubkey: poolC },
-        { label: 'Core LP Mint',      pubkey: lpMintC },
-        { label: 'Core Tranche Res.', pubkey: poolCTrRes, balance: tC ? `${formatUsdc(tC.ammTrancheBalance, 0)} tCORE` : undefined },
-        { label: 'Core Quote Res.',   pubkey: poolCQRes, balance: tC ? `$${formatUsdc(tC.ammQuoteBalance, 0)}` : undefined },
-      ],
-    },
-    {
-      title: 'AMM Pools — Alpha',
-      rows: [
-        { label: 'Alpha Pool',         pubkey: poolA },
-        { label: 'Alpha LP Mint',      pubkey: lpMintA },
-        { label: 'Alpha Tranche Res.', pubkey: poolATrRes, balance: tA ? `${formatUsdc(tA.ammTrancheBalance, 0)} tALPHA` : undefined },
-        { label: 'Alpha Quote Res.',   pubkey: poolAQRes, balance: tA ? `$${formatUsdc(tA.ammQuoteBalance, 0)}` : undefined },
-      ],
-    },
-    {
-      title: 'External',
-      rows: [
-        { label: 'USDC Mint',          pubkey: USDC_MINT, note: 'Circle devnet USDC' },
-        { label: 'Prism Core Program', pubkey: PRISM_CORE_PROGRAM_ID },
-        { label: 'Prism AMM Program',  pubkey: PRISM_AMM_PROGRAM_ID },
+        { label: 'Horizon', value: ACTIVE_CONTRACTS.horizonUrl },
+        { label: 'Soroban RPC', value: ACTIVE_CONTRACTS.rpcUrl },
+        { label: 'Mainnet Core', value: CONTRACTS.mainnet.prismCore || 'pending deployment', note: 'not deployed by request' },
       ],
     },
   ];
@@ -171,32 +81,26 @@ export default function ObservabilityPage() {
       <div>
         <h1 className="text-[15px] font-semibold text-white">Observability</h1>
         <p className="mt-0.5 font-mono text-[10px] text-white/30">
-          PDA Inspector · Event Log · On-chain Metrics · Vault #{vaultId}
+          Contract registry · Event log · Soroban metrics · Vault #{vaultId}
         </p>
       </div>
 
-      {/* PDA Inspector */}
       <section className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#070707]">
-        <button
-          onClick={() => setPdaOpen((o) => !o)}
-          className="flex w-full items-center justify-between border-b border-white/[0.05] px-5 py-3.5 text-left"
-        >
+        <button onClick={() => setRegistryOpen((open) => !open)} className="flex w-full items-center justify-between border-b border-white/[0.05] px-5 py-3.5 text-left">
           <div className="flex items-center gap-2">
             <Database className="h-4 w-4 text-white/25" strokeWidth={1.5} />
-            <span className="text-[12px] font-medium text-white/70">PDA Inspector</span>
-            <span className="font-mono text-[9px] text-white/28">— {PDA_GROUPS.reduce((s, g) => s + g.rows.length, 0)} accounts</span>
+            <span className="text-[12px] font-medium text-white/70">Stellar Registry</span>
+            <span className="font-mono text-[9px] text-white/28">- {groups.reduce((sum, group) => sum + group.rows.length, 0)} entries</span>
           </div>
-          <Eye className={`h-3.5 w-3.5 text-white/25 transition-transform ${pdaOpen ? '' : 'opacity-40'}`} strokeWidth={1.5} />
+          <Eye className={`h-3.5 w-3.5 text-white/25 transition-opacity ${registryOpen ? '' : 'opacity-40'}`} strokeWidth={1.5} />
         </button>
-        {pdaOpen && (
-          <div className="p-4 space-y-5">
-            {PDA_GROUPS.map(({ title, rows }) => (
+        {registryOpen && (
+          <div className="space-y-5 p-4">
+            {groups.map(({ title, rows }) => (
               <div key={title}>
-                <div className="mb-2 font-mono text-[9px] uppercase tracking-[0.2em] text-white/22 px-1">{title}</div>
+                <div className="mb-2 px-1 font-mono text-[9px] uppercase tracking-[0.2em] text-white/22">{title}</div>
                 <div className="space-y-1">
-                  {rows.map(({ label, pubkey, balance, note }) => (
-                    <PdaRow key={label} label={label} pubkey={pubkey} balance={balance} note={note} />
-                  ))}
+                  {rows.map((row) => <AddressRow key={row.label} {...row} />)}
                 </div>
               </div>
             ))}
@@ -204,76 +108,35 @@ export default function ObservabilityPage() {
         )}
       </section>
 
-      {/* Event log */}
       <section className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#070707]">
         <div className="flex items-center gap-3 border-b border-white/[0.05] px-5 py-3.5">
           <Eye className="h-4 w-4 text-white/25" strokeWidth={1.5} />
           <span className="text-[12px] font-medium text-white/70">Protocol Event Log</span>
-          <span className="font-mono text-[9px] text-white/28">
-            {filteredLog.length}/{log.length} entries
-          </span>
+          <span className="font-mono text-[9px] text-white/28">{filteredLog.length}/{log.length} entries</span>
           <div className="ml-auto flex items-center gap-2">
             <div className="relative">
               <Filter className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-white/25" />
-              <input
-                type="text"
-                placeholder="Filter…"
-                value={logFilter}
-                onChange={(e) => setLogFilter(e.target.value)}
-                className="h-7 w-44 rounded-md border border-white/[0.08] bg-white/[0.04] pl-7 pr-3 font-mono text-[10px] text-white placeholder-white/20 focus:border-white/20 focus:outline-none"
-              />
+              <input value={logFilter} onChange={(event) => setLogFilter(event.target.value)} placeholder="Filter..." className="h-7 w-44 rounded-md border border-white/[0.06] bg-white/[0.02] pl-8 pr-3 font-mono text-[10px] text-white/50 outline-none placeholder:text-white/15" />
             </div>
-            <button
-              onClick={clearLog}
-              disabled={log.length === 0}
-              className="flex h-7 w-7 items-center justify-center rounded-md border border-white/[0.06] text-white/20 transition-colors hover:text-rose-400 disabled:opacity-30"
-            >
-              <Trash2 className="h-3 w-3" />
+            <button onClick={clearLog} className="flex h-7 items-center gap-1.5 rounded-md border border-white/[0.06] px-2.5 font-mono text-[9px] uppercase tracking-wider text-white/28 hover:text-white/60">
+              <Trash2 className="h-3 w-3" /> Clear
             </button>
           </div>
         </div>
-        <div className="max-h-96 overflow-y-auto p-4">
+        <div className="max-h-[360px] overflow-y-auto p-4">
           {filteredLog.length === 0 ? (
-            <p className="text-center font-mono text-[11px] text-white/18 py-8">
-              {log.length === 0 ? 'No events yet — perform actions to populate the log.' : 'No entries match filter.'}
-            </p>
+            <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-white/[0.04] text-[11px] text-white/20">
+              No events logged in this admin session
+            </div>
           ) : (
-            <div className="space-y-0.5">
-              {filteredLog.map((entry, i) => (
-                <div
-                  key={i}
-                  className={`font-mono text-[10px] leading-relaxed ${
-                    entry.includes('✓') ? 'text-emerald-400/70' :
-                    entry.includes('✗') ? 'text-rose-400/70' :
-                    'text-white/30'
-                  }`}
-                >
+            <div className="space-y-1">
+              {filteredLog.map((entry, idx) => (
+                <div key={`${entry}-${idx}`} className="rounded-md bg-white/[0.015] px-3 py-2 font-mono text-[10px] text-white/42">
                   {entry}
                 </div>
               ))}
             </div>
           )}
-        </div>
-      </section>
-
-      {/* On-chain metrics */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#070707]">
-        <div className="flex items-center gap-2 border-b border-white/[0.05] px-5 py-3.5">
-          <Eye className="h-4 w-4 text-white/25" strokeWidth={1.5} />
-          <span className="text-[12px] font-medium text-white/70">On-chain Metrics</span>
-        </div>
-        <div className="grid grid-cols-2 divide-x divide-white/[0.04] xl:grid-cols-4">
-          {[
-            { label: 'Config Initialized', value: vd?.config ? 'Yes' : 'No', ok: !!vd?.config },
-            { label: 'Vault State', value: vd?.vault ? Object.keys(vd.vault.state ?? {})[0] ?? 'active' : '—', ok: !!vd?.vault },
-            { label: 'Loan State', value: vd?.loan ? Object.keys(vd.loan.state ?? {})[0] ?? 'active' : 'None', ok: !!vd?.loan },
-            { label: 'Reserve / TVL', value: vd ? `${((Number(vd.reserveBalance) / Math.max(1, Number((vd.tranches ?? []).reduce((s, t) => s + t.totalAssets, 0n)))) * 100).toFixed(1)}%` : '—', ok: true },
-          ].map(({ label, value, ok }) => (
-            <div key={label} className="px-5 py-4">
-              <div className="font-mono text-[9px] uppercase tracking-widest text-white/22 mb-1.5">{label}</div>
-              <div className={`font-mono text-[14px] font-semibold ${ok ? 'text-white/70' : 'text-rose-400'}`}>{value}</div>
-            </div>
-          ))}
         </div>
       </section>
     </div>

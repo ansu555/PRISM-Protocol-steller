@@ -1,7 +1,17 @@
 'use client';
 
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { IkaChain, IKA_CHAIN } from '@/app/lib/ika';
+
+// Collateral chain IDs matching the PRISM Collateral Oracle message layout (§6.6).
+export type CollateralChain = 'BTC' | 'ETH' | 'SOL' | 'XLM' | 'USDC';
+
+export const COLLATERAL_CHAIN: Record<CollateralChain, number> = {
+  BTC: 0,
+  ETH: 1,
+  SOL: 2,
+  XLM: 3,
+  USDC: 4,
+};
 
 export type BorrowerType = 'individual' | 'institutional';
 export type BorrowPurpose =
@@ -18,7 +28,7 @@ interface BorrowerState {
   duration: number;
   purpose: BorrowPurpose;
   borrowerType: BorrowerType;
-  chainId: IkaChain;
+  chainId: CollateralChain;
   collateralUsd: string;
   // Vault selection (new)
   selectedVaultId: number | null;
@@ -29,7 +39,7 @@ interface BorrowerState {
   setDuration: (v: number) => void;
   setPurpose: (v: BorrowPurpose) => void;
   setBorrowerType: (v: BorrowerType) => void;
-  setChainId: (v: IkaChain) => void;
+  setChainId: (v: CollateralChain) => void;
   setCollateralUsd: (v: string) => void;
   setSelectedVaultId: (v: number | null) => void;
   setCurrentStep: (v: number) => void;
@@ -42,7 +52,7 @@ export function BorrowerProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(90);
   const [purpose, setPurpose] = useState<BorrowPurpose>('working-capital');
   const [borrowerType, setBorrowerType] = useState<BorrowerType>('institutional');
-  const [chainId, setChainId] = useState<IkaChain>(IKA_CHAIN.BTC);
+  const [chainId, setChainId] = useState<CollateralChain>('BTC');
   const [collateralUsd, setCollateralUsd] = useState('75000');
   const [selectedVaultId, setSelectedVaultId] = useState<number | null>(null);
   const [currentStep, setCurrentStep] = useState(1);

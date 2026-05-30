@@ -1,8 +1,8 @@
 'use client';
 
 import { RefreshCw, Wallet } from 'lucide-react';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useWallet } from '@/components/providers/stellar-wallet-provider';
+import { useWalletModal } from '@/components/providers/stellar-wallet-provider';
 
 import { useEvents } from '@/hooks/useEvents';
 import { useDuneBalances } from '@/hooks/useDuneBalances';

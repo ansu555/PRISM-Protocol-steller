@@ -6,8 +6,8 @@ import { TrancheKind, Q64_ONE } from '@/app/lib/constants';
 import { formatUsdc } from '@/app/lib/format';
 import { useUserPosition } from '@/hooks/useUserPosition';
 import { useVaultState } from '@/hooks/useVaultState';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useWallet } from '@/components/providers/stellar-wallet-provider';
+import { useWalletModal } from '@/components/providers/stellar-wallet-provider';
 
 // ─── Sparkline ────────────────────────────────────────────────────────────────
 

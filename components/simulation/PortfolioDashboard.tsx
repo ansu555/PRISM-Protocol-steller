@@ -1,13 +1,11 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useWallet, useWalletModal } from '@/components/providers/stellar-wallet-provider';
 import {
   Activity,
   RefreshCw,
   TriangleAlert,
 } from 'lucide-react';
-import type { PublicKey } from '@solana/web3.js';
 import { Q64_ONE, TRANCHE_CONFIG, TrancheKind } from '@/app/lib/constants';
 import { formatUsdc, shortKey, stateName, toBigInt } from '@/app/lib/format';
 import type { ProtocolEvent } from '@/app/lib/dune-sim';
@@ -105,7 +103,7 @@ function useDashboardData() {
     publicKey,
     walletLabel: connected && publicKey ? shortKey(publicKey) : 'Not connected',
     vaultLabel: raw ? shortKey(raw.vaultPda) : 'Vault #0',
-    vaultPda: raw?.vaultPda as PublicKey | undefined,
+    vaultPda: raw?.vaultPda,
     vaultStatus: stateName(raw?.vault?.state),
     tranches,
     userPositions: userPositions ?? [],

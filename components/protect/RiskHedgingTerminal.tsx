@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet } from '@/components/providers/stellar-wallet-provider';
 import { 
   ShieldCheck, 
   ShieldAlert,

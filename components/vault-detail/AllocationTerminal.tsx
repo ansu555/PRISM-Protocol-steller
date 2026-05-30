@@ -1,16 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { TrancheKind } from '@/app/lib/constants';
 import { useDeposit } from '@/hooks/useDeposit';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { usePathname } from 'next/navigation';
-import { 
-  ArrowRight, Shield, Zap, TrendingUp, Info, Loader2, BarChart, 
-  CreditCard, CheckCircle2, TriangleAlert, Activity
+import {
+  Shield, Zap, TrendingUp, Info, Loader2, BarChart,
+  TriangleAlert
 } from 'lucide-react';
 import { formatUsdc } from '@/app/lib/format';
-import { useCancelInvestIntent, useFiatInvestCheckout, useFiatInvestStatus } from '@/hooks/useFiatInvest';
 import { useIdentityBalances } from '@/hooks/useIdentityBalances';
 
 interface AllocationTerminalProps {
@@ -31,16 +28,9 @@ export function AllocationTerminal({ vaultStatus, tranches, onTrancheChange }: A
   const isActive = vaultStatus?.toLowerCase() === 'active';
   const [selectedKind, setSelectedKind] = useState<TrancheKind>(tranches[0].kind);
   const [amount, setAmount] = useState('');
-  const [fiatAmount, setFiatAmount] = useState('');
-  const [tab, setTab] = useState<'usdc' | 'inr'>('usdc');
-  
-  const { publicKey } = useWallet();
+
   const { data: balances } = useIdentityBalances();
-  const pathname = usePathname();
   const deposit = useDeposit();
-  const fiatCheckout = useFiatInvestCheckout();
-  const fiatStatus = useFiatInvestStatus(publicKey?.toBase58() ?? null, selectedKind);
-  const cancelIntent = useCancelInvestIntent(publicKey?.toBase58() ?? null, selectedKind);
 
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => setIsMounted(true), []);
@@ -50,38 +40,6 @@ export function AllocationTerminal({ vaultStatus, tranches, onTrancheChange }: A
       setAmount(formatUsdc(balances.usdc));
     }
   }
-
-  const [dismissedIntentId, setDismissedIntentId] = useState<string | null>(null);
-  const statusRaw = fiatStatus.data?.status ?? 'none';
-  const paymentId = fiatStatus.data?.paymentId;
-  
-  // Effective status: if the user dismissed this intent, treat it as 'none' to allow new inputs
-  const status = paymentId === dismissedIntentId ? 'none' : statusRaw;
-  const creditedAmountMicro = paymentId === dismissedIntentId ? null : fiatStatus.data?.amountUsdMicro;
-
-  // Track finished intents to prevent redundant prompts
-  const [completedIntents, setCompletedIntents] = useState<string[]>([]);
-  useEffect(() => {
-    if (typeof window !== 'undefined' && publicKey) {
-      const key = `prism_done_${publicKey.toBase58()}`;
-      const stored = localStorage.getItem(key);
-      if (stored) setCompletedIntents(JSON.parse(stored));
-    }
-  }, [publicKey]);
-
-  useEffect(() => {
-    if (deposit.isSuccess && paymentId && publicKey) {
-      const key = `prism_done_${publicKey.toBase58()}`;
-      setCompletedIntents(prev => {
-        if (prev.includes(paymentId)) return prev;
-        const next = [...prev, paymentId];
-        localStorage.setItem(key, JSON.stringify(next));
-        return next;
-      });
-    }
-  }, [deposit.isSuccess, paymentId, publicKey]);
-
-  const isAlreadyFinished = paymentId ? completedIntents.includes(paymentId) : false;
 
   const selectedTranche = tranches.find(t => t.kind === selectedKind)!;
 
@@ -98,41 +56,6 @@ export function AllocationTerminal({ vaultStatus, tranches, onTrancheChange }: A
       { onSuccess: () => setAmount('') }
     );
   }
-
-  function handleFiatCheckout() {
-    const usd = parseFloat(fiatAmount);
-    if (isNaN(usd) || usd <= 0 || !publicKey) return;
-    fiatCheckout.mutate({ 
-      trancheKind: selectedKind, 
-      amountUsd: usd, 
-      investorPubkey: publicKey.toBase58(),
-      returnPath: pathname
-    });
-  }
-
-  function handleCompleteDeposit() {
-    if (!creditedAmountMicro) return;
-    deposit.mutate({ trancheKind: selectedKind, usdcAmount: BigInt(creditedAmountMicro) });
-  }
-
-  // Auto-trigger on-chain allocation when fiat is credited
-  const autoTriggeredRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (deposit.isSuccess) {
-      setFiatAmount('');
-    }
-  }, [deposit.isSuccess]);
-
-  useEffect(() => {
-    if (status === 'credited' && creditedAmountMicro && !deposit.isPending && !deposit.isSuccess && !isAlreadyFinished) {
-      // Use the payment ID or a combination of state to ensure we only trigger once per credit
-      if (paymentId && autoTriggeredRef.current !== paymentId) {
-        autoTriggeredRef.current = paymentId;
-        setTab('inr'); // Ensure tab is correct
-        handleCompleteDeposit();
-      }
-    }
-  }, [status, creditedAmountMicro, deposit.isPending, deposit.isSuccess, paymentId, isAlreadyFinished]);
 
   if (!isMounted) return null;
 
@@ -189,184 +112,58 @@ export function AllocationTerminal({ vaultStatus, tranches, onTrancheChange }: A
           {/* Input Section */}
           <div className="space-y-6">
             <div className="flex flex-col gap-6">
-               {/* Tab Switcher */}
-               <div className="flex gap-px overflow-hidden rounded-lg border border-white/[0.06] w-fit bg-black/20">
+               {/* USDC Form */}
+               <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <label className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/30 block">Allocation Amount (USDC)</label>
+                      <button
+                        onClick={handleMax}
+                        className="font-mono text-[9px] uppercase tracking-widest text-white/20 hover:text-white/50 transition-colors"
+                      >
+                        Balance: {balances ? formatUsdc(balances.usdc, 2) : '0.00'} <span className="ml-1 text-emerald-400/50 underline">Max</span>
+                      </button>
+                    </div>
+                    <div className="relative group">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 font-mono text-white/20">$</div>
+                      <input
+                        type="text"
+                        placeholder="0.00"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        disabled={!isActive}
+                        className="w-full h-16 bg-white/[0.03] border border-white/[0.10] rounded-xl pl-10 pr-16 font-mono text-2xl text-white outline-none focus:border-white/20 transition-all disabled:opacity-40"
+                      />
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-[10px] uppercase tracking-widest text-white/20">USDC</div>
+                    </div>
+                  </div>
+
+                  {!isActive && (
+                    <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/[0.05] flex items-start gap-3">
+                      <TriangleAlert className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-mono text-[10px] font-bold text-red-200 uppercase tracking-wider">Vault Inactive</div>
+                        <p className="font-mono text-[9px] text-red-300/60 mt-1">This vault is currently {vaultStatus || 'Initializing'}. Capital allocation is disabled until it reaches Active status.</p>
+                      </div>
+                    </div>
+                  )}
+
                   <button
-                    onClick={() => setTab('usdc')}
-                    className={`px-4 py-2 font-mono text-[9px] uppercase tracking-widest transition-all ${
-                      tab === 'usdc' ? 'bg-white/[0.08] text-white shadow-inner' : 'text-white/25 hover:text-white/50'
-                    }`}
+                    onClick={handleDeposit}
+                    disabled={deposit.isPending || !amount || !isActive}
+                    className="w-full h-14 flex items-center justify-center gap-3 bg-white text-black font-mono text-[11px] font-bold uppercase tracking-[0.25em] rounded-xl transition-all hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    USDC Direct
-                  </button>
-                  <button
-                    onClick={() => setTab('inr')}
-                    className={`flex items-center gap-2 px-4 py-2 font-mono text-[9px] uppercase tracking-widest transition-all ${
-                      tab === 'inr' ? 'bg-white/[0.08] text-white shadow-inner' : 'text-white/25 hover:text-white/50'
-                    }`}
-                  >
-                    <CreditCard className="h-2.5 w-2.5" />
-                    Fiat · Dodo
+                    {deposit.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : !isActive ? (
+                      'Vault Not Active'
+                    ) : !amount ? (
+                      'Enter Allocation Amount'
+                    ) : (
+                      <><Zap className="h-4 w-4" /> Allocate USDC</>
+                    )}
                   </button>
                </div>
-
-               {/* USDC Form */}
-               {tab === 'usdc' && (
-                 <div className="space-y-6">
-                    <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <label className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/30 block">Allocation Amount (USDC)</label>
-                        <button 
-                          onClick={handleMax}
-                          className="font-mono text-[9px] uppercase tracking-widest text-white/20 hover:text-white/50 transition-colors"
-                        >
-                          Balance: {balances ? formatUsdc(balances.usdc, 2) : '0.00'} <span className="ml-1 text-emerald-400/50 underline">Max</span>
-                        </button>
-                      </div>
-                      <div className="relative group">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 font-mono text-white/20">$</div>
-                        <input
-                          type="text"
-                          placeholder="0.00"
-                          value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
-                          disabled={!isActive}
-                          className="w-full h-16 bg-white/[0.03] border border-white/[0.10] rounded-xl pl-10 pr-16 font-mono text-2xl text-white outline-none focus:border-white/20 transition-all disabled:opacity-40"
-                        />
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-[10px] uppercase tracking-widest text-white/20">USDC</div>
-                      </div>
-                    </div>
-
-                    {!isActive && (
-                      <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/[0.05] flex items-start gap-3">
-                        <TriangleAlert className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-                        <div>
-                          <div className="font-mono text-[10px] font-bold text-red-200 uppercase tracking-wider">Vault Inactive</div>
-                          <p className="font-mono text-[9px] text-red-300/60 mt-1">This vault is currently {vaultStatus || 'Initializing'}. Capital allocation is disabled until it reaches Active status.</p>
-                        </div>
-                      </div>
-                    )}
-
-                    <button
-                      onClick={handleDeposit}
-                      disabled={deposit.isPending || !amount || !isActive}
-                      className="w-full h-14 flex items-center justify-center gap-3 bg-white text-black font-mono text-[11px] font-bold uppercase tracking-[0.25em] rounded-xl transition-all hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      {deposit.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : !isActive ? (
-                        'Vault Not Active'
-                      ) : !amount ? (
-                        'Enter Allocation Amount'
-                      ) : (
-                        <><Zap className="h-4 w-4" /> Allocate USDC</>
-                      )}
-                    </button>
-                 </div>
-               )}
-
-               {/* INR / Dodo Form */}
-               {tab === 'inr' && (
-                 <div className="space-y-4">
-                    {status !== 'none' && status !== 'credited' && (
-                      <div className={`p-4 rounded-xl border font-mono text-[10px] flex items-start gap-3 ${
-                        status === 'pending' || status === 'paid' ? 'border-yellow-500/20 bg-yellow-500/[0.05] text-yellow-200' :
-                        'border-red-500/20 bg-red-500/[0.05] text-red-300'
-                      }`}>
-                        {status === 'pending' || status === 'paid' ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> :
-                         <TriangleAlert className="h-4 w-4 shrink-0" />}
-                        <div className="flex-1">
-                           <div className="font-bold uppercase tracking-wider">
-                              {status === 'pending' ? 'Awaiting Payment...' : 
-                               status === 'paid' ? 'Bridging USDC...' : 'Payment Failed'}
-                           </div>
-                           <p className="opacity-60 mt-1">
-                              Transactions usually take 1-2 minutes.
-                           </p>
-                        </div>
-                        {(status === 'pending' || status === 'paid') && (
-                          <button onClick={() => cancelIntent.mutate()} className="text-[9px] underline opacity-40 hover:opacity-100">Cancel</button>
-                        )}
-                      </div>
-                    )}
-
-                    {!isActive && status === 'none' && (
-                      <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/[0.05] flex items-start gap-3">
-                        <TriangleAlert className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-                        <div>
-                          <div className="font-mono text-[10px] font-bold text-red-200 uppercase tracking-wider">Vault Inactive</div>
-                          <p className="font-mono text-[9px] text-red-300/60 mt-1">This vault is currently {vaultStatus || 'Initializing'}. Capital allocation is disabled.</p>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className={(status === 'credited' && !isAlreadyFinished) ? 'opacity-50 pointer-events-none' : ''}>
-                      <label className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/30 block mb-4">Amount to Pay (USD)</label>
-                      <div className="relative group">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 font-mono text-white/20">$</div>
-                        <input
-                          type="number"
-                          placeholder="0.00"
-                          value={fiatAmount}
-                          onChange={(e) => setFiatAmount(e.target.value)}
-                          disabled={status === 'pending' || (status === 'credited' && !isAlreadyFinished) || fiatCheckout.isPending || !isActive}
-                          className="w-full h-16 bg-white/[0.03] border border-white/[0.10] rounded-xl pl-10 pr-16 font-mono text-2xl text-white outline-none focus:border-white/20 transition-all disabled:opacity-40"
-                        />
-                      </div>
-                    </div>
-
-                    {deposit.isSuccess ? (
-                      <div className="w-full h-14 flex items-center justify-center gap-3 border border-emerald-500/30 bg-emerald-500/10 text-emerald-200 font-mono text-[11px] font-bold uppercase tracking-[0.25em] rounded-xl animate-in fade-in zoom-in duration-500">
-                        <CheckCircle2 className="h-4 w-4" /> Allocation Complete
-                      </div>
-                    ) : (status === 'credited' && !isAlreadyFinished) ? (
-                      <button
-                        onClick={handleCompleteDeposit}
-                        disabled={deposit.isPending || !isActive}
-                        className={`w-full h-14 flex items-center justify-center gap-3 border font-mono text-[11px] font-bold uppercase tracking-[0.25em] rounded-xl transition-all
-                          ${deposit.isPending 
-                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200 animate-pulse' 
-                            : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'
-                          }
-                        `}
-                      >
-                        {deposit.isPending ? (
-                          <><Loader2 className="h-4 w-4 animate-spin" /> Processing Allocation...</>
-                        ) : (
-                          <><Zap className="h-4 w-4" /> Finalize Allocation (Retry)</>
-                        )}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleFiatCheckout}
-                        disabled={!fiatAmount || fiatCheckout.isPending || status === 'pending' || !isActive}
-                        className="w-full h-14 flex items-center justify-center gap-3 border border-purple-500/30 bg-purple-500/10 text-purple-200 font-mono text-[11px] font-bold uppercase tracking-[0.25em] rounded-xl transition-all hover:bg-purple-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {fiatCheckout.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : !isActive ? (
-                          'Vault Not Active'
-                        ) : !fiatAmount ? (
-                          'Enter Payment Amount'
-                        ) : (
-                          <><CreditCard className="h-4 w-4" /> Pay with Dodo</>
-                        )}
-                      </button>
-                    )}
-                    {(status === 'credited' && !isAlreadyFinished) && (
-                      <button
-                        onClick={() => {
-                          if (paymentId) setDismissedIntentId(paymentId);
-                          deposit.reset();
-                          setFiatAmount('');
-                        }}
-                        className="w-full mt-6 py-2 rounded-lg font-mono text-[9px] uppercase tracking-[0.2em] text-white/10 hover:text-white/40 transition-all flex items-center justify-center gap-2 border border-white/5 hover:bg-white/[0.01]"
-                      >
-                        Stuck? Start New Allocation
-                      </button>
-                    )}
-                 </div>
-               )}
             </div>
 
             <p className="text-center font-mono text-[9px] uppercase tracking-widest text-white/15 mt-8">

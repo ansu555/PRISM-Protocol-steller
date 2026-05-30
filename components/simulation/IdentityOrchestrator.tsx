@@ -1,13 +1,11 @@
 'use client';
 
-import { getAssociatedTokenAddress } from '@solana/spl-token';
-import { useConnection } from '@solana/wallet-adapter-react';
 import { useQuery } from '@tanstack/react-query';
 import { BriefcaseBusiness, Crown, KeyRound, ShieldCheck } from 'lucide-react';
 
-import { formatUsdc, shortKey } from '@/app/lib/format';
+import { formatUsdc, shortKey, toBigInt } from '@/app/lib/format';
+import { addr, getUsdcClient } from '@/app/lib/stellar';
 import { useIdentity, type Role } from '@/hooks/useIdentity';
-import { useVaultState } from '@/hooks/useVaultState';
 
 const ROLE_ICONS = {
   admin: KeyRound,
@@ -17,38 +15,27 @@ const ROLE_ICONS = {
 } as const;
 
 export function IdentityOrchestrator() {
-  const { connection } = useConnection();
   const { role, identities, setRole } = useIdentity();
-  const vaultState = useVaultState();
-  const usdcMint = vaultState.data?.usdcMint;
 
   const balances = useQuery({
-    queryKey: ['identity-balances', connection.rpcEndpoint, usdcMint?.toBase58()],
-    enabled: Boolean(usdcMint),
+    queryKey: ['identity-balances', Object.values(identities).map((identity) => identity.address).join(':')],
     refetchInterval: 5000,
     queryFn: async () => {
-      const result: Record<Role, { sol: number; usdc: bigint }> = {
-        admin: { sol: 0, usdc: 0n },
-        senior: { sol: 0, usdc: 0n },
-        junior: { sol: 0, usdc: 0n },
-        borrower: { sol: 0, usdc: 0n },
+      const result: Record<Role, { xlm: number; usdc: bigint }> = {
+        admin: { xlm: 0, usdc: 0n },
+        senior: { xlm: 0, usdc: 0n },
+        junior: { xlm: 0, usdc: 0n },
+        borrower: { xlm: 0, usdc: 0n },
       };
 
       await Promise.all(
         (Object.keys(identities) as Role[]).map(async (key) => {
           const identity = identities[key];
-          const [sol, ata] = await Promise.all([
-            connection.getBalance(identity.keypair.publicKey),
-            getAssociatedTokenAddress(usdcMint!, identity.keypair.publicKey),
-          ]);
-          let usdc = 0n;
-          try {
-            const tokenBalance = await connection.getTokenAccountBalance(ata);
-            usdc = BigInt(tokenBalance.value.amount);
-          } catch {
-            usdc = 0n;
-          }
-          result[key] = { sol: sol / 1_000_000_000, usdc };
+          const usdc = await getUsdcClient()
+            .read<bigint | number | string>('balance', [addr(identity.address)])
+            .then(toBigInt)
+            .catch(() => 0n);
+          result[key] = { xlm: 0, usdc };
         }),
       );
 
@@ -89,7 +76,7 @@ export function IdentityOrchestrator() {
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold">{identity.label}</div>
                   <div className={active ? 'text-xs text-black/55' : 'text-xs text-white/45'}>
-                    {shortKey(identity.keypair.publicKey)}
+                    {shortKey(identity.address)}
                   </div>
                 </div>
               </div>
@@ -111,7 +98,7 @@ export function IdentityOrchestrator() {
                 active ? 'text-black/70' : 'text-white/55',
               ].join(' ')}
             >
-              <span>SOL {balance ? balance.sol.toFixed(4) : '--'}</span>
+              <span>XLM {balance ? balance.xlm.toFixed(4) : '--'}</span>
               <span>USDC {balance ? formatUsdc(balance.usdc, 2) : '--'}</span>
             </div>
           </button>

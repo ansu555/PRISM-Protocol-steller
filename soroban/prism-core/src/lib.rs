@@ -11,11 +11,15 @@
 //!
 //! Phase 3 surface: loans + oracle attestations.
 //!   - `init_loan(vault_id, loan_id, borrower, principal, apr_bps, maturity_ts)`
-//!   - `disburse_loan(vault_id, loan_id)`
+//!   - `disburse_loan(vault_id, loan_id)` — gated on collateral verified if record exists
 //!   - `repay_loan(borrower, loan_id, amount)`
 //!   - `attach_encrypt_score(borrower, loan_id, commitment, encrypt_oracle)`
 //!   - `verify_encrypt_default(relayer, vault_id, loan_id, message, signature, loss_amount, severity_bps)`
 //!   - `record_cloak_payout(relayer, vault_id, message, signature, total_shielded_amount)`
+//!   - `attach_collateral(borrower, loan_id, oracle_pubkey)` — PRISM Collateral Oracle
+//!   - `verify_collateral(relayer, loan_id, message, signature)` — status Pending → Attached
+//!   - `release_collateral(borrower, loan_id, message, signature)` — status Attached → Released
+//!   - `liquidate_collateral(admin, loan_id, message, signature, loss_amount, severity_bps)` — fires cascade
 //!
 //! Encrypt + Cloak verification both follow the same pattern: the off-chain
 //! oracle signs a fixed-layout attestation, the relayer passes (message, signature),
@@ -38,6 +42,8 @@
 
 mod errors;
 mod math;
+mod reflector;
+mod soroswap;
 mod state;
 mod storage;
 
@@ -45,9 +51,11 @@ mod storage;
 mod tests;
 
 pub use errors::PrismError;
+pub use reflector::{Asset as ReflectorAsset, PriceData as ReflectorPriceData};
 pub use state::{
-    CloakPayoutRecord, CloakPayoutStatus, CreditEvent, CreditEventType, EncryptLoanHealth,
-    EncryptStatus, GlobalConfig, Loan, LoanState, Tranche, TrancheKind, Vault, VaultState,
+    CloakPayoutRecord, CloakPayoutStatus, CollateralRecord, CollateralStatus, CreditEvent,
+    CreditEventType, EncryptLoanHealth, EncryptStatus, GlobalConfig, Loan, LoanState, Tranche,
+    TrancheKind, Vault, VaultState,
 };
 
 use soroban_sdk::{contract, contractimpl, token, vec, Address, Bytes, BytesN, Env, String, Vec};
@@ -519,6 +527,13 @@ impl PrismCore {
         vault.credit_event_seq = vault.credit_event_seq.saturating_add(1);
         storage::write_vault(&env, &vault);
 
+        // Maintain the reserve invariant:
+        //   usdc_balance == Σ tranche.total_assets + loss_bucket_balance
+        // The cascade wrote down tranche.total_assets by exactly `loss`; bump
+        // the bucket by the same amount so the accounting stays balanced.
+        let prev_bucket = storage::read_loss_bucket_balance(&env, vault_id);
+        storage::write_loss_bucket_balance(&env, vault_id, prev_bucket.saturating_add(loss as u128));
+
         Ok(seq)
     }
 
@@ -596,6 +611,16 @@ impl PrismCore {
         if loan.vault_id != vault_id {
             return Err(PrismError::BorrowerMismatch);
         }
+
+        // If a collateral record exists for this loan it must be oracle-verified
+        // (status = Attached) before funds can be released. A Pending record means
+        // attach_collateral was called but verify_collateral has not yet run.
+        if let Some(col) = storage::read_collateral(&env, loan_id) {
+            if col.status == CollateralStatus::Pending {
+                return Err(PrismError::CollateralNotVerified);
+            }
+        }
+
         if loan.state != LoanState::Originated {
             return Err(PrismError::LoanInWrongState);
         }
@@ -846,6 +871,10 @@ impl PrismCore {
         vault.credit_event_seq = vault.credit_event_seq.saturating_add(1);
         storage::write_vault(&env, &vault);
 
+        // Maintain reserve invariant (same pattern as trigger_credit_event).
+        let prev_bucket = storage::read_loss_bucket_balance(&env, vault_id);
+        storage::write_loss_bucket_balance(&env, vault_id, prev_bucket.saturating_add(loss as u128));
+
         Ok(seq)
     }
 
@@ -926,11 +955,239 @@ impl PrismCore {
     }
 
     // ──────────────────────────────────────────────────────────────────────
+    // Phase 3: PRISM Collateral Oracle (replaces IKA — §6.6)
+    // ──────────────────────────────────────────────────────────────────────
+
+    /// Register a PRISM Collateral Oracle pubkey for a loan. Creates a
+    /// `CollateralRecord` in `Pending` state. The oracle_pubkey must be in
+    /// `config.oracle_allowlist`. This does NOT disburse or lock anything —
+    /// disburse_loan remains blocked until `verify_collateral` succeeds.
+    pub fn attach_collateral(
+        env: Env,
+        borrower: Address,
+        loan_id: u32,
+        oracle_pubkey: BytesN<32>,
+    ) -> Result<(), PrismError> {
+        borrower.require_auth();
+
+        let cfg = storage::read_config(&env);
+        if !cfg.oracle_allowlist.contains(&oracle_pubkey) {
+            return Err(PrismError::OracleNotAllowlisted);
+        }
+
+        let loan = storage::read_loan(&env, loan_id).ok_or(PrismError::NotInitialized)?;
+        if loan.borrower != borrower {
+            return Err(PrismError::BorrowerMismatch);
+        }
+        if !matches!(loan.state, LoanState::Originated | LoanState::Active) {
+            return Err(PrismError::LoanInWrongState);
+        }
+
+        // Idempotent: if a Pending record already exists, overwrite (allows
+        // oracle key rotation before first verification).
+        if let Some(existing) = storage::read_collateral(&env, loan_id) {
+            if existing.status != CollateralStatus::Pending {
+                return Err(PrismError::CollateralAlreadyVerified);
+            }
+        }
+
+        let rec = CollateralRecord {
+            loan_id,
+            borrower,
+            oracle_pubkey,
+            chain_id: 0,
+            asset_address: BytesN::from_array(&env, &[0u8; 32]),
+            amount_usd_micro: 0,
+            valued_at_ts: 0,
+            last_nonce: 0,
+            status: CollateralStatus::Pending,
+        };
+        storage::write_collateral(&env, &rec);
+        Ok(())
+    }
+
+    /// Oracle attests collateral is locked (status byte 0x01). Advances record
+    /// from Pending → Attached. After this call `disburse_loan` is unblocked.
+    ///
+    /// Attestation message layout (73 bytes, §6.6):
+    ///   bytes  0..8    b"col_atts"
+    ///   bytes  8..12   loan_id (u32 LE)
+    ///   bytes 12..16   chain_id (u32 LE)
+    ///   bytes 16..48   asset_address (32 bytes)
+    ///   bytes 48..56   amount_usd_micro (u64 LE)
+    ///   bytes 56..64   valued_at_ts (i64 LE)
+    ///   bytes 64..72   nonce (u64 LE)
+    ///   byte  72       status (must be 0x01 for verify_collateral)
+    pub fn verify_collateral(
+        env: Env,
+        relayer: Address,
+        loan_id: u32,
+        message: Bytes,
+        signature: BytesN<64>,
+    ) -> Result<(), PrismError> {
+        relayer.require_auth();
+
+        let mut rec = storage::read_collateral(&env, loan_id)
+            .ok_or(PrismError::CollateralNotAttached)?;
+        if rec.status != CollateralStatus::Pending {
+            return Err(PrismError::CollateralAlreadyVerified);
+        }
+
+        parse_and_verify_collateral_message(&env, &mut rec, &message, &signature, 0x01)?;
+
+        rec.status = CollateralStatus::Attached;
+        storage::write_collateral(&env, &rec);
+        Ok(())
+    }
+
+    /// Oracle attests collateral is released (status byte 0x02). Advances
+    /// record from Attached → Released. Called on full loan repayment.
+    pub fn release_collateral(
+        env: Env,
+        borrower: Address,
+        loan_id: u32,
+        message: Bytes,
+        signature: BytesN<64>,
+    ) -> Result<(), PrismError> {
+        borrower.require_auth();
+
+        let mut rec = storage::read_collateral(&env, loan_id)
+            .ok_or(PrismError::CollateralNotAttached)?;
+        if rec.status != CollateralStatus::Attached {
+            return Err(PrismError::CollateralStatusMismatch);
+        }
+
+        parse_and_verify_collateral_message(&env, &mut rec, &message, &signature, 0x02)?;
+
+        rec.status = CollateralStatus::Released;
+        storage::write_collateral(&env, &rec);
+        Ok(())
+    }
+
+    /// Admin-triggered liquidation: oracle attests status byte 0x03 and the
+    /// loss cascade fires for `loss_amount` against the vault's tranches.
+    pub fn liquidate_collateral(
+        env: Env,
+        admin: Address,
+        loan_id: u32,
+        message: Bytes,
+        signature: BytesN<64>,
+        loss_amount: i128,
+        severity_bps: u32,
+    ) -> Result<u32, PrismError> {
+        admin.require_auth();
+
+        let cfg = storage::read_config(&env);
+        if admin != cfg.admin {
+            return Err(PrismError::Unauthorized);
+        }
+
+        let mut rec = storage::read_collateral(&env, loan_id)
+            .ok_or(PrismError::CollateralNotAttached)?;
+        if rec.status != CollateralStatus::Attached {
+            return Err(PrismError::CollateralStatusMismatch);
+        }
+
+        parse_and_verify_collateral_message(&env, &mut rec, &message, &signature, 0x03)?;
+
+        rec.status = CollateralStatus::Liquidated;
+        storage::write_collateral(&env, &rec);
+
+        // Fire loss cascade (same logic as trigger_credit_event).
+        let loan = storage::read_loan(&env, loan_id).ok_or(PrismError::NotInitialized)?;
+        let vault_id = loan.vault_id;
+        let mut vault =
+            storage::read_vault(&env, vault_id).ok_or(PrismError::NotInitialized)?;
+
+        if vault.state != VaultState::Active {
+            return Err(PrismError::VaultNotActive);
+        }
+        if severity_bps > 10_000 {
+            return Err(PrismError::InvalidSeverity);
+        }
+
+        let loss: u64 = loss_amount
+            .try_into()
+            .map_err(|_| PrismError::ArithmeticOverflow)?;
+
+        let mut prime = storage::read_tranche(&env, vault_id, TrancheKind::Prime)
+            .ok_or(PrismError::NotInitialized)?;
+        let mut core_t = storage::read_tranche(&env, vault_id, TrancheKind::Core)
+            .ok_or(PrismError::NotInitialized)?;
+        let mut alpha = storage::read_tranche(&env, vault_id, TrancheKind::Alpha)
+            .ok_or(PrismError::NotInitialized)?;
+
+        let total_assets = prime
+            .total_assets
+            .checked_add(core_t.total_assets)
+            .and_then(|x| x.checked_add(alpha.total_assets))
+            .ok_or(PrismError::ArithmeticOverflow)?;
+        if loss > total_assets {
+            return Err(PrismError::LossExceedsTotalAssets);
+        }
+
+        let mut remaining = loss;
+        let alpha_hit = core::cmp::min(remaining, alpha.total_assets);
+        alpha.total_assets -= alpha_hit;
+        alpha.cumulative_loss = alpha.cumulative_loss.saturating_add(alpha_hit);
+        remaining -= alpha_hit;
+
+        let core_hit = core::cmp::min(remaining, core_t.total_assets);
+        core_t.total_assets -= core_hit;
+        core_t.cumulative_loss = core_t.cumulative_loss.saturating_add(core_hit);
+        remaining -= core_hit;
+
+        let prime_hit = core::cmp::min(remaining, prime.total_assets);
+        prime.total_assets -= prime_hit;
+        prime.cumulative_loss = prime.cumulative_loss.saturating_add(prime_hit);
+
+        alpha.nav_per_share_q = math::compute_nav_q(alpha.total_assets, alpha.total_supply);
+        core_t.nav_per_share_q = math::compute_nav_q(core_t.total_assets, core_t.total_supply);
+        prime.nav_per_share_q = math::compute_nav_q(prime.total_assets, prime.total_supply);
+
+        storage::write_tranche(&env, vault_id, TrancheKind::Alpha, &alpha);
+        storage::write_tranche(&env, vault_id, TrancheKind::Core, &core_t);
+        storage::write_tranche(&env, vault_id, TrancheKind::Prime, &prime);
+
+        let now = env.ledger().timestamp();
+        let seq = vault.credit_event_seq;
+        let event = CreditEvent {
+            vault_id,
+            seq,
+            event_type: CreditEventType::Default,
+            loan_id,
+            loss_amount: loss,
+            recovery_amount: 0,
+            severity_bps,
+            timestamp: now,
+            triggered_by: admin,
+        };
+        storage::write_credit_event(&env, &event);
+
+        vault.state = VaultState::Defaulted;
+        vault.credit_event_seq = vault.credit_event_seq.saturating_add(1);
+        storage::write_vault(&env, &vault);
+
+        let prev_bucket = storage::read_loss_bucket_balance(&env, vault_id);
+        storage::write_loss_bucket_balance(
+            &env,
+            vault_id,
+            prev_bucket.saturating_add(loss as u128),
+        );
+
+        Ok(seq)
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
     // Phase 3 getters
     // ──────────────────────────────────────────────────────────────────────
 
     pub fn get_loan(env: Env, loan_id: u32) -> Option<Loan> {
         storage::read_loan(&env, loan_id)
+    }
+
+    pub fn get_collateral(env: Env, loan_id: u32) -> Option<CollateralRecord> {
+        storage::read_collateral(&env, loan_id)
     }
 
     pub fn get_encrypt_health(env: Env, loan_id: u32) -> Option<EncryptLoanHealth> {
@@ -939,6 +1196,111 @@ impl PrismCore {
 
     pub fn get_cloak_payout(env: Env, vault_id: u32, seq: u32) -> Option<CloakPayoutRecord> {
         storage::read_cloak_payout(&env, vault_id, seq)
+    }
+
+    /// Return the cumulative USDC absorbed by the loss cascade for a vault.
+    /// Together with Σ tranche.total_assets, it equals the contract's USDC
+    /// reserve: reserve == Σ tranche.total_assets + loss_bucket_balance.
+    pub fn get_loss_bucket_balance(env: Env, vault_id: u32) -> u128 {
+        storage::read_loss_bucket_balance(&env, vault_id)
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Phase 2: Composition — Soroswap liquidity seeding + Reflector price read
+    // ──────────────────────────────────────────────────────────────────────
+
+    /// Seed initial USDC + pToken liquidity into a Soroswap pool for one tranche.
+    ///
+    /// Admin-only. Call once per tranche after the vault has been funded with
+    /// deposits and the Soroswap pair has been created (via the Soroswap factory
+    /// frontend). The core contract is the LP — it approves the router, calls
+    /// `add_liquidity`, and receives LP tokens back to its own address.
+    ///
+    /// `usdc_min` and `ptoken_min` are slippage guards forwarded to Soroswap;
+    /// pass 0 for initial seeding where no pool price exists yet.
+    ///
+    /// Returns `(usdc_used, ptoken_used, lp_minted)`.
+    pub fn seed_pool_liquidity(
+        env: Env,
+        admin: Address,
+        vault_id: u32,
+        kind: u32,
+        soroswap_router: Address,
+        usdc_amount: i128,
+        ptoken_amount: i128,
+        usdc_min: i128,
+        ptoken_min: i128,
+    ) -> Result<(i128, i128, i128), PrismError> {
+        admin.require_auth();
+
+        let cfg = storage::read_config(&env);
+        if admin != cfg.admin {
+            return Err(PrismError::Unauthorized);
+        }
+        if cfg.paused {
+            return Err(PrismError::VaultPaused);
+        }
+
+        let tranche_kind = TrancheKind::from_u32(kind).ok_or(PrismError::InvalidTrancheKind)?;
+        let tranche = storage::read_tranche(&env, vault_id, tranche_kind)
+            .ok_or(PrismError::NotInitialized)?;
+
+        // Approve Soroswap router to pull USDC and pToken from this contract.
+        // The approval window is 100 ledgers — ample for the single add_liquidity call.
+        let expiry = env.ledger().sequence().saturating_add(100);
+        let usdc = token::Client::new(&env, &cfg.usdc_token);
+        let ptoken = token::Client::new(&env, &tranche.ptoken);
+        usdc.approve(
+            &env.current_contract_address(),
+            &soroswap_router,
+            &usdc_amount,
+            &expiry,
+        );
+        ptoken.approve(
+            &env.current_contract_address(),
+            &soroswap_router,
+            &ptoken_amount,
+            &expiry,
+        );
+
+        // Call Soroswap add_liquidity — router pulls tokens, mints LP tokens to us.
+        let router = soroswap::SoroswapRouterClient::new(&env, &soroswap_router);
+        let deadline = env.ledger().timestamp().saturating_add(300); // 5-minute window
+        let (usdc_used, ptoken_used, lp_minted) = router.add_liquidity(
+            &cfg.usdc_token,
+            &tranche.ptoken,
+            &usdc_amount,
+            &ptoken_amount,
+            &usdc_min,
+            &ptoken_min,
+            &env.current_contract_address(),
+            &deadline,
+        );
+
+        env.events().publish(
+            (String::from_str(&env, "seed_pool"), vault_id, kind),
+            (usdc_used, ptoken_used, lp_minted),
+        );
+
+        Ok((usdc_used, ptoken_used, lp_minted))
+    }
+
+    /// Read the most recent Reflector oracle price for a given asset symbol.
+    ///
+    /// `reflector` is the Reflector oracle contract address.
+    /// `asset_symbol` is the ticker string, e.g. "BTC", "ETH", "USDC".
+    ///
+    /// This is a simulation target — call via `simulateTransaction` from the
+    /// frontend to display mark-to-market collateral prices without a tx fee.
+    /// Returns `None` if Reflector has no data for the asset.
+    pub fn read_reflector_price(
+        env: Env,
+        reflector: Address,
+        asset_symbol: soroban_sdk::Symbol,
+    ) -> Option<i128> {
+        let client = reflector::ReflectorClient::new(&env, &reflector);
+        let asset = reflector::Asset::Other(asset_symbol);
+        client.lastprice(&asset).map(|d| d.price)
     }
 }
 
@@ -992,6 +1354,86 @@ fn compute_yield_target(total_assets: u64, apy_bps: u32, elapsed: u64) -> Result
         return Err(PrismError::ArithmeticOverflow);
     }
     Ok(target as u64)
+}
+
+/// Validate and parse a 73-byte PRISM Collateral Oracle attestation message.
+/// Checks: length, prefix, loan_id binding, nonce > last_nonce, expected status byte.
+/// On success: mutates `rec` with the parsed fields (chain_id, asset_address,
+/// amount_usd_micro, valued_at_ts, last_nonce). Does NOT write to storage.
+fn parse_and_verify_collateral_message(
+    env: &Env,
+    rec: &mut CollateralRecord,
+    message: &Bytes,
+    signature: &BytesN<64>,
+    expected_status_byte: u8,
+) -> Result<(), PrismError> {
+    if message.len() != 73 {
+        return Err(PrismError::CollateralInvalidMessage);
+    }
+    let prefix = bytes_slice::<8>(env, message, 0);
+    if prefix != bytesn_from_array(env, b"col_atts") {
+        return Err(PrismError::CollateralInvalidMessage);
+    }
+
+    // Bind to loan_id.
+    let attested_loan = u32::from_le_bytes({
+        let s = bytes_slice::<4>(env, message, 8);
+        let mut arr = [0u8; 4];
+        s.copy_into_slice(&mut arr);
+        arr
+    });
+    if attested_loan != rec.loan_id {
+        return Err(PrismError::CollateralInvalidMessage);
+    }
+
+    // Nonce must be strictly greater than last seen (replay protection).
+    let nonce = u64::from_le_bytes({
+        let s = bytes_slice::<8>(env, message, 64);
+        let mut arr = [0u8; 8];
+        s.copy_into_slice(&mut arr);
+        arr
+    });
+    if nonce <= rec.last_nonce {
+        return Err(PrismError::CollateralNonceReused);
+    }
+
+    // Status byte must match the expected transition.
+    let status_byte = message.get(72).ok_or(PrismError::CollateralInvalidMessage)?;
+    if status_byte != expected_status_byte {
+        return Err(PrismError::CollateralStatusMismatch);
+    }
+
+    // Verify Ed25519 signature against the registered oracle pubkey.
+    env.crypto()
+        .ed25519_verify(&rec.oracle_pubkey, message, signature);
+
+    // Parse remaining fields.
+    let chain_id = u32::from_le_bytes({
+        let s = bytes_slice::<4>(env, message, 12);
+        let mut arr = [0u8; 4];
+        s.copy_into_slice(&mut arr);
+        arr
+    });
+    let asset_address: BytesN<32> = bytes_slice::<32>(env, message, 16);
+    let amount_usd_micro = u64::from_le_bytes({
+        let s = bytes_slice::<8>(env, message, 48);
+        let mut arr = [0u8; 8];
+        s.copy_into_slice(&mut arr);
+        arr
+    });
+    let valued_at_ts = i64::from_le_bytes({
+        let s = bytes_slice::<8>(env, message, 56);
+        let mut arr = [0u8; 8];
+        s.copy_into_slice(&mut arr);
+        arr
+    });
+
+    rec.chain_id = chain_id;
+    rec.asset_address = asset_address;
+    rec.amount_usd_micro = amount_usd_micro;
+    rec.valued_at_ts = valued_at_ts;
+    rec.last_nonce = nonce;
+    Ok(())
 }
 
 /// Apply a yield slice to a tranche: bump total_assets + cumulative_yield, refresh NAV.

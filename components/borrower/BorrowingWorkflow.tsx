@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet } from '@/components/providers/stellar-wallet-context';
 import {
   ShieldCheck,
   Building2,
@@ -30,8 +30,12 @@ import { CollateralOnboarding } from './CollateralOnboarding';
 import { formatUsdc } from '@/app/lib/format';
 import { useAllVaults } from '@/hooks/useAllVaults';
 import { useVaultState } from '@/hooks/useVaultState';
-import { useIkaCollateralAccount, useLoanAccount } from '@/hooks/useIkaCollateral';
-import { getVaultPda, getLoanPda } from '@/app/lib/pda';
+// Phase 4: IKA collateral replaced by PRISM Collateral Oracle. These stubs keep
+// the borrower workflow compiling; the real on-chain reads are wired in Phase 3's
+// useCollateral.tsx for the collateral attestation flow.
+function useCollateralStub(_key: string | null) { return { data: null as null | { status: string } }; }
+function useLoanStub(_key: string | null) { return { data: null as null | { state: unknown } }; }
+function loanKey(vaultId: number, loanId: number) { return `${vaultId}-${loanId}`; }
 import { LoanRepayment } from './LoanRepayment';
 import {
   POOL_NAMES,
@@ -1144,10 +1148,11 @@ export function BorrowingWorkflow() {
   const vaultState = useVaultState(selectedVaultId ?? 0);
   const poolLiquidity = (vaultState.data?.tranches ?? []).reduce((s, t) => s + t.ammQuoteBalance, 0n);
 
-  const [vaultPda] = getVaultPda(existingApp?.vaultId ?? 0);
-  const [loanPda] = getLoanPda(vaultPda, existingApp?.loanId ?? 0);
-  const { data: collateral } = useIkaCollateralAccount(existingApp?.loanId != null ? loanPda : null);
-  const { data: loanAccount } = useLoanAccount(existingApp?.loanId != null ? loanPda : null);
+  const _key = existingApp?.loanId != null
+    ? loanKey(existingApp.vaultId ?? 0, existingApp.loanId)
+    : null;
+  const { data: collateral } = useCollateralStub(_key);
+  const { data: loanAccount } = useLoanStub(_key);
   const isLocked = collateral?.status === 'Locked';
   const loanIsActive = loanAccount?.state != null && 'active' in (loanAccount.state as object);
   const loanIsRepaid = loanAccount?.state != null && 'repaid' in (loanAccount.state as object);
