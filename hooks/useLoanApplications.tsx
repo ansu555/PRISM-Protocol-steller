@@ -1,88 +1,129 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, type ReactNode } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { VAULT_ID } from '@/app/lib/constants';
 
 export interface LoanApplication {
   id: string;
   borrowerPubkey: string;
-  requestedUSDC: number;   // display units (not micro)
+  requestedUSDC: number;
   maturityDays: number;
   purpose: string;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: number;
-  loanId?: number;          // set by admin after on-chain origination
-  vaultId: number;          // the capital pool selected during application
+  loanId?: number;
+  vaultId: number;
   approvedAprBps?: number;
 }
 
-const LS_KEY = 'prism_loan_applications';
+function rowToApp(row: Record<string, unknown>): LoanApplication {
+  return {
+    id: String(row.id),
+    borrowerPubkey: String(row.borrower_pubkey),
+    requestedUSDC: Number(row.requested_usdc),
+    maturityDays: Number(row.maturity_days),
+    purpose: String(row.purpose ?? ''),
+    status: String(row.status) as LoanApplication['status'],
+    submittedAt: Number(row.submitted_at),
+    loanId: row.loan_id != null ? Number(row.loan_id) : undefined,
+    vaultId: Number(row.vault_id),
+    approvedAprBps: row.approved_apr_bps != null ? Number(row.approved_apr_bps) : undefined,
+  };
+}
+
+async function fetchApplications(vaultId: number): Promise<LoanApplication[]> {
+  const res = await fetch(`/api/loan-applications?vaultId=${vaultId}`);
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return (data.applications as Record<string, unknown>[]).map(rowToApp);
+}
 
 interface ContextValue {
   applications: LoanApplication[];
-  submit: (app: Omit<LoanApplication, 'id' | 'status' | 'submittedAt'>) => void;
-  updateStatus: (id: string, status: 'pending' | 'approved' | 'rejected') => void;
-  approve: (id: string, loanId: number, aprBps: number) => void;
-  reject: (id: string) => void;
+  isLoading: boolean;
+  submit: (app: Omit<LoanApplication, 'id' | 'status' | 'submittedAt'>) => Promise<void>;
+  approve: (id: string, loanId: number, aprBps: number) => Promise<void>;
+  reject: (id: string) => Promise<void>;
   getByBorrower: (pubkey: string) => LoanApplication | undefined;
-  clearApplications: () => void;
 }
 
 const Ctx = createContext<ContextValue | null>(null);
 
-function loadFromStorage(): LoanApplication[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    return JSON.parse(localStorage.getItem(LS_KEY) ?? '[]');
-  } catch {
-    return [];
-  }
-}
-
 export function LoanApplicationProvider({ children }: { children: ReactNode }) {
-  const [applications, setApplications] = useState<LoanApplication[]>(loadFromStorage);
+  const qc = useQueryClient();
+  const vaultId = VAULT_ID;
+  const qKey = ['loan-applications', vaultId];
 
-  useEffect(() => {
-    localStorage.setItem(LS_KEY, JSON.stringify(applications));
-  }, [applications]);
+  const { data: applications = [], isLoading } = useQuery({
+    queryKey: qKey,
+    queryFn: () => fetchApplications(vaultId),
+    refetchInterval: 10_000,
+    staleTime: 5_000,
+  });
 
-  const submit = useCallback((app: Omit<LoanApplication, 'id' | 'status' | 'submittedAt'>) => {
-    setApplications((prev) => [
-      ...prev,
-      {
-        ...app,
-        id: crypto.randomUUID(),
-        status: 'pending',
-        submittedAt: Date.now(),
-      },
-    ]);
-  }, []);
+  const invalidate = useCallback(() => qc.invalidateQueries({ queryKey: qKey }), [qc]);
 
-  const updateStatus = useCallback((id: string, status: 'pending' | 'approved' | 'rejected') => {
-    setApplications((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
-  }, []);
+  const submitMut = useMutation({
+    mutationFn: async (app: Omit<LoanApplication, 'id' | 'status' | 'submittedAt'>) => {
+      const id = crypto.randomUUID();
+      const res = await fetch('/api/loan-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...app, borrowerPubkey: app.borrowerPubkey, submittedAt: Date.now() }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+    },
+    onSuccess: invalidate,
+  });
 
-  const approve = useCallback((id: string, loanId: number, aprBps: number) => {
-    setApplications((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status: 'approved', loanId, approvedAprBps: aprBps } : a)),
-    );
-  }, []);
+  const approveMut = useMutation({
+    mutationFn: async ({ id, loanId, aprBps }: { id: string; loanId: number; aprBps: number }) => {
+      const res = await fetch(`/api/loan-applications/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved', loanId, approvedAprBps: aprBps }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+    },
+    onSuccess: invalidate,
+  });
 
-  const reject = useCallback((id: string) => {
-    setApplications((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'rejected' } : a)));
-  }, []);
+  const rejectMut = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/loan-applications/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'rejected' }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+    },
+    onSuccess: invalidate,
+  });
+
+  const submit = useCallback(
+    (app: Omit<LoanApplication, 'id' | 'status' | 'submittedAt'>) => submitMut.mutateAsync(app),
+    [submitMut],
+  );
+
+  const approve = useCallback(
+    (id: string, loanId: number, aprBps: number) => approveMut.mutateAsync({ id, loanId, aprBps }),
+    [approveMut],
+  );
+
+  const reject = useCallback(
+    (id: string) => rejectMut.mutateAsync(id),
+    [rejectMut],
+  );
 
   const getByBorrower = useCallback(
-    (pubkey: string) => [...applications].reverse().find((a) => a.borrowerPubkey === pubkey && a.status !== 'rejected'),
+    (pubkey: string) =>
+      [...applications].reverse().find((a) => a.borrowerPubkey === pubkey && a.status !== 'rejected'),
     [applications],
   );
 
-  const clearApplications = useCallback(() => {
-    setApplications([]);
-    localStorage.removeItem(LS_KEY);
-  }, []);
-
   return (
-    <Ctx.Provider value={{ applications, submit, updateStatus, approve, reject, getByBorrower, clearApplications }}>
+    <Ctx.Provider value={{ applications, isLoading, submit, approve, reject, getByBorrower }}>
       {children}
     </Ctx.Provider>
   );

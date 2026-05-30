@@ -1,6 +1,6 @@
 'use client';
 
-import { Keypair, nativeToScVal, Address, scValToNative } from '@stellar/stellar-sdk';
+import { Keypair, Address } from '@stellar/stellar-sdk';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
@@ -22,8 +22,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
-  CLOAK_ORACLE_PUBKEY,
-  DEFAULT_DEMO_LOAN_PRINCIPAL,
   DEFAULT_DEMO_LOSS_AMOUNT,
   DEFAULT_DEMO_YIELD_AMOUNT,
   ENCRYPT_ORACLE_PUBKEY,
@@ -228,7 +226,6 @@ export function ActionPanel() {
     try {
       const core = getCoreClient();
       const loan = await core.read<Record<string, unknown>>('get_loan', [
-        ntsv(VAULT_ID, { type: 'u32' }),
         ntsv(loanId, { type: 'u32' }),
       ]);
       if (!loan) return;
@@ -523,7 +520,6 @@ export function ActionPanel() {
       const core = getCoreClient();
       const result = await core.invoke(borrower, 'repay_loan', [
         addr(borrower.publicKey()),
-        ntsv(VAULT_ID, { type: 'u32' }),
         ntsv(0, { type: 'u32' }), // loan_id
         ntsv(amount, { type: 'i128' }),
       ]);
@@ -546,78 +542,66 @@ export function ActionPanel() {
 
   const initialize = useMutation({
     mutationFn: async () => {
-      const admin = keypairSigner(identity.identities.admin.keypair);
-      const borrower = keypairSigner(identity.identities.borrower.keypair);
-      const core = getCoreClient();
+      const borrowerAddress = identity.identities.borrower.keypair.publicKey();
+      const res = await fetch('/api/admin/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ borrowerAddress }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Initialize failed');
 
-      // initialize_global_config if not present
-      try {
-        await core.read('get_config', []);
-      } catch {
-        await core.invoke(admin, 'initialize_global_config', [
-          addr(admin.publicKey()),
-          addr(ENCRYPT_ORACLE_PUBKEY),
-        ]);
-      }
-
-      // initialize vault
-      try {
-        await core.read('get_vault', [ntsv(VAULT_ID, { type: 'u32' })]);
-      } catch {
-        await core.invoke(admin, 'initialize_vault', [
-          addr(admin.publicKey()),
-          ntsv(VAULT_ID, { type: 'u32' }),
-        ]);
-      }
-
-      // initialize tranches
-      for (const kind of [TrancheKind.Prime, TrancheKind.Core, TrancheKind.Alpha] as const) {
-        try {
-          await core.read('get_tranche', [
-            ntsv(VAULT_ID, { type: 'u32' }),
-            ntsv(kind, { type: 'u32' }),
-          ]);
-        } catch {
-          const aprBps = kind === TrancheKind.Prime ? 500 : kind === TrancheKind.Core ? 800 : 1500;
-          await core.invoke(admin, 'initialize_tranche', [
-            addr(admin.publicKey()),
-            ntsv(VAULT_ID, { type: 'u32' }),
-            ntsv(kind, { type: 'u32' }),
-            ntsv(aprBps, { type: 'u32' }),
-          ]);
-        }
-      }
-
-      // initialize loan
-      try {
-        await core.read('get_loan', [
-          ntsv(VAULT_ID, { type: 'u32' }),
-          ntsv(0, { type: 'u32' }),
-        ]);
-      } catch {
-        await core.invoke(admin, 'initialize_loan', [
-          addr(admin.publicKey()),
-          ntsv(VAULT_ID, { type: 'u32' }),
-          ntsv(0, { type: 'u32' }), // loan_id
-          ntsv(DEFAULT_DEMO_LOAN_PRINCIPAL, { type: 'i128' }),
-          ntsv(800, { type: 'u32' }), // apr_bps
-          ntsv(BigInt(Math.floor(Date.now() / 1000) + 365 * 24 * 3600), { type: 'u64' }),
-          addr(borrower.publicKey()),
-        ]);
-      }
+      const msg = json.alreadyInitialized
+        ? 'All components already existed on-chain — nothing to do.'
+        : `Initialized: ${json.steps.join(', ')}`;
 
       addEntry({
         action: 'Initialize Vault Scaffold',
         role: 'Protocol Admin',
         status: 'info',
-        message: 'Config, vault, tranches, and loan were checked or initialized on-chain.',
+        message: msg,
+        navSnapshot: await navSnapshot(VAULT_ID),
+        deltas: {},
+      });
+
+      return json;
+    },
+    onSuccess: async () => {
+      await afterMutation();
+      await syncLoanToDb(0);
+    },
+    onError: (error) => toast.error(formatError(error)),
+  });
+
+  const fundIdentities = useMutation({
+    mutationFn: async () => {
+      const roles: Array<{ label: string; address: string }> = [
+        { label: 'Senior', address: identity.identities.senior.keypair.publicKey() },
+        { label: 'Junior', address: identity.identities.junior.keypair.publicKey() },
+        { label: 'Borrower', address: identity.identities.borrower.keypair.publicKey() },
+      ];
+      const results: string[] = [];
+      for (const { label, address } of roles) {
+        const res = await fetch('/api/admin/mint-usdc', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: address, amount: '100000000000' }), // 10,000 TUSDC each
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(`Mint to ${label} failed: ${json.error}`);
+        results.push(`${label}: ${json.hash?.slice(0, 8) ?? 'ok'}`);
+      }
+      addEntry({
+        action: 'Fund Identities with TUSDC',
+        role: 'Protocol Admin',
+        status: 'info',
+        message: `Minted 10,000 TUSDC to Senior, Junior, Borrower. ${results.join(' | ')}`,
         navSnapshot: await navSnapshot(VAULT_ID),
         deltas: {},
       });
     },
     onSuccess: async () => {
-      await afterMutation();
-      await syncLoanToDb(0);
+      await queryClient.invalidateQueries({ queryKey: ['identity-balances'] });
     },
     onError: (error) => toast.error(formatError(error)),
   });
@@ -646,6 +630,7 @@ export function ActionPanel() {
     disburse.isPending ||
     repay.isPending ||
     initialize.isPending ||
+    fundIdentities.isPending ||
     attachFheScore.isPending ||
     verifyDefaultViaFhe.isPending ||
     verifyEncryptDefault.isPending ||
@@ -801,14 +786,26 @@ export function ActionPanel() {
                 </p>
               ) : null}
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <Button disabled={busy} variant="secondary" onClick={() => initialize.mutate()} className="w-full gap-2">
+                <RotateCcw className="h-4 w-4" />
+                {initialize.isPending ? 'Initializing…' : 'Initialize Vault'}
+              </Button>
+              <Button
+                disabled={busy}
+                variant="outline"
+                onClick={() => fundIdentities.mutate()}
+                className="w-full gap-2 border-sky-500/30 text-sky-300 hover:bg-sky-500/10"
+                title="Mint 10,000 TUSDC to Senior, Junior, and Borrower identities"
+              >
+                <Banknote className="h-4 w-4" />
+                {fundIdentities.isPending ? 'Funding…' : 'Fund Identities'}
+              </Button>
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <Button disabled={busy} variant="outline" onClick={() => marketReaction.mutate()} className="w-full gap-2">
                 <Flame className="h-4 w-4" />
                 Run Market Reaction
-              </Button>
-              <Button disabled={busy} variant="secondary" onClick={() => initialize.mutate()} className="w-full gap-2">
-                <RotateCcw className="h-4 w-4" />
-                Initialize
               </Button>
               <Button
                 disabled={busy}

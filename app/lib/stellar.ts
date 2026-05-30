@@ -15,15 +15,13 @@
 //   ]);
 
 import {
+  Account,
   Address,
   Contract,
   Keypair,
-  Networks,
-  Operation,
   TransactionBuilder,
   rpc,
   scValToNative,
-  type Account,
   type Memo,
   type MemoType,
   type Operation as OperationType,
@@ -89,9 +87,13 @@ export class ContractClient {
     const server = getRpcServer();
     // We need *some* account to build the simulation tx, but it won't be
     // signed or submitted. Use a deterministic placeholder.
+    // Use a well-known testnet address as the simulation source. If it's
+    // unfunded, fall back to a properly-constructed Account so TransactionBuilder
+    // (which calls incrementSequenceNumber) doesn't throw.
+    const SIM_SOURCE = 'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN';
     const sourceAccount = await server
-      .getAccount('GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF')
-      .catch(() => ({ accountId: () => 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF', sequenceNumber: () => '0' } as Account));
+      .getAccount(SIM_SOURCE)
+      .catch(() => new Account(SIM_SOURCE, '0'));
 
     const tx = new TransactionBuilder(sourceAccount as Account, {
       fee: '100',

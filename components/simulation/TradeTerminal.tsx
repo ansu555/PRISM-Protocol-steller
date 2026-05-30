@@ -617,9 +617,12 @@ function PoolsPanel({ data }: { data: TradeData }) {
                 </div>
               </div>
 
-              <button className="w-full py-2.5 border border-white/10 rounded font-mono text-[10px] uppercase tracking-widest text-white/30 group-hover:text-white/60 group-hover:border-white/20 transition-all">
+              <Link
+                href="/earn/0"
+                className="block w-full py-2.5 border border-white/10 rounded font-mono text-[10px] uppercase tracking-widest text-white/30 text-center group-hover:text-white/60 group-hover:border-white/20 transition-all"
+              >
                 Provide Liquidity
-              </button>
+              </Link>
             </Card>
           );
         })}

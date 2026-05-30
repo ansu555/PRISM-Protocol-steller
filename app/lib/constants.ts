@@ -134,6 +134,20 @@ export const POOL_NAMES: Record<number, string> = {
   3: 'Growth Capital Market',
 };
 
+// pToken contract IDs (one per tranche, deployed alongside prism-core).
+// Override with NEXT_PUBLIC_PTOKEN_*_CONTRACT_ID env vars if redeployed.
+export const PTOKEN_PRIME_CONTRACT_ID =
+  process.env.NEXT_PUBLIC_PTOKEN_PRIME_CONTRACT_ID ??
+  'CDFRSCBDTGIWCQSPVQEWHJJ7HVOGBLUTQBIKRYC3D5VQV5UDLBVGYM7H';
+
+export const PTOKEN_CORE_CONTRACT_ID =
+  process.env.NEXT_PUBLIC_PTOKEN_CORE_CONTRACT_ID ??
+  'CDBDYXZTY5ZEUCIZM7RTDS5GOOA43BT5ARQCGYKQQNOYCBZQAZC5JYBW';
+
+export const PTOKEN_ALPHA_CONTRACT_ID =
+  process.env.NEXT_PUBLIC_PTOKEN_ALPHA_CONTRACT_ID ??
+  'CB5DNWDNIMG75NSUN7GQXXH775TIEXNEIRWXIX4GDPVRR2YVGD3BGWBO';
+
 // Ed25519 pubkey of the Encrypt oracle (32-byte hex, no Stellar StrKey wrapping).
 // Used for local/demo UI defaults; production should always set
 // NEXT_PUBLIC_ENCRYPT_ORACLE_PUBKEY_HEX explicitly.

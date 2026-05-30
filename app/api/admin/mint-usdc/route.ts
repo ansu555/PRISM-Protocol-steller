@@ -1,0 +1,58 @@
+// Mint test USDC (TUSDC) to a given Stellar address.
+// Uses the deployer's ADMIN_SECRET_SEED to call `mint(to, amount)` on the TUSDC SAC.
+// Only valid on testnet — the SAC admin is the TUSDC issuer (deployer).
+
+import { NextRequest, NextResponse } from 'next/server';
+import { Keypair } from '@stellar/stellar-sdk';
+
+import { getCoreClient, getUsdcClient, keypairSigner, addr, nativeToScVal } from '@/app/lib/stellar';
+
+const MAX_MINT = 10_000_000_000_000n; // 1,000,000 TUSDC — hard cap per call (7 decimals)
+
+export async function POST(req: NextRequest) {
+  const seed = process.env.ADMIN_SECRET_SEED;
+  if (!seed) {
+    return NextResponse.json(
+      { error: 'ADMIN_SECRET_SEED is not set on the server. Add it to .env.local.' },
+      { status: 500 },
+    );
+  }
+
+  let adminKeypair: Keypair;
+  try {
+    adminKeypair = Keypair.fromSecret(seed);
+  } catch {
+    return NextResponse.json({ error: 'ADMIN_SECRET_SEED is not a valid Stellar secret key' }, { status: 500 });
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const to: string = body.to;
+  const rawAmount: unknown = body.amount;
+
+  if (!to || typeof to !== 'string') {
+    return NextResponse.json({ error: 'Missing `to` address in request body' }, { status: 400 });
+  }
+
+  const amount = rawAmount ? BigInt(String(rawAmount)) : 100_000_000_000n; // default 10,000 TUSDC
+  if (amount <= 0n || amount > MAX_MINT) {
+    return NextResponse.json(
+      { error: `Amount must be between 1 and ${MAX_MINT} (7-decimal base units)` },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const signer = keypairSigner(adminKeypair);
+    const usdc = getUsdcClient();
+
+    const { hash } = await usdc.invoke(signer, 'mint', [
+      addr(to),
+      nativeToScVal(amount, { type: 'i128' }),
+    ]);
+
+    return NextResponse.json({ ok: true, hash, to, amount: amount.toString() });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

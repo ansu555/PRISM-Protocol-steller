@@ -24,7 +24,7 @@ import {
 // ─── Page Header (Dashboard-style hero) ───────────────────────────────────────
 function PageHeader() {
   const { connected, publicKey } = useWallet();
-  const { clearApplications, getByBorrower } = useLoanApplications();
+  const { getByBorrower } = useLoanApplications();
   const existingApp = publicKey ? getByBorrower(publicKey.toBase58()) : undefined;
 
   const statusLabel =
@@ -96,16 +96,11 @@ function PageHeader() {
           </div>
           <div className="hidden md:block w-px h-12 bg-white/[0.06]" />
           <button
-            onClick={() => {
-              if (confirm('Clear application history and reset session?')) {
-                clearApplications();
-                window.location.reload();
-              }
-            }}
+            onClick={() => window.location.reload()}
             className="flex items-center gap-2 rounded-full border border-white/[0.10] bg-white/[0.02] px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/50 hover:border-white/25 hover:bg-white/[0.05] hover:text-white/80 transition-all"
           >
             <RefreshCcw className="h-3 w-3" />
-            Reset Session
+            Refresh
           </button>
         </div>
       </div>

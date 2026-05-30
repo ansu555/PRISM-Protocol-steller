@@ -1,11 +1,11 @@
 'use client';
 
-import { ChevronRight, Layers, Loader2, Plus, RefreshCw } from 'lucide-react';
+import { ChevronRight, Layers, Plus, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
 import { formatUsdc } from '@/app/lib/format';
 import { TrancheKind } from '@/app/lib/constants';
-import { useAllVaults } from '@/hooks/useAllVaults';
+import { useVaultList } from '@/hooks/useVaultRegistry';
 import { useVaultState } from '@/hooks/useVaultState';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -93,8 +93,8 @@ function VaultCard({ vaultId }: { vaultId: number }) {
 }
 
 export default function VaultsPage() {
-  const allVaults = useAllVaults();
-  const vaults = allVaults.data ?? [];
+  const vaultList = useVaultList();
+  const vaults = vaultList.data ?? [];
 
   return (
     <div className="space-y-10 p-10 bg-background min-h-full">
@@ -107,11 +107,11 @@ export default function VaultsPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => allVaults.refetch()}
-            disabled={allVaults.isFetching}
+            onClick={() => vaultList.refetch()}
+            disabled={vaultList.isFetching}
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/30 transition-all hover:bg-white/[0.05] hover:text-white/70 disabled:opacity-40 shadow-sm"
           >
-            <RefreshCw className={`h-4 w-4 ${allVaults.isFetching ? 'animate-spin' : ''}`} strokeWidth={1.5} />
+            <RefreshCw className={`h-4 w-4 ${vaultList.isFetching ? 'animate-spin' : ''}`} strokeWidth={1.5} />
           </button>
           <Link
             href="/admin/vaults/new"
@@ -124,7 +124,7 @@ export default function VaultsPage() {
       </div>
 
       {/* Vault list */}
-      {allVaults.isLoading ? (
+      {vaultList.isLoading ? (
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
            <Skeleton className="h-64 rounded-2xl" />
            <Skeleton className="h-64 rounded-2xl" />
@@ -144,7 +144,7 @@ export default function VaultsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           {vaults.map((v) => (
-            <VaultCard key={v.id} vaultId={v.id} />
+            <VaultCard key={v.vault_id} vaultId={v.vault_id} />
           ))}
         </div>
       )}

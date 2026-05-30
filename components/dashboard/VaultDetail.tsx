@@ -166,7 +166,7 @@ export function VaultDetail({ vaultId }: VaultDetailProps) {
         totalCapital={data.vaultCapital}
         activeCredit={data.vaultCapital - data.poolLiquidity} // Simplified for UI
         yieldDistributed={data.yieldDistributed}
-        utilization={(Number(data.vaultCapital - data.poolLiquidity) / Number(data.vaultCapital)) * 100}
+        utilization={data.vaultCapital > 0n ? (Number(data.vaultCapital - data.poolLiquidity) / Number(data.vaultCapital)) * 100 : 0}
         health={data.vaultHealth}
       />
 

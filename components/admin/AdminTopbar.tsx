@@ -2,6 +2,7 @@
 
 import { useConnection } from '@/components/providers/stellar-wallet-provider';
 import { ChevronDown } from 'lucide-react';
+import { useEffect } from 'react';
 import { getNetworkName, formatUsdc } from '@/app/lib/format';
 import { useVaultState } from '@/hooks/useVaultState';
 import { useAllVaults } from '@/hooks/useAllVaults';
@@ -12,12 +13,18 @@ export function AdminTopbar() {
   const { vaultId, setVaultId } = useAdminVault();
   const vaultState = useVaultState(vaultId);
   const allVaults = useAllVaults();
+
+  const vaults = allVaults.data ?? [];
+  useEffect(() => {
+    if (vaults.length > 0 && !vaults.find((v) => v.id === vaultId)) {
+      setVaultId(vaults[0].id);
+    }
+  }, [vaults, vaultId, setVaultId]);
   const network = getNetworkName(connection.rpcEndpoint);
 
   const lossBucket = vaultState.data?.lossBucketBalance ?? 0n;
   const isHealthy = lossBucket === 0n;
   const tvl = (vaultState.data?.tranches ?? []).reduce((sum, t) => sum + t.totalAssets, 0n);
-  const vaults = allVaults.data ?? [];
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-6 border-b border-white/[0.06] bg-background px-6">
