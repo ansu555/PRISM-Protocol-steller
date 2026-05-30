@@ -20,11 +20,15 @@ import {
   CheckCircle2,
   CircleAlert,
   Coins,
+  ExternalLink,
   FileSignature,
   HandCoins,
   Loader2,
   ShieldCheck,
+  Wallet,
 } from 'lucide-react';
+import { initiateMoneyGramDeposit } from '@/app/lib/moneygram';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -83,6 +87,9 @@ export function StellarBorrowForm() {
   const [aprBps, setAprBps] = useState<number>(800); // 8%
   const [maturityDays, setMaturityDays] = useState<number>(30);
 
+  // ── MoneyGram funding state ─────────────────────────────────────────────
+  const [mgLoading, setMgLoading] = useState(false);
+
   // ── Repay form state ────────────────────────────────────────────────────
   const [repayAmount, setRepayAmount] = useState<number>(5);
   const [repayLoanId, setRepayLoanId] = useState<number>(DEFAULT_LOAN_ID);
@@ -93,6 +100,23 @@ export function StellarBorrowForm() {
   const focusedLoan = activeLoans.data?.find((l) => l.id === focusedLoanId);
 
   const reserveUsdc = vault.data?.reserveBalance ?? 0n;
+
+  const identity = useIdentity();
+
+  async function handleMoneyGramFund() {
+    setMgLoading(true);
+    try {
+      const result = await initiateMoneyGramDeposit({
+        keypair: identity.keypair,
+        amountUsdc: focusedLoan ? Number(focusedLoan.principal) / 1e7 : undefined,
+      });
+      window.open(result.url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      toast.error(`MoneyGram: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setMgLoading(false);
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -279,6 +303,52 @@ export function StellarBorrowForm() {
               <Banknote className="mr-2 h-4 w-4" />
             )}
             Disburse loan #{focusedLoan?.id ?? '—'}
+          </Button>
+        </div>
+      </div>
+
+      {/* ── FUND WITH MONEYGRAM ──────────────────────────────────── */}
+      <div className="rounded-xl border border-violet-500/20 bg-violet-500/[0.03] backdrop-blur-md overflow-hidden">
+        <div className="flex items-center gap-3 border-b border-violet-500/[0.12] px-5 py-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-violet-500/30 bg-violet-500/10">
+            <Wallet className="h-4 w-4 text-violet-300" />
+          </div>
+          <div className="flex-1">
+            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-violet-300/80">
+              Fund wallet · MoneyGram Access
+            </div>
+            <div className="text-sm text-white/80">
+              Deposit fiat as USDC via SEP-24 anchor protocol
+            </div>
+          </div>
+          <span className="font-mono text-[10px] uppercase tracking-widest text-white/30">
+            sep-24
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-white/50 max-w-sm">
+            MoneyGram&apos;s anchor converts cash or bank transfer to USDC on Stellar.
+            The interactive flow opens in a new tab — no wallet signing required upfront.
+            {focusedLoan && (
+              <span className="ml-1 text-white/60">
+                Suggested: <span className="font-mono text-white/80">
+                  {formatUsdc(focusedLoan.principal)} USDC
+                </span> (loan principal).
+              </span>
+            )}
+          </div>
+          <Button
+            onClick={handleMoneyGramFund}
+            disabled={mgLoading}
+            className="shrink-0 bg-violet-500/15 border border-violet-500/30 text-violet-200 hover:bg-violet-500/25"
+          >
+            {mgLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <ExternalLink className="mr-2 h-4 w-4" />
+            )}
+            Fund with MoneyGram
           </Button>
         </div>
       </div>

@@ -2,9 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-You are coding on the PRISM Protocol codebase. These rules apply to every file you write or edit.
+You are coding on the PRISM Protocol codebase — a structured credit protocol built on **Stellar Soroban**. These rules apply to every file you write or edit.
 
-If you're new to this project, **read [docs/README.md](docs/README.md) first** for orientation, then this file, then [docs/12-reference-card.md](docs/12-reference-card.md). After that, you have full context to start coding.
+If you're new to this project, **read [stellar-migration-plan.md](stellar-migration-plan.md) first** for architecture context, then [stellar-deploy-plan.md](stellar-deploy-plan.md) for the current delivery plan, then this file, then [docs/12-reference-card.md](docs/12-reference-card.md). After that, you have full context to start coding.
+
+> **Solana is retired.** `contracts/programs/prism-core/` and `contracts/programs/prism-amm/` are historical. The active contract is `soroban/prism-core/`. Do not create or reference Anchor/Solana artifacts.
 
 ---
 
@@ -18,31 +20,33 @@ pnpm build        # Production build
 pnpm lint         # ESLint
 ```
 
-### Contracts (cd contracts — yarn)
+### Soroban contract (cd soroban — cargo)
 
 ```bash
-cd contracts
-yarn build                    # anchor build
-yarn test                     # anchor test (spins up localnet)
-yarn test:skip-build          # anchor test --skip-build (faster iteration)
-yarn deploy:devnet            # deploy to devnet
-yarn setup                    # ts-node scripts/setup-demo.ts (seeds demo state)
-yarn format                   # prettier on tests/ and scripts/
+cd soroban
+cargo build --target wasm32-unknown-unknown --release -p prism-core   # Build WASM
+cargo test -p prism-core                                               # Run all tests
+cargo test -p prism-core -- math                                       # Run a subset
+cargo fmt                                                              # Format Rust
 ```
 
-### IDL sync (run after every contract change)
+### Deploy and CLI
 
 ```bash
-cd contracts && anchor build
-cp contracts/target/idl/*.json app/lib/idl/
-# Then commit both the program binary and the updated IDL JSON files
+bash soroban/scripts/deploy.sh          # Deploy prism-core to testnet
+bash soroban/scripts/oracle-allowlist.sh # Manage oracle key allowlist
+stellar contract invoke --id $CID -- get_config   # Read on-chain state
 ```
 
-### Run a single test file
+### No IDL sync step
+
+Soroban does not use IDL JSON files. Contract bindings for the frontend are either hand-written in `app/lib/stellar.ts` or generated once with:
 
 ```bash
-cd contracts && yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/prism-core.ts
+stellar contract bindings typescript --network testnet --id $CID --output-dir app/lib/bindings/
 ```
+
+There is no `anchor build && cp` step.
 
 ---
 
@@ -52,37 +56,57 @@ cd contracts && yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/prism-core
 prism-protocol/
 ├── app/                     Next.js App Router pages
 │   ├── (app)/               Route group: authenticated app shell
+│   │   ├── borrow/          Borrower loan facility (originate + fund + repay)
 │   │   ├── dashboard/       Simulation harness UI
-│   │   └── borrower/        Borrower collateral onboarding
-│   ├── api/                 Route handlers (waitlist, ika-test-oracle)
+│   │   ├── earn/            LP deposit / withdraw
+│   │   └── trade/           Soroswap swap interface
+│   ├── api/                 Route handlers
+│   │   ├── collateral-oracle/  PRISM Collateral Oracle Ed25519 signer
+│   │   ├── encrypt-oracle/     Encrypt FHE oracle signer
+│   │   ├── cloak-oracle/       Cloak oracle signer
+│   │   ├── events/             On-chain event indexer endpoint
+│   │   ├── loans/              Loan state queries
+│   │   └── vaults/             Vault state queries
 │   └── lib/                 Frontend-only utilities
-│       ├── constants.ts     Program IDs, TrancheKind enum, TRANCHE_CONFIG
-│       ├── pda.ts           All PDA derivation functions
-│       ├── program.ts       buildProvider() / buildPrograms() factory
-│       ├── ika.ts           IKA Network dWallet integration
-│       └── idl/             Auto-generated IDL JSON (DO NOT edit manually)
+│       ├── addresses.ts     Deployed contract registry — all contract IDs live here
+│       ├── constants.ts     TrancheKind enum, TRANCHE_CONFIG, protocol parameters
+│       ├── stellar.ts       Soroban RPC client factory (buildCoreClient)
+│       ├── collateral.ts    PRISM Collateral Oracle client (message builder + HTTP)
+│       ├── encrypt.ts       Encrypt FHE oracle client
+│       ├── moneygram.ts     MoneyGram Access SEP-24 deposit client
+│       ├── soroswap.ts      Soroswap AMM helpers (quote, addLiquidity, swap)
+│       ├── reflector.ts     Reflector oracle read helpers
+│       └── horizon.ts       Horizon API helpers (balances, history)
 ├── components/              React components by domain
 │   ├── simulation/          SimulationHarness, VaultStateDashboard, etc.
-│   ├── borrower/            CollateralOnboarding, LoanApplicationForm
-│   ├── admin/               AdminPanel
+│   ├── borrower/            StellarBorrowForm, LoanIntelligencePanel
+│   ├── providers/           stellar-wallet-provider, app-providers
 │   ├── landing/             Marketing page sections
 │   └── app-shell/           Layout chrome (sidebar, topbar)
 ├── hooks/                   Custom React hooks
-│   ├── useVaultState.ts     Polls all on-chain state every 5s via React Query
+│   ├── useVaultState.ts     Polls all on-chain state every 8s via React Query
 │   ├── useIdentity.tsx      Demo role switcher (admin/senior/junior/borrower)
-│   ├── useIkaCollateral.tsx IKA dWallet collateral read/write hooks
+│   ├── useCollateral.tsx    PRISM Collateral Oracle hooks
+│   ├── useSwap.tsx          Soroswap swap hook (rewired from prism_amm)
 │   └── useSimulationActions.tsx  Admin action mutations
 ├── lib/                     Shared non-React utilities (utils.ts, waitlist.ts)
-├── contracts/               Anchor workspace (Rust programs + tests)
-│   ├── programs/
-│   │   ├── prism-core/      Credit engine: tranches, vault, loans, yield, default
-│   │   └── prism-amm/       Constant-product AMM for tranche tokens
-│   ├── tests/               Mocha integration tests (prism-core.ts, prism-amm.ts)
-│   ├── scripts/             setup-demo.ts — seeds full demo state on localnet/devnet
-│   ├── keys/                Devnet keypairs (committed — devnet only!)
-│   └── Anchor.toml          Cluster = localnet; devnet program IDs listed here
-├── docs/                    Architecture docs — see reading order in docs/README.md
-└── doc-website/             Documentation website (separate package)
+├── soroban/                 Soroban contract workspace
+│   ├── prism-core/
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── lib.rs       Main contract (all handlers)
+│   │       ├── state.rs     Vault, Tranche, Loan, CollateralRecord, etc. structs
+│   │       ├── storage.rs   DataKey enum + persistent accessors
+│   │       ├── errors.rs    PrismError enum
+│   │       ├── math.rs      Q64.64 fixed-point arithmetic (Q64_ONE = 1u128 << 64)
+│   │       ├── reflector.rs Reflector oracle client bindings
+│   │       ├── soroswap.rs  Soroswap router client bindings
+│   │       └── tests.rs     Integration tests (soroban-sdk testutils harness)
+│   ├── Cargo.toml           Workspace root; soroban-sdk = "22.0"
+│   ├── keys/                Testnet keypairs (committed — testnet only!)
+│   ├── deployments/         testnet.json — deployed contract IDs
+│   └── scripts/             deploy.sh, oracle-allowlist.sh, update-admin.sh
+└── docs/                    Architecture docs — see stellar-migration-plan.md §15
 ```
 
 ---
@@ -91,103 +115,135 @@ prism-protocol/
 
 ### Simulation identity system
 
-The dashboard is a **demo simulation**, not a real wallet-connected dApp. `useIdentity` (`hooks/useIdentity.tsx`) manages four hardcoded demo keypairs loaded from `contracts/keys/`:
+The dashboard is a **demo simulation**, not a live wallet-connected dApp. `useIdentity` (`hooks/useIdentity.tsx`) manages four in-memory Stellar Keypairs:
 
-- `admin` — triggers credit events, yield, and setup
+- `admin` — triggers credit events, yield accrual, and loan admin actions
 - `senior` / `junior` — LP investors in Prime and Alpha tranches
-- `borrower` — receives disbursed loans and repays
+- `borrower` — receives disbursed loans, repays, and initiates MoneyGram funding
 
-All on-chain calls use `buildPrograms(connection, keypair)` from `app/lib/program.ts` with the active role's keypair, not the browser wallet. The wallet adapter is only used in the borrower IKA collateral flow.
+The admin keypair's public address is pinned to the deployer address (`NEXT_PUBLIC_ADMIN_ADDRESS`); its secret is not on the client. Admin button flows display a "needs deployer wallet" message rather than failing silently. All other role keypairs are random per session.
+
+`buildCoreClient(keypair)` from `app/lib/stellar.ts` is the call-site factory for all on-chain interactions. It handles `simulate → prepare → sign → submit`.
 
 ### Vault state polling
 
-`useVaultState` (`hooks/useVaultState.ts`) is the central data source. It fetches all accounts (config, vault, tranches, AMM pools, loan, reserves) in parallel and returns a single snapshot, refreshed every 5 seconds via React Query. All UI reads from this one hook — do not add duplicate RPC calls in components.
+`useVaultState` (`hooks/useVaultState.ts`) is the central data source. It fetches all on-chain state (config, vault, tranches, loans, reserve balances) via Soroban RPC `simulateTransaction` in parallel and returns a single snapshot refreshed every 8 seconds via React Query. All UI reads from this one hook — do not add duplicate RPC calls in components.
 
-### IKA Network collateral integration
+### Oracle attestation pattern
 
-`app/lib/ika.ts` handles dWallet collateral from IKA Network (Sui-based threshold MPC). The flow:
+All three oracle types (Collateral, Encrypt, Cloak) share the same Ed25519 attestation pattern. On-chain verification collapses to a single call:
 
-1. Borrower runs DKG on IKA testnet via Sui SDK → gets a `dwalletId`
-2. Transfers BTC/ETH to the derived address
-3. IKA oracle signs an 81-byte attestation message
-4. Frontend builds a two-instruction tx: Ed25519 precompile (ix[0]) + `verify_ika_collateral` (ix[1])
-5. `verify_ika_collateral` reads the precompile result via the instructions sysvar
+```rust
+env.crypto().ed25519_verify(&oracle_pubkey, &message, &signature);
+```
 
-The attestation message layout in `ika.ts` must stay byte-identical to `verify_ika_collateral.rs`.
+This replaces the Solana two-instruction precompile pattern. Each oracle has:
+- An API route under `app/api/{oracle}-oracle/` that signs the message with an Ed25519 seed
+- A client library under `app/lib/{oracle}.ts` that builds the message and calls the route
+- An on-chain handler in `soroban/prism-core/src/lib.rs` that verifies and advances state
 
-### PDA derivation
+The oracle pubkey must be in `Config.oracle_allowlist` before it can sign.
 
-All PDAs are derived in `app/lib/pda.ts` (frontend) and mirrored in `contracts/lib/pda.ts` (scripts/tests). Never hardcode addresses — use the exported helpers. PDA seeds match exactly what's in the Rust program's `pda.rs`.
+### Contract addresses
+
+Contract IDs are stable 56-char Stellar StrKey strings (`CXX...`) derived from WASM hash + salt at deploy time. Never hardcode — always use `ACTIVE_CONTRACTS` from `app/lib/addresses.ts`:
+
+```typescript
+import { ACTIVE_CONTRACTS } from '@/app/lib/addresses';
+const id = ACTIVE_CONTRACTS.prismCore;
+```
+
+`ACTIVE_NETWORK` defaults to `'testnet'` unless `NEXT_PUBLIC_STELLAR_NETWORK=mainnet`.
+
+### Soroswap (AMM)
+
+Tranche token pools live on Soroswap (Uniswap-V2 CPMM). The `prism_amm` Solana program is deleted; swap UI calls Soroswap router via `app/lib/soroswap.ts`. Pool seeding is admin-only via `seed_pool_liquidity` on the core contract.
 
 ---
 
 ## Environment variables
 
 ```bash
-NEXT_PUBLIC_PRISM_CORE_PROGRAM_ID   # Defaults to IDL address if unset
-NEXT_PUBLIC_PRISM_AMM_PROGRAM_ID    # Defaults to IDL address if unset
-NEXT_PUBLIC_USDC_MINT               # Defaults to devnet USDC if unset
-NEXT_PUBLIC_VAULT_ID                # Defaults to 0
-NEXT_PUBLIC_IKA_FULLNODE_URL        # Defaults to https://fullnode.testnet.ika.xyz
-NEXT_PUBLIC_IKA_NETWORK             # "testnet" or "mainnet", defaults to "testnet"
+# Stellar / Soroban
+NEXT_PUBLIC_PRISM_CORE_CONTRACT_ID    # Deployed prism_core contract StrKey (CXX...)
+NEXT_PUBLIC_USDC_CONTRACT_ID          # USDC / TUSDC SAC contract StrKey
+NEXT_PUBLIC_SOROSWAP_ROUTER_ID        # Soroswap router contract StrKey
+NEXT_PUBLIC_SOROSWAP_FACTORY_ID       # Soroswap factory contract StrKey
+NEXT_PUBLIC_REFLECTOR_CONTRACT_ID     # Reflector oracle contract StrKey
+NEXT_PUBLIC_SOROBAN_RPC_URL           # Soroban RPC (default: https://soroban-testnet.stellar.org)
+NEXT_PUBLIC_HORIZON_URL               # Horizon (default: https://horizon-testnet.stellar.org)
+NEXT_PUBLIC_NETWORK_PASSPHRASE        # Stellar network passphrase
+NEXT_PUBLIC_STELLAR_NETWORK           # 'testnet' (default) or 'mainnet'
+NEXT_PUBLIC_VAULT_ID                  # Active vault id (default: 0)
+NEXT_PUBLIC_ADMIN_ADDRESS             # Deployer G-address pinned to admin role
+
+# MoneyGram SEP-24
+NEXT_PUBLIC_MONEYGRAM_ANCHOR_DOMAIN   # MoneyGram anchor home domain (default: stellar.moneygram.com)
+NEXT_PUBLIC_MONEYGRAM_ASSET_CODE      # Asset to deposit (default: USDC)
+
+# Oracle signer seeds (server-side only — never NEXT_PUBLIC_)
+COLLATERAL_ORACLE_SEED                # Primary Ed25519 seed (hex or mnemonic)
+COLLATERAL_ORACLE_SEED_DEV            # Dev/testnet fallback seed
+ENCRYPT_ORACLE_SECRET_SEED            # Encrypt oracle primary seed
+CLOAK_ORACLE_SEED                     # Cloak oracle primary seed
+
+# Database
+DATABASE_URL                          # Postgres connection string
 ```
 
 ---
 
-## Rust / Anchor conventions
+## Rust / Soroban conventions
 
 ### Naming
 
-- **Modules / files:** `snake_case` — `nav.rs`, `waterfall.rs`, `accrue_yield.rs`
-- **Structs / enums:** `PascalCase` — `Tranche`, `CreditEventType`
+- **Modules / files:** `snake_case` — `math.rs`, `reflector.rs`, `storage.rs`
+- **Structs / enums:** `PascalCase` — `Vault`, `TrancheKind`, `PrismError`
 - **Functions / variables:** `snake_case` — `compute_nav_q`, `total_assets`
-- **Constants:** `SCREAMING_SNAKE_CASE` — `Q64_ONE`, `MIN_LIQUIDITY`
-- **Anchor instruction handlers:** `snake_case` matching the instruction name — `pub fn deposit(ctx: Context<Deposit>, ...)`
-- **Anchor account contexts:** `PascalCase` matching the instruction — `pub struct Deposit<'info>`
-- **PDA seed strings:** lowercase — `b"config"`, `b"loss_bucket"`, `b"tranche"`
+- **Constants:** `SCREAMING_SNAKE_CASE` — `Q64_ONE`, `MSG_PREFIX`
+- **Contract functions:** `snake_case` matching the exported name — `pub fn deposit(env: Env, user: Address, ...)`
+- **DataKey variants:** `PascalCase` — `DataKey::Vault(u32)`, `DataKey::Collateral(u32)`
 
 ### Style
 
 - Use `cargo fmt` defaults (4-space indent, 100-char line width)
 - Imports grouped: `std`, then external crates, then `crate::`
-- One `use` line per item, not bundled (Anchor's convention)
-- Doc comments (`///`) on **public** items only
-- No `unwrap()` in instruction handlers — use `?` with our `PrismError` enum
+- Doc comments (`///`) on public contract functions only
+- No `unwrap()` or `expect()` in contract handlers — use `ok_or(PrismError::X)?`
+
+### Auth and state storage
+
+```rust
+// Every user-facing handler requires explicit auth:
+user.require_auth();
+
+// All persistent state uses DataKey + extend_ttl:
+env.storage().persistent().set(&DataKey::Vault(vault_id), &vault);
+env.storage().persistent().extend_ttl(&DataKey::Vault(vault_id), THRESHOLD, EXTEND_TO);
+```
 
 ### Error handling
 
-- All custom errors in `contracts/programs/prism-core/src/errors.rs` and `contracts/programs/prism-amm/src/errors.rs`
-- Pattern: `require!(condition, PrismError::SpecificError);`
-- For computed errors: `return Err(PrismError::X.into());`
-- Never use generic `anyhow` or `thiserror` errors in handlers
-- See [docs/12-reference-card.md](docs/12-reference-card.md) for the full error enum
-
-### Account validation
-
-- Prefer Anchor's `#[account(...)]` constraints over imperative checks in handlers
-- Use `has_one`, `seeds`, `bump`, `constraint = ...` aggressively
-- For PDA bumps: pass `bump = stored_bump_value` when reading existing accounts. Use `bump` (no value) only on `init`
-- For `init` instructions: use `init_if_needed` only when truly needed. Otherwise use `init` so a duplicate init fails loudly
+- All custom errors in `soroban/prism-core/src/errors.rs` as `PrismError`
+- Pattern: `if !condition { return Err(PrismError::X); }`
+- Never panic in handlers; never use `anyhow`/`thiserror` for contract code
 
 ### Math
 
-- Use the `math::q` module for all NAV math — don't reimplement
-- Use `checked_*` methods (`checked_add`, `checked_mul`) for any multi-step arithmetic
+- Use the `math` module for all NAV math — don't reimplement
+- Use `checked_*` methods for multi-step arithmetic
 - Q64.64 representation: `u128` where `Q64_ONE = 1u128 << 64` represents 1.0
 
-### Anchor footguns
+### Soroban gotchas
 
 | Don't | Do |
 |---|---|
-| ❌ `bump` (no value) when reading an existing PDA | ✅ `bump = vault.bump` (stored bump) |
-| ❌ `init` on a token account that already exists | ✅ `init_if_needed` (sparingly) |
-| ❌ Use `ctx.bumps.get("name")` (deprecated) | ✅ `ctx.bumps.name` (Anchor 0.30+) |
-| ❌ Forget `mut` on accounts you modify | ✅ Add `mut` to every account whose data or lamports change |
-| ❌ Pass mints as `UncheckedAccount` | ✅ `Account<'info, Mint>` |
-| ❌ Sign CPI without seeds for PDA-controlled accounts | ✅ `CpiContext::new_with_signer(...)` with seeds |
-| ❌ Skip `space = 8 + Struct::INIT_SPACE` on `init` | ✅ Always derive `InitSpace` and use the macro |
-| ❌ Recompute PDA bumps in handlers | ✅ Store the bump at init time, read it later |
-| ❌ Forget `system_program` in `init` contexts | ✅ Always include it |
+| ❌ Forget `require_auth()` on user-facing handlers | ✅ Every `Address` arg calls `addr.require_auth()` before state changes |
+| ❌ Skip `extend_ttl()` after touching persistent storage | ✅ Every handler that reads/writes a persistent key extends its TTL |
+| ❌ Use `unwrap()` or `expect()` in contract handlers | ✅ Use `ok_or(PrismError::X)?` throughout |
+| ❌ Store a running balance manually | ✅ USDC balance is held by the contract's own address via the SAC |
+| ❌ Call `env.crypto().ed25519_verify()` without checking replay | ✅ Always consume the nonce via `DataKey::NonceUsed([u8;32])` first |
+| ❌ Hardcode network addresses in contract code | ✅ Pass them as constructor args stored in `Config` |
 
 ---
 
@@ -195,12 +251,12 @@ NEXT_PUBLIC_IKA_NETWORK             # "testnet" or "mainnet", defaults to "testn
 
 ### Naming
 
-- **Files:** `PascalCase` for components (`TrancheBar.tsx`), `camelCase` for hooks/utilities (`useTranche.ts`, `pda.ts`)
-- **React components:** `PascalCase` — `<TrancheBar />`, `<DepositForm />`
-- **Hooks:** `useXxx` prefix — `useTranche`, `useDeposit`
-- **Constants:** `SCREAMING_SNAKE_CASE` — `Q64_ONE`, `DEMO_WALLETS`
-- **Types / interfaces:** `PascalCase` — `TrancheKind`, `UserPnL`
-- **Variables / functions:** `camelCase` — `navPerShare`, `computeShares`
+- **Files:** `PascalCase` for components (`StellarBorrowForm.tsx`), `camelCase` for hooks/utilities (`useSwap.ts`, `soroswap.ts`)
+- **React components:** `PascalCase` — `<StellarBorrowForm />`, `<TrancheBar />`
+- **Hooks:** `useXxx` prefix — `useVaultState`, `useCollateral`
+- **Constants:** `SCREAMING_SNAKE_CASE` — `Q64_ONE`, `ACTIVE_CONTRACTS`
+- **Types / interfaces:** `PascalCase` — `TrancheKind`, `CollateralAttestation`
+- **Variables / functions:** `camelCase` — `navPerShare`, `initiateMoneyGramDeposit`
 
 ### Style
 
@@ -208,42 +264,52 @@ NEXT_PUBLIC_IKA_NETWORK             # "testnet" or "mainnet", defaults to "testn
 - ESLint `next/core-web-vitals` config
 - Functional components only — no class components
 - `const` over `let` — `let` only when reassigning
-- Named exports over default exports (default only for Next.js pages)
+- Named exports over default exports (default only for Next.js page files)
 - Imports: React → next → external libs → `@/app/lib/...` → `@/components/...` → relative
 
 ### React patterns
 
 - All async data fetching through React Query (`@tanstack/react-query`)
-- All mutations through `useMutation` — never bare `await program.methods.X.rpc()` in components
-- All transactions wait for `commitment: "confirmed"`
+- All mutations through `useMutation` — never bare `await contract.invoke(...)` in components
 - All errors surface via `sonner` toast (`import { toast } from 'sonner'`) — never silent
-- The wallet adapter (`useWallet`, `useConnection`) is used only in the IKA collateral flow; the simulation harness uses `useIdentity` keypairs directly
+- The wallet kit (`useStellarWallet`) is used for user-facing flows; the simulation harness uses `useIdentity` keypairs directly
 
-### Anchor TS gotchas
+### Soroban TS gotchas
 
 | Don't | Do |
 |---|---|
-| ❌ Use raw `BN` arithmetic without `.toString()` for display | ✅ Always `.toString()` or convert to number for UI |
-| ❌ Pass numbers directly as `u64` args | ✅ Wrap in `new BN(value)` |
-| ❌ Hardcode PDA addresses | ✅ Derive via `app/lib/pda.ts` helpers |
-| ❌ Build instructions then call `.rpc()` separately | ✅ For multi-ix tx: build with `.instruction()`, combine in `Transaction`, send via `provider.sendAndConfirm` |
+| ❌ Pass `u128` / `i128` values as JS numbers | ✅ Use `BigInt` and `nativeToScVal(value, { type: 'i128' })` |
+| ❌ Hardcode contract IDs inline | ✅ Import from `app/lib/addresses.ts` via `ACTIVE_CONTRACTS` |
+| ❌ Call the contract without simulating first | ✅ Use `buildCoreClient(keypair).invoke(...)` which handles simulate+prepare+send |
+| ❌ Read on-chain state with a raw transaction | ✅ Use `buildCoreClient().read(...)` which does a dry-run simulation |
+| ❌ Use `new BN(value)` (Anchor idiom) | ✅ Use native `BigInt` — Soroban SDK uses `bigint` throughout |
 
 ---
 
 ## Test conventions
 
-### Rust unit tests (in `contracts/programs/*/src/math/*.rs`)
+### Rust tests (in `soroban/prism-core/src/tests.rs`)
 
-- `snake_case` test names: `test_compute_nav_q_with_zero_supply`
-- Use `#[cfg(test)] mod tests { ... }` pattern
-- Hardcode expected values from [docs/04-data-flows.md](docs/04-data-flows.md) tables
+- `snake_case` test names: `test_waterfall_locked_demo_numbers`
+- Use the `soroban_sdk::testutils::Env::default()` harness + `register_contract`
+- Hardcode expected NAV values from [docs/12-reference-card.md](docs/12-reference-card.md) §4.3 and §4.5
 
-### TypeScript integration tests (in `contracts/tests/`)
+```rust
+#[test]
+fn test_waterfall_locked_demo_numbers() {
+    let env = Env::default();
+    // ... setup ...
+    assert_eq!(prime_nav, expected_q64);
+}
+```
 
-- Mocha + Chai (Anchor's default)
-- `it("...")` style: `it("mints shares 1:1 on first deposit at NAV 1.0", async () => {...})`
-- Group with `describe("instruction_name", () => {...})`
-- Assert exact NAV values from §4.3 and §4.5 — math correctness is the highest-risk failure
+### Running tests
+
+```bash
+cargo test -p prism-core                          # All tests
+cargo test -p prism-core -- waterfall             # Substring match
+cargo test -p prism-core -- --nocapture           # Show println! output
+```
 
 ---
 
@@ -251,30 +317,30 @@ NEXT_PUBLIC_IKA_NETWORK             # "testnet" or "mainnet", defaults to "testn
 
 - **Conventional commits:** `type(scope): subject`
 - Types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `build`
-- Scopes: `core`, `amm`, `app`, `tests`, `scripts`, `docs`
+- Scopes: `core`, `app`, `tests`, `scripts`, `docs`, `oracle`
 
 ### Don't commit
 
 - `.env` (only `.env.example` is committed)
-- `contracts/target/` (Rust build output)
+- `soroban/target/` (Rust build output)
 - `node_modules/`, `.next/`, `test-ledger/`
-- Any mainnet keys (devnet keys in `contracts/keys/` are OK)
+- Any mainnet keys (testnet keys in `soroban/keys/` are OK)
 
 ---
 
 ## Editing the design docs
 
-The numbered docs in `docs/` (`00-overview.md` through `09-lld-completion.md`) are **locked architecture**. Don't modify them unless the user explicitly asks, you found a real inconsistency, or you're propagating a locked decision.
+The numbered docs in `docs/` (`00-overview.md` through `12-reference-card.md`) are **locked architecture** for the financial model. Don't modify them unless the user explicitly asks. For chain-specific concerns, [stellar-migration-plan.md](stellar-migration-plan.md) is the authoritative override.
 
 ---
 
 ## Hard rules (don't break)
 
-1. Tier 1 (`deposit`, `accrue_yield`, `trigger_credit_event`) must work perfectly before any Tier 2 or 3 work begins
-2. The vault USDC reserve invariant (`reserve.amount == sum(tranche.total_assets)`) holds at all times — enforce on default by transferring loss to `loss_bucket` PDA
-3. NAV edge cases: handle first-deposit (mint 1:1), total wipeout (block deposits with `TrancheWipedNoDepositsAllowed`), post-wipe withdraw (returns 0 USDC — this is intentional)
-4. Test math values must match §4.3 and §4.5 exactly
-5. IDL sync after every contract change: `anchor build && cp contracts/target/idl/*.json app/lib/idl/` and commit
+1. Tier 1 (`deposit`, `accrue_yield`, `trigger_credit_event`) must work correctly before any Tier 2 or 3 work begins
+2. The vault USDC reserve invariant (`reserve_balance == Σ tranche.total_assets + loss_bucket_balance`) holds at all times — enforced in the contract's cascade handler
+3. NAV edge cases: handle first-deposit (mint 1:1 at Q64_ONE), total wipeout (block deposits with `TrancheWipedNoDepositsAllowed`), post-wipe withdraw (returns 0 USDC — intentional)
+4. Test math values must match §4.3 and §4.5 of `12-reference-card.md` exactly
+5. No Solana/Anchor imports anywhere in `app/`, `components/`, or `hooks/` — run `grep -r "@solana\|@coral-xyz" app/ hooks/ components/` to verify
 6. Never modify locked architecture without user approval
 
 If still stuck, **stop and ask the user** — one clarification beats 200 lines of wrong code.
