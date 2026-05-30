@@ -14,7 +14,8 @@ export function parseUsdc(value: string): bigint {
   const trimmed = value.trim().replace(/,/g, '');
   if (!trimmed) return 0n;
   const [whole = '0', rawFraction = ''] = trimmed.split('.');
-  const fraction = rawFraction.padEnd(6, '0').slice(0, 6);
+  // PTUSDC has 7 decimal places — pad/truncate fraction to exactly 7 digits.
+  const fraction = rawFraction.padEnd(7, '0').slice(0, 7);
   return BigInt(whole || '0') * USDC_BASE_UNITS + BigInt(fraction || '0');
 }
 
@@ -40,8 +41,10 @@ export function formatNavQ(value: unknown): string {
   return `${whole.toString()}.${fraction}`;
 }
 
-export function shortKey(value: { toBase58: () => string } | string): string {
+export function shortKey(value: { toBase58: () => string } | string | null | undefined): string {
+  if (!value) return '—';
   const key = typeof value === 'string' ? value : value.toBase58();
+  if (!key) return '—';
   return `${key.slice(0, 4)}...${key.slice(-4)}`;
 }
 

@@ -88,7 +88,29 @@ export function DevelopersSection() {
           </h2>
         </div>
 
-        {/* Logo marquee strip — temporarily disabled */}
+        <div
+          className={`mb-10 max-w-[58%] overflow-hidden py-4 transition-all duration-700 delay-75 max-lg:max-w-full ${
+            isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+          }`}
+        >
+          <div className="flex w-max animate-logo-marquee items-center gap-10 pr-10">
+            {[...logos, ...logos].map((logo, index) => (
+              <div
+                key={`${logo.name}-${index}`}
+                className="flex shrink-0 items-center gap-3 text-sm font-semibold text-zinc-400"
+              >
+                <Image
+                  src={logo.src}
+                  alt={`${logo.name} logo`}
+                  width={logo.width}
+                  height={logo.height}
+                  className={`${logo.wide ? "h-5 w-auto" : "h-6 w-6"} object-contain`}
+                />
+                <span>{logo.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Description + Features — left half only */}
         <div

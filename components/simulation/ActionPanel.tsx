@@ -11,7 +11,6 @@ import {
   Landmark,
   Lock,
   Play,
-  RotateCcw,
   ShieldAlert,
   ShieldCheck,
   TrendingDown,
@@ -46,6 +45,7 @@ import {
   useVerifyEncryptDefault,
 } from '@/hooks/useEncryptHealth';
 import { useUpsertLoan } from '@/hooks/useActiveLoans';
+import { useLoans } from '@/hooks/useLoans';
 import { useIdentity } from '@/hooks/useIdentity';
 import { useIdentityBalances } from '@/hooks/useIdentityBalances';
 import { useSimulationActions } from '@/hooks/useSimulationActions';
@@ -162,14 +162,20 @@ export function ActionPanel() {
 
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => setIsMounted(true), []);
-  const [depositAmount, setDepositAmount] = useState('100.000000');
-  const [withdrawShares, setWithdrawShares] = useState('1.000000');
+  const [depositAmount, setDepositAmount] = useState('100');
+  const [withdrawShares, setWithdrawShares] = useState('100');
   const [yieldAmount, setYieldAmount] = useState(formatUsdc(DEFAULT_DEMO_YIELD_AMOUNT));
   const [lossAmount, setLossAmount] = useState(formatUsdc(DEFAULT_DEMO_LOSS_AMOUNT));
-  const [loanAmount, setLoanAmount] = useState('10.000000');
-  const [swapAmount, setSwapAmount] = useState('10.000000');
+  const [loanAmount, setLoanAmount] = useState('10');
+  const [swapAmount, setSwapAmount] = useState('10');
 
   const upsertLoan = useUpsertLoan();
+
+  // Resolve actual on-chain loan ID for the borrower — avoids hardcoded 0
+  const { data: onChainLoans = [] } = useLoans();
+  const borrowerAddress = identity.identities.borrower.keypair.publicKey();
+  const borrowerLoan = onChainLoans.find(l => l.borrower === borrowerAddress);
+  const activeLoanId = borrowerLoan?.id ?? 0;
 
   const investorTranche =
     identity.role === 'senior'
@@ -301,25 +307,17 @@ export function ActionPanel() {
   const accrueYield = useMutation({
     mutationFn: async () => {
       const amount = parseUsdc(yieldAmount);
-      const admin = keypairSigner(identity.identities.admin.keypair);
-      const borrower = keypairSigner(identity.identities.borrower.keypair);
-      const before = await takeSnapshot(borrower.publicKey(), TrancheKind.Prime, VAULT_ID);
-      const core = getCoreClient();
-      const result = await core.invoke(admin, 'accrue_yield', [
-        addr(admin.publicKey()),
-        ntsv(VAULT_ID, { type: 'u32' }),
-        addr(borrower.publicKey()),
-        ntsv(amount, { type: 'i128' }),
-      ]);
-      const after = await takeSnapshot(borrower.publicKey(), TrancheKind.Prime, VAULT_ID);
-      recordSuccess(
-        'Admin Accrue Yield',
-        'Protocol Admin',
-        before,
-        after,
-        await navSnapshot(VAULT_ID),
-        result.hash,
-      );
+      const borrower = identity.identities.borrower.keypair.publicKey();
+      const before = await takeSnapshot(borrower, TrancheKind.Prime, VAULT_ID);
+      const res  = await fetch('/api/simulation/admin-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'accrue_yield', yieldAmount: amount.toString() }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'accrue_yield failed');
+      const after = await takeSnapshot(borrower, TrancheKind.Prime, VAULT_ID);
+      recordSuccess('Admin Accrue Yield', 'Protocol Admin', before, after, await navSnapshot(VAULT_ID), json.hash);
     },
     onSuccess: afterMutation,
     onError: (error) => toast.error(formatError(error)),
@@ -328,26 +326,17 @@ export function ActionPanel() {
   const triggerDefault = useMutation({
     mutationFn: async () => {
       const amount = parseUsdc(lossAmount);
-      const admin = keypairSigner(identity.identities.admin.keypair);
-      const before = await takeSnapshot(admin.publicKey(), TrancheKind.Alpha, VAULT_ID);
-      const core = getCoreClient();
-      const result = await core.invoke(admin, 'trigger_credit_event', [
-        addr(admin.publicKey()),
-        ntsv(VAULT_ID, { type: 'u32' }),
-        ntsv(0, { type: 'u32' }), // event_type: Default
-        ntsv(amount, { type: 'i128' }),
-        ntsv(5000, { type: 'u32' }), // severity_bps
-        ntsv(0, { type: 'u32' }), // loan_id
-      ]);
-      const after = await takeSnapshot(admin.publicKey(), TrancheKind.Alpha, VAULT_ID);
-      recordSuccess(
-        'Admin Trigger Default (50% demo severity)',
-        'Protocol Admin',
-        before,
-        after,
-        await navSnapshot(VAULT_ID),
-        result.hash,
-      );
+      const adminAddr = identity.identities.admin.address;
+      const before = await takeSnapshot(adminAddr, TrancheKind.Alpha, VAULT_ID);
+      const res  = await fetch('/api/simulation/admin-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'trigger_credit_event', lossAmount: amount.toString(), severity: 2 }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'trigger_credit_event failed');
+      const after = await takeSnapshot(adminAddr, TrancheKind.Alpha, VAULT_ID);
+      recordSuccess('Admin Trigger Default', 'Protocol Admin', before, after, await navSnapshot(VAULT_ID), json.hash);
     },
     onSuccess: afterMutation,
     onError: (error) => toast.error(formatError(error)),
@@ -375,7 +364,7 @@ export function ActionPanel() {
     mutationFn: async () => {
       const commitment = await deriveDemoCommitment();
       await attachEncryptScore.mutateAsync({
-        loanId: 0,
+        loanId: activeLoanId,
         commitment,
         encryptOraclePubkey: Uint8Array.from(Buffer.from(ENCRYPT_ORACLE_PUBKEY, 'hex')),
       });
@@ -389,7 +378,7 @@ export function ActionPanel() {
       const core = getCoreClient();
       const health = await core.read<Record<string, unknown>>('get_encrypt_health', [
         ntsv(VAULT_ID, { type: 'u32' }),
-        ntsv(0, { type: 'u32' }),
+        ntsv(activeLoanId, { type: 'u32' }),
       ]);
       if (!health) {
         throw new Error(
@@ -400,7 +389,7 @@ export function ActionPanel() {
       const commitment = new Uint8Array(health.score_commitment as number[]);
       const result = await verifyEncryptDefault.mutateAsync({
         vaultId: VAULT_ID,
-        loanId: 0,
+        loanId: activeLoanId,
         scoreCommitment: commitment,
         lossAmount: parseUsdc(lossAmount),
         severityBps: 5000,
@@ -487,27 +476,21 @@ export function ActionPanel() {
 
   const disburse = useMutation({
     mutationFn: async () => {
-      const admin = keypairSigner(identity.identities.admin.keypair);
-      const borrower = keypairSigner(identity.identities.borrower.keypair);
-      const before = await takeSnapshot(borrower.publicKey(), TrancheKind.Prime, VAULT_ID);
-      const core = getCoreClient();
-      const result = await core.invoke(admin, 'disburse_loan', [
-        ntsv(VAULT_ID, { type: 'u32' }),
-        ntsv(0, { type: 'u32' }), // loan_id
-      ]);
-      const after = await takeSnapshot(borrower.publicKey(), TrancheKind.Prime, VAULT_ID);
-      recordSuccess(
-        'Borrower Disbursement (admin-authorized)',
-        'Borrower',
-        before,
-        after,
-        await navSnapshot(VAULT_ID),
-        result.hash,
-      );
+      const borrower = identity.identities.borrower.keypair.publicKey();
+      const before = await takeSnapshot(borrower, TrancheKind.Prime, VAULT_ID);
+      const res  = await fetch('/api/simulation/admin-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'disburse_loan', loanId: activeLoanId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'disburse_loan failed');
+      const after = await takeSnapshot(borrower, TrancheKind.Prime, VAULT_ID);
+      recordSuccess('Borrower Disbursement (admin-authorized)', 'Borrower', before, after, await navSnapshot(VAULT_ID), json.hash);
     },
     onSuccess: async () => {
       await afterMutation();
-      await syncLoanToDb(0);
+      await syncLoanToDb(activeLoanId);
     },
     onError: (error) => toast.error(formatError(error)),
   });
@@ -520,7 +503,7 @@ export function ActionPanel() {
       const core = getCoreClient();
       const result = await core.invoke(borrower, 'repay_loan', [
         addr(borrower.publicKey()),
-        ntsv(0, { type: 'u32' }), // loan_id
+        ntsv(activeLoanId, { type: 'u32' }), // loan_id
         ntsv(amount, { type: 'i128' }),
       ]);
       const after = await takeSnapshot(borrower.publicKey(), TrancheKind.Prime, VAULT_ID);
@@ -535,73 +518,7 @@ export function ActionPanel() {
     },
     onSuccess: async () => {
       await afterMutation();
-      await syncLoanToDb(0);
-    },
-    onError: (error) => toast.error(formatError(error)),
-  });
-
-  const initialize = useMutation({
-    mutationFn: async () => {
-      const borrowerAddress = identity.identities.borrower.keypair.publicKey();
-      const res = await fetch('/api/admin/initialize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ borrowerAddress }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'Initialize failed');
-
-      const msg = json.alreadyInitialized
-        ? 'All components already existed on-chain — nothing to do.'
-        : `Initialized: ${json.steps.join(', ')}`;
-
-      addEntry({
-        action: 'Initialize Vault Scaffold',
-        role: 'Protocol Admin',
-        status: 'info',
-        message: msg,
-        navSnapshot: await navSnapshot(VAULT_ID),
-        deltas: {},
-      });
-
-      return json;
-    },
-    onSuccess: async () => {
-      await afterMutation();
-      await syncLoanToDb(0);
-    },
-    onError: (error) => toast.error(formatError(error)),
-  });
-
-  const fundIdentities = useMutation({
-    mutationFn: async () => {
-      const roles: Array<{ label: string; address: string }> = [
-        { label: 'Senior', address: identity.identities.senior.keypair.publicKey() },
-        { label: 'Junior', address: identity.identities.junior.keypair.publicKey() },
-        { label: 'Borrower', address: identity.identities.borrower.keypair.publicKey() },
-      ];
-      const results: string[] = [];
-      for (const { label, address } of roles) {
-        const res = await fetch('/api/admin/mint-usdc', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to: address, amount: '100000000000' }), // 10,000 TUSDC each
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(`Mint to ${label} failed: ${json.error}`);
-        results.push(`${label}: ${json.hash?.slice(0, 8) ?? 'ok'}`);
-      }
-      addEntry({
-        action: 'Fund Identities with TUSDC',
-        role: 'Protocol Admin',
-        status: 'info',
-        message: `Minted 10,000 TUSDC to Senior, Junior, Borrower. ${results.join(' | ')}`,
-        navSnapshot: await navSnapshot(VAULT_ID),
-        deltas: {},
-      });
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['identity-balances'] });
+      await syncLoanToDb(activeLoanId);
     },
     onError: (error) => toast.error(formatError(error)),
   });
@@ -629,8 +546,6 @@ export function ActionPanel() {
     marketReaction.isPending ||
     disburse.isPending ||
     repay.isPending ||
-    initialize.isPending ||
-    fundIdentities.isPending ||
     attachFheScore.isPending ||
     verifyDefaultViaFhe.isPending ||
     verifyEncryptDefault.isPending ||
@@ -665,7 +580,20 @@ export function ActionPanel() {
               {investorTrancheConfig.label} tranche entry
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-              <Input value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} />
+              <div className="relative">
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="100"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  className="pr-16"
+                />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center font-mono text-[10px] text-white/40">
+                  USDC
+                </span>
+              </div>
               <Button disabled={busy} onClick={() => deposit.mutate()} className="w-full gap-2 sm:w-auto">
                 <WalletCards className="h-4 w-4" />
                 Deposit
@@ -786,21 +714,12 @@ export function ActionPanel() {
                 </p>
               ) : null}
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <Button disabled={busy} variant="secondary" onClick={() => initialize.mutate()} className="w-full gap-2">
-                <RotateCcw className="h-4 w-4" />
-                {initialize.isPending ? 'Initializing…' : 'Initialize Vault'}
-              </Button>
-              <Button
-                disabled={busy}
-                variant="outline"
-                onClick={() => fundIdentities.mutate()}
-                className="w-full gap-2 border-sky-500/30 text-sky-300 hover:bg-sky-500/10"
-                title="Mint 10,000 TUSDC to Senior, Junior, and Borrower identities"
-              >
-                <Banknote className="h-4 w-4" />
-                {fundIdentities.isPending ? 'Funding…' : 'Fund Identities'}
-              </Button>
+            <div className="mt-3 flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs text-white/40">
+              <ExternalLink className="h-3 w-3 shrink-0" />
+              Protocol init (vault, identities, AMM pools) →{' '}
+              <a href="/admin/protocol" className="text-sky-400 hover:underline">
+                /admin/protocol
+              </a>
             </div>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <Button disabled={busy} variant="outline" onClick={() => marketReaction.mutate()} className="w-full gap-2">

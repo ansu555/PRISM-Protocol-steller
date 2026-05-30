@@ -3,17 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { TrancheVisual } from './TrancheVisual';
 import { formatUsdc, stateName } from '@/app/lib/format';
-import {
-  Building2,
-  Database,
-  Layers,
-  Zap,
-  ArrowUpRight,
-  ShieldCheck,
-  Globe,
-  Activity,
-  type LucideIcon,
-} from 'lucide-react';
+import { Building2, Database, Layers, Zap, ArrowUpRight, ShieldCheck, type LucideIcon } from 'lucide-react';
 
 interface VaultMarketCardProps {
   vault: any;
@@ -25,51 +15,16 @@ interface CategoryMeta {
   iconBg: string;
   iconBorder: string;
   iconColor: string;
-  glow: string;
-  accent: string;
 }
 
 const CATEGORIES: CategoryMeta[] = [
-  {
-    label: 'Structured Credit',
-    icon: Database,
-    iconBg: 'bg-violet-500/[0.08]',
-    iconBorder: 'border-violet-500/25',
-    iconColor: 'text-violet-300',
-    glow: 'shadow-[0_0_24px_rgba(139,92,246,0.10)]',
-    accent: 'rgba(139,92,246,0.18)',
-  },
-  {
-    label: 'Institutional SOL',
-    icon: Building2,
-    iconBg: 'bg-sky-500/[0.08]',
-    iconBorder: 'border-sky-500/25',
-    iconColor: 'text-sky-300',
-    glow: 'shadow-[0_0_24px_rgba(14,165,233,0.10)]',
-    accent: 'rgba(14,165,233,0.18)',
-  },
-  {
-    label: 'RWA Financed',
-    icon: Layers,
-    iconBg: 'bg-emerald-500/[0.08]',
-    iconBorder: 'border-emerald-500/25',
-    iconColor: 'text-emerald-300',
-    glow: 'shadow-[0_0_24px_rgba(16,185,129,0.10)]',
-    accent: 'rgba(16,185,129,0.18)',
-  },
-  {
-    label: 'Liquidity Alpha',
-    icon: Zap,
-    iconBg: 'bg-amber-500/[0.08]',
-    iconBorder: 'border-amber-500/25',
-    iconColor: 'text-amber-300',
-    glow: 'shadow-[0_0_24px_rgba(245,158,11,0.10)]',
-    accent: 'rgba(245,158,11,0.18)',
-  },
+  { label: 'Structured Credit', icon: Database,  iconBg: 'rgba(139,92,246,0.06)',  iconBorder: 'rgba(139,92,246,0.15)', iconColor: '#a78bfa' },
+  { label: 'Institutional SOL', icon: Building2, iconBg: 'rgba(14,165,233,0.06)',   iconBorder: 'rgba(14,165,233,0.15)', iconColor: '#7dd3fc' },
+  { label: 'RWA Financed',      icon: Layers,    iconBg: 'rgba(16,185,129,0.06)',   iconBorder: 'rgba(16,185,129,0.15)', iconColor: '#6ee7b7' },
+  { label: 'Liquidity Alpha',   icon: Zap,       iconBg: 'rgba(245,158,11,0.06)',   iconBorder: 'rgba(245,158,11,0.15)', iconColor: '#fcd34d' },
 ];
 
-function formatTvlShort(value: any): string {
-  // Strip trailing dot from formatUsdc(value, 0)
+function fmtTvl(value: any): string {
   return formatUsdc(value, 0).replace(/\.$/, '');
 }
 
@@ -78,131 +33,104 @@ export function VaultMarketCard({ vault }: VaultMarketCardProps) {
   const meta = CATEGORIES[vault.id % CATEGORIES.length];
   const Icon = meta.icon;
 
-  const isHighDemand = vault.id === 1;
   const utilization = Number(vault.utilization) || 0;
+  const isHighDemand = vault.id === 1;
 
-  const utilColor =
-    utilization > 85 ? 'bg-rose-500/60' :
-    utilization > 60 ? 'bg-amber-500/60' :
-    'bg-emerald-500/50';
+  const minApy = vault.tranches[0] ? (vault.tranches[0].targetApyBps / 100).toFixed(1) : '5.0';
+  const maxApy = vault.tranches.length > 1
+    ? (vault.tranches[vault.tranches.length - 1].targetApyBps / 100).toFixed(1)
+    : minApy;
+
+  const utilBarColor =
+    utilization > 85 ? 'bg-rose-400/40' :
+    utilization > 60 ? 'bg-amber-400/40' :
+    'bg-emerald-400/30';
 
   return (
     <div
       onClick={() => router.push(`/earn/${vault.id}`)}
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-md transition-all duration-300 hover:border-white/[0.18] hover:bg-white/[0.05] cursor-pointer"
-      style={{
-        backgroundImage: `radial-gradient(ellipse 60% 80% at 100% 0%, ${meta.accent} 0%, transparent 55%)`,
-      }}
+      className="group flex flex-col rounded-2xl border border-white/[0.03] bg-[#0c0c0f] cursor-pointer transition-all duration-200 hover:bg-[#0e0e12] hover:-translate-y-0.5 hover:border-white/[0.06]"
     >
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <div className="px-6 pt-6 pb-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border ${meta.iconBg} ${meta.iconBorder} ${meta.glow}`}>
-              <Icon className={`h-5 w-5 ${meta.iconColor}`} strokeWidth={1.75} />
-            </div>
-            <div className="min-w-0">
-              <div className={`font-mono text-[10px] uppercase tracking-[0.22em] ${meta.iconColor} opacity-80`}>
-                {meta.label}
-              </div>
-              <h3 className="mt-1 font-display text-xl text-white tracking-tight leading-none truncate">
-                Credit Vault #{vault.id}
-              </h3>
-            </div>
-          </div>
-
-          {/* Status pill */}
-          <div className={`shrink-0 flex items-center gap-1.5 rounded-full border px-2.5 py-1 backdrop-blur-sm ${
-            isHighDemand
-              ? 'border-amber-400/25 bg-amber-400/[0.08]'
-              : 'border-emerald-400/25 bg-emerald-400/[0.08]'
-          }`}>
-            <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${
-              isHighDemand ? 'bg-amber-400' : 'bg-emerald-400'
-            }`} />
-            <span className={`font-mono text-[10px] font-bold uppercase tracking-[0.15em] ${
-              isHighDemand ? 'text-amber-300' : 'text-emerald-300'
-            }`}>
-              {isHighDemand ? 'High Demand' : 'Healthy'}
-            </span>
-          </div>
-        </div>
-
-        {/* Hero TVL */}
-        <div className="mt-5 flex items-end justify-between gap-4">
-          <div>
-            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/30 mb-1.5">
-              Total Value Locked
-            </div>
-            <div className="font-mono text-3xl font-medium text-white tabular-nums leading-none">
-              ${formatTvlShort(vault.totalDeposits)}
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/30 mb-1.5">
-              Utilization
-            </div>
-            <div className="font-mono text-3xl font-medium text-white/85 tabular-nums leading-none">
-              {utilization.toFixed(1)}%
-            </div>
-          </div>
-        </div>
-
-        {/* Utilization bar */}
-        <div className="mt-3 h-1 w-full rounded-full bg-white/[0.05] overflow-hidden">
+      {/* ── Header ───────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-4">
+        <div className="flex items-center gap-2.5 min-w-0">
           <div
-            className={`h-full rounded-full transition-all duration-700 ${utilColor}`}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border"
+            style={{ backgroundColor: meta.iconBg, borderColor: meta.iconBorder }}
+          >
+            <Icon className="h-3.5 w-3.5" style={{ color: meta.iconColor }} strokeWidth={1.75} />
+          </div>
+          <div className="min-w-0">
+            <div className="font-mono text-[9px] text-white/30 truncate">{meta.label}</div>
+            <h3 className="font-sans text-sm font-semibold text-white/90 leading-tight truncate">
+              Credit Vault #{vault.id}
+            </h3>
+          </div>
+        </div>
+
+        <div className={`shrink-0 flex items-center gap-1 rounded-full border px-2 py-0.5 ${
+          isHighDemand ? 'border-amber-500/[0.08] bg-amber-500/[0.02]' : 'border-emerald-500/[0.08] bg-emerald-500/[0.02]'
+        }`}>
+          <span className={`h-1 w-1 rounded-full animate-pulse ${isHighDemand ? 'bg-amber-400/80' : 'bg-emerald-400/80'}`} />
+          <span className={`font-mono text-[9px] ${isHighDemand ? 'text-amber-400/80' : 'text-emerald-400/80'}`}>
+            {isHighDemand ? 'High Demand' : 'Active'}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Primary metrics ──────────────────────────── */}
+      <div className="grid grid-cols-3 gap-3 px-5 pb-4">
+        <div>
+          <div className="font-mono text-[9px] text-white/25 mb-0.5">TVL</div>
+          <div className="font-mono text-base font-medium text-white/85 tabular-nums leading-none">
+            ${fmtTvl(vault.totalDeposits)}
+          </div>
+        </div>
+        <div>
+          <div className="font-mono text-[9px] text-white/25 mb-0.5">APY</div>
+          <div className="font-mono text-base font-medium text-emerald-400/75 tabular-nums leading-none">
+            {minApy === maxApy ? `${minApy}%` : `${minApy}–${maxApy}%`}
+          </div>
+        </div>
+        <div>
+          <div className="font-mono text-[9px] text-white/25 mb-0.5">Util.</div>
+          <div className="font-mono text-base font-medium text-white/65 tabular-nums leading-none">
+            {utilization.toFixed(1)}%
+          </div>
+        </div>
+      </div>
+
+      {/* ── Utilization bar ──────────────────────────── */}
+      <div className="px-5 pb-4">
+        <div className="h-0.5 w-full rounded-full bg-white/[0.04] overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${utilBarColor}`}
             style={{ width: `${Math.min(utilization, 100)}%` }}
           />
         </div>
       </div>
 
-      {/* ── Capital Structure ──────────────────────────────────────── */}
-      <div className="px-6 py-5 border-t border-white/[0.05] bg-black/[0.15]">
-        <div className="flex items-center gap-2 mb-3">
-          <Layers className="h-3.5 w-3.5 text-white/30" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/40">
-            Capital Structure
-          </span>
-          <div className="h-px flex-1 bg-white/[0.04]" />
-          <span className="font-mono text-[10px] uppercase tracking-widest text-white/25">
-            APY
-          </span>
-        </div>
+      {/* ── Allocation ───────────────────────────────── */}
+      <div className="px-5 pb-4 border-t border-white/[0.025] pt-4">
+        <div className="font-mono text-[9px] text-white/25 mb-2">Allocation</div>
         <TrancheVisual tranches={vault.tranches} totalDeposits={vault.totalDeposits} />
       </div>
 
-      {/* ── Footer Meta ─────────────────────────────────────────────── */}
-      <div className="mt-auto flex items-center justify-between gap-3 px-6 py-4 border-t border-white/[0.05]">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 rounded-md border border-emerald-500/15 bg-emerald-500/[0.04] px-2 py-1">
-            <ShieldCheck className="h-3 w-3 text-emerald-400/70" />
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-emerald-300/70">
-              Insured
-            </span>
+      {/* ── Footer ───────────────────────────────────── */}
+      <div className="mt-auto flex items-center justify-between px-5 py-3.5 border-t border-white/[0.025]">
+        <div className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1 rounded border border-emerald-500/[0.08] px-1.5 py-0.5 font-mono text-[9px] text-emerald-400/50">
+            <ShieldCheck className="h-2.5 w-2.5" />
+            Insured
           </span>
-          <span className="flex items-center gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.02] px-2 py-1">
-            <Globe className="h-3 w-3 text-white/40" />
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
-              Global
-            </span>
-          </span>
-          <span className="hidden md:flex items-center gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.02] px-2 py-1">
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
-              {stateName(vault.state)}
-            </span>
+          <span className="hidden sm:flex items-center gap-1 rounded border border-white/[0.03] px-1.5 py-0.5 font-mono text-[9px] text-white/25">
+            {stateName(vault.state)}
           </span>
         </div>
-
-        <button className="flex items-center gap-1.5 rounded-full border border-white/[0.10] bg-white/[0.02] px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-white/70 transition-all group-hover:border-white group-hover:bg-white group-hover:text-black">
-          Open
-          <ArrowUpRight className="h-3 w-3" />
+        <button className="group/btn flex items-center gap-1 font-mono text-[10px] text-white/35 hover:text-white/70 transition-colors">
+          Deposit
+          <ArrowUpRight className="h-3 w-3 group-hover/btn:text-[#e54b73] transition-colors" />
         </button>
-      </div>
-
-      {/* Hover indicator */}
-      <div className="pointer-events-none absolute top-4 right-4">
-        <Activity className="h-3 w-3 text-emerald-400/0 group-hover:text-emerald-400/40 transition-colors animate-pulse" />
       </div>
     </div>
   );

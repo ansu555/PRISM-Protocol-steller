@@ -7,6 +7,7 @@ export type ProtocolEvent = {
   success: boolean;
   eventType: string;
   signer: string;
+  contractId?: string;
 };
 
 export type DuneBalance = {

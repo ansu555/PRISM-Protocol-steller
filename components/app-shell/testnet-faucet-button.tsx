@@ -1,37 +1,53 @@
 "use client";
 
-// Testnet XLM faucet — calls Stellar Friendbot directly.
-
 import { useState } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { useStellarWallet } from "@/components/providers/stellar-wallet-provider";
-
-const FRIENDBOT_URL = "https://friendbot.stellar.org";
+const SOLANA_FAUCET_URL = "https://faucet.solana.com";
 
 export function TestnetFaucetButton() {
-  const { connected, address } = useStellarWallet();
+  const { connected, publicKey } = useWallet();
   const [requesting, setRequesting] = useState(false);
 
-  if (!connected || !address) {
+  if (!connected || !publicKey) {
     return null;
   }
 
   const handleAirdrop = async () => {
     setRequesting(true);
+
     try {
-      const res = await fetch(`${FRIENDBOT_URL}/?addr=${address}`);
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Friendbot rejected: ${text}`);
-      }
-      toast.success(`Friendbot funded ${address.slice(0, 4)}…${address.slice(-4)} with testnet XLM`);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Faucet request failed";
-      toast.error(msg, {
-        description: "If this keeps failing, the account may already be funded — check stellar.expert.",
+      const response = await fetch("/api/testnet-faucet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: publicKey }),
       });
+      const result = (await response.json()) as {
+        amount?: number;
+        error?: string;
+        faucetUrl?: string;
+      };
+
+      if (!response.ok || !result.amount) {
+        if (result.faucetUrl) {
+          toast.error("Devnet faucet limit reached", {
+            description: "Use the official Solana faucet for another test SOL source.",
+            action: {
+              label: "Open faucet",
+              onClick: () => window.open(result.faucetUrl ?? SOLANA_FAUCET_URL, "_blank", "noopener,noreferrer"),
+            },
+          });
+          return;
+        }
+
+        throw new Error(result.error ?? "Devnet faucet refused the request.");
+      }
+
+      toast.success(`${result.amount} testnet SOL sent to your wallet`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Faucet request failed");
     } finally {
       setRequesting(false);
     }
@@ -43,10 +59,10 @@ export function TestnetFaucetButton() {
       onClick={handleAirdrop}
       disabled={requesting}
       className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-white/12 bg-black px-3.5 text-xs font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)] transition-colors hover:border-white/25 hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-60 md:h-9 md:px-4"
-      title="Request testnet XLM"
+      title="Request testnet SOL"
     >
       {requesting ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-      {requesting ? "Funding" : "Testnet Faucet"}
+      {requesting ? "Sending" : "Testnet Faucet"}
     </button>
   );
 }

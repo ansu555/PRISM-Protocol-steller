@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ArrowLeft, Shield, Zap, TrendingUp, Info, Activity, Layers, HeartPulse, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
-import { useConnection } from '@/components/providers/stellar-wallet-provider';
+import { useConnection } from '@/components/providers/stellar-wallet-context';
 import { TrancheKind, Q64_ONE } from '@/app/lib/constants';
 import { formatUsdc, getNetworkName } from '@/app/lib/format';
 import { usePrismData } from '@/hooks/usePrismData';
@@ -166,7 +166,7 @@ export function VaultDetail({ vaultId }: VaultDetailProps) {
         totalCapital={data.vaultCapital}
         activeCredit={data.vaultCapital - data.poolLiquidity} // Simplified for UI
         yieldDistributed={data.yieldDistributed}
-        utilization={data.vaultCapital > 0n ? (Number(data.vaultCapital - data.poolLiquidity) / Number(data.vaultCapital)) * 100 : 0}
+        utilization={(Number(data.vaultCapital - data.poolLiquidity) / Number(data.vaultCapital)) * 100}
         health={data.vaultHealth}
       />
 

@@ -49,7 +49,7 @@ export default function RiskPage() {
     
     const approvedApps = applications.filter((a) => a.status === 'approved');
     const totalExposure = approvedApps.reduce(
-      (s, a) => s + BigInt(Math.round(a.requestedUSDC * 1_000_000)),
+      (s, a) => s + BigInt(Math.round(a.requestedUSDC * 10_000_000)),
       0n,
     );
 

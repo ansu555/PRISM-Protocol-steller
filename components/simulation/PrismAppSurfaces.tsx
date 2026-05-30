@@ -633,10 +633,11 @@ function TrancheDepositRow({ tranche }: { tranche: PrismData['tranches'][number]
     : 0n;
 
   function handleDeposit() {
-    const usd = parseFloat(amount);
-    if (isNaN(usd) || usd <= 0) return;
+    if (!amount || parseFloat(amount) <= 0) return;
+    const usdcAmount = parseUsdc(amount); // PTUSDC has 7 decimals — use parseUsdc, not * 1_000_000
+    if (usdcAmount <= 0n) return;
     deposit.mutate(
-      { trancheKind: tranche.kind, usdcAmount: BigInt(Math.round(usd * 1_000_000)) },
+      { trancheKind: tranche.kind, usdcAmount },
       { onSuccess: () => setAmount('') },
     );
   }

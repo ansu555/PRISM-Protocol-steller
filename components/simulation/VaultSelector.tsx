@@ -2,7 +2,7 @@
 
 import { ChevronDown, Plus } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { useSelectedVaultId } from '@/hooks/useSelectedVault';
 import { useVaultList } from '@/hooks/useVaultRegistry';
@@ -11,13 +11,6 @@ export function VaultSelector() {
   const { vaultId, setVaultId } = useSelectedVaultId();
   const { data: vaults, isLoading } = useVaultList();
   const [open, setOpen] = useState(false);
-
-  // Auto-select the first registered vault if the default id isn't in the registry
-  useEffect(() => {
-    if (vaults && vaults.length > 0 && !vaults.find((v) => v.vault_id === vaultId)) {
-      setVaultId(vaults[0].vault_id);
-    }
-  }, [vaults, vaultId, setVaultId]);
 
   const active = vaults?.find((v) => v.vault_id === vaultId);
   const label = active ? active.name : `Vault #${vaultId}`;

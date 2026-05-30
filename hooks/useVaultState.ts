@@ -17,6 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   PRISM_AMM_CONTRACT_ID,
   PRISM_CORE_CONTRACT_ID,
+  SOROSWAP_FACTORY_ID,
   TRANCHE_CONFIG,
   TrancheKind,
   USDC_CONTRACT_ID,
@@ -24,7 +25,7 @@ import {
 import { toBigInt } from '@/app/lib/format';
 import {
   addr,
-  getAmmClient,
+  ContractClient,
   getCoreClient,
   getUsdcClient,
   nativeToScVal,
@@ -100,8 +101,8 @@ export function useVaultState(vaultIdOverride?: number) {
     queryKey: ['vault-state', PRISM_CORE_CONTRACT_ID, vaultId],
     refetchInterval: 5_000,
     queryFn: async () => {
-      const core = getCoreClient();
-      const amm = getAmmClient();
+      const core    = getCoreClient();
+      const factory = new ContractClient(SOROSWAP_FACTORY_ID);
 
       // Three parallel reads against prism-core for the headline state.
       const [config, vault, contractUsdcBalance] = await Promise.all([
@@ -129,22 +130,24 @@ export function useVaultState(vaultIdOverride?: number) {
             ])
             .catch(() => null);
 
-          let pool: AmmPoolSnapshot | null = null;
           let ammTrancheBalance = 0n;
           let ammQuoteBalance = 0n;
           if (tranche?.ptoken) {
-            try {
-              pool = await amm.read<AmmPoolSnapshot | null>('get_pool', [addr(tranche.ptoken)]);
-            } catch {
-              pool = null;
-            }
-            if (pool) {
-              const reserves = await amm
-                .read<[bigint, bigint, bigint] | null>('get_reserves', [addr(tranche.ptoken)])
+            // Read reserves from Soroswap: factory.get_pair → pair.get_reserves
+            const pairAddress = await factory
+              .read<string | null>('get_pair', [addr(USDC_CONTRACT_ID), addr(tranche.ptoken)])
+              .catch(() => null);
+            if (pairAddress && typeof pairAddress === 'string') {
+              const pair = new ContractClient(pairAddress);
+              const reserves = await pair
+                .read<[bigint, bigint] | null>('get_reserves')
                 .catch(() => null);
               if (reserves) {
-                ammTrancheBalance = toBigInt(reserves[0]);
-                ammQuoteBalance = toBigInt(reserves[1]);
+                // Soroswap orders tokens lexicographically; USDC may be token_0 or token_1.
+                // We compare the pToken address to determine which reserve is which.
+                const usdcIsFirst = USDC_CONTRACT_ID.toLowerCase() < tranche.ptoken.toLowerCase();
+                ammQuoteBalance   = toBigInt(usdcIsFirst ? reserves[0] : reserves[1]);
+                ammTrancheBalance = toBigInt(usdcIsFirst ? reserves[1] : reserves[0]);
               }
             }
           }
@@ -165,8 +168,8 @@ export function useVaultState(vaultIdOverride?: number) {
                   targetApyBps: tranche.target_apy_bps,
                 }
               : null,
-            pool,
-            poolPda: pool?.tranche_token ?? '',
+            pool: null,
+            poolPda: '',
             poolTrancheReserve: '',
             poolQuoteReserve: '',
             totalAssets: tranche ? toBigInt(tranche.total_assets) : 0n,

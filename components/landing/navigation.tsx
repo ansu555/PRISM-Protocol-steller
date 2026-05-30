@@ -19,10 +19,9 @@ const resourceItems = [
   {
     icon: BookOpen,
     name: "Documentation",
-    description: "Coming soon.",
-    href: "#",
-    external: false,
-    disabled: true,
+    description: "Program IDs, instructions, CPIs.",
+    href: DOCS_URL,
+    external: true,
   },
   {
     icon: Rss,
@@ -124,15 +123,13 @@ export function Navigation() {
                 <div className="w-64 rounded-xl border border-foreground/10 bg-background/95 backdrop-blur-xl shadow-xl overflow-hidden">
                   {resourceItems.map((item) => {
                     const Icon = item.icon;
-                    const isDisabled = "disabled" in item && item.disabled;
                     return (
                       <a
                         key={item.name}
-                        href={isDisabled ? undefined : item.href}
+                        href={item.href}
                         target={item.external ? "_blank" : undefined}
                         rel={item.external ? "noopener noreferrer" : undefined}
-                        aria-disabled={isDisabled || undefined}
-                        className={`flex items-start gap-3 px-4 py-3 transition-colors ${isDisabled ? "pointer-events-none opacity-50 cursor-not-allowed" : "hover:bg-foreground/5"}`}
+                        className="flex items-start gap-3 px-4 py-3 hover:bg-foreground/5 transition-colors"
                       >
                         <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground/5">
                           <Icon className="h-4 w-4 text-foreground/60" />
@@ -240,16 +237,14 @@ export function Navigation() {
                 <div className="mt-4 flex flex-col gap-1 pl-2 border-l border-foreground/10">
                   {resourceItems.map((item) => {
                     const Icon = item.icon;
-                    const isDisabled = "disabled" in item && item.disabled;
                     return (
                       <a
                         key={item.name}
-                        href={isDisabled ? undefined : item.href}
+                        href={item.href}
                         target={item.external ? "_blank" : undefined}
                         rel={item.external ? "noopener noreferrer" : undefined}
-                        onClick={isDisabled ? undefined : () => setIsMobileMenuOpen(false)}
-                        aria-disabled={isDisabled || undefined}
-                        className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${isDisabled ? "pointer-events-none opacity-50 cursor-not-allowed" : "hover:bg-foreground/5"}`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-foreground/5 transition-colors"
                       >
                         <Icon className="h-4 w-4 shrink-0 text-foreground/50" />
                         <div>
@@ -278,7 +273,7 @@ export function Navigation() {
               className="h-13 rounded-full text-base sm:h-14"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              <span className="pointer-events-none opacity-50 cursor-not-allowed">View docs</span>
+              <a href={DOCS_URL}>View docs</a>
             </Button>
             <Button
               asChild

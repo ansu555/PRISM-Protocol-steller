@@ -115,7 +115,7 @@ export function WaitlistDialog({ children }: WaitlistDialogProps) {
               </DialogTitle>
               <DialogDescription className="max-w-md text-sm leading-6 text-white/55">
                 Be first in line for programmable credit infrastructure on
-                Stellar.
+                Solana.
               </DialogDescription>
             </div>
           </DialogHeader>

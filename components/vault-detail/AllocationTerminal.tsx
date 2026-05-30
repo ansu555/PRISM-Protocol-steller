@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { TrancheKind } from '@/app/lib/constants';
+import { parseUsdc, formatNavQ } from '@/app/lib/format';
 import { useDeposit } from '@/hooks/useDeposit';
 import {
   Shield, Zap, TrendingUp, Info, Loader2, BarChart,
@@ -49,10 +50,11 @@ export function AllocationTerminal({ vaultStatus, tranches, onTrancheChange }: A
   }
 
   function handleDeposit() {
-    const val = parseFloat(amount);
-    if (isNaN(val) || val <= 0) return;
+    if (!amount || parseFloat(amount) <= 0) return;
+    const usdcAmount = parseUsdc(amount); // PTUSDC has 7 decimals
+    if (usdcAmount <= 0n) return;
     deposit.mutate(
-      { trancheKind: selectedKind, usdcAmount: BigInt(Math.round(val * 1_000_000)) },
+      { trancheKind: selectedKind, usdcAmount },
       { onSuccess: () => setAmount('') }
     );
   }
@@ -197,7 +199,9 @@ export function AllocationTerminal({ vaultStatus, tranches, onTrancheChange }: A
                       <TrendingUp className="h-3.5 w-3.5 text-white/20" />
                       <span className="font-mono text-[10px] uppercase tracking-widest text-white/40">Current NAV</span>
                    </div>
-                   <span className="font-mono text-[11px] text-white font-bold">1.0000 USDC</span>
+                   <span className="font-mono text-[11px] text-white font-bold">
+                     {selectedTranche.nav > 0n ? formatNavQ(selectedTranche.nav) : '1.0000'} USDC
+                   </span>
                 </div>
 
                 <div className="flex items-center justify-between py-3 border-b border-white/[0.04]">

@@ -41,8 +41,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // USDC mint requires the SAC admin (deployer/GCZF...), not the prism-core admin.
+  const usdcSeed = process.env.USDC_ADMIN_SECRET_SEED ?? process.env.ADMIN_SECRET_SEED!;
+  let usdcKeypair: Keypair;
   try {
-    const signer = keypairSigner(adminKeypair);
+    usdcKeypair = Keypair.fromSecret(usdcSeed);
+  } catch {
+    return NextResponse.json({ error: 'USDC_ADMIN_SECRET_SEED is not a valid Stellar secret key' }, { status: 500 });
+  }
+
+  try {
+    const signer = keypairSigner(usdcKeypair);
     const usdc = getUsdcClient();
 
     const { hash } = await usdc.invoke(signer, 'mint', [
