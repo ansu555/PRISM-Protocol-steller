@@ -139,7 +139,7 @@ export function FooterSection() {
               </a>
 
               <p className="text-white/50 leading-relaxed mb-6 max-w-xs text-sm">
-                Programmable credit risk on Solana. Split deposits into tranches, distribute yield by waterfall, and let markets price the risk.
+                Programmable credit risk on Stellar. Split deposits into tranches, distribute yield by waterfall, and let markets price the risk.
               </p>
 
               {/* Social Links */}

@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
-
 const features = [
   { 
     title: "Stellar settlement",
@@ -20,16 +18,6 @@ const features = [
     title: "Verified events", 
     description: "Switchboard and Dune SIM make credit events observable, indexable, and demo-ready."
   },
-];
-
-const logos = [
-  { name: "Stellar", src: "/logos/stellar-logo.png", width: 28, height: 28 },
-  { name: "Ika", src: "/logos/ika-logo.png", width: 28, height: 28 },
-  { name: "Encrypt", src: "/logos/encrypt-logo.png", width: 28, height: 28 },
-  { name: "Cloak", src: "/logos/cloak-logo.png", width: 78, height: 24, wide: true },
-  { name: "Dune SIM", src: "/logos/sim-logo.png", width: 28, height: 28 },
-  { name: "Dodo Payments", src: "/logos/dodo-logo.png", width: 86, height: 22, wide: true },
-  { name: "Switchboard", src: "/logos/switchboard-logo.png", width: 28, height: 28 },
 ];
 
 export function DevelopersSection() {
@@ -88,29 +76,6 @@ export function DevelopersSection() {
           </h2>
         </div>
 
-        <div
-          className={`mb-10 max-w-[58%] overflow-hidden py-4 transition-all duration-700 delay-75 max-lg:max-w-full ${
-            isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
-          }`}
-        >
-          <div className="flex w-max animate-logo-marquee items-center gap-10 pr-10">
-            {[...logos, ...logos].map((logo, index) => (
-              <div
-                key={`${logo.name}-${index}`}
-                className="flex shrink-0 items-center gap-3 text-sm font-semibold text-zinc-400"
-              >
-                <Image
-                  src={logo.src}
-                  alt={`${logo.name} logo`}
-                  width={logo.width}
-                  height={logo.height}
-                  className={`${logo.wide ? "h-5 w-auto" : "h-6 w-6"} object-contain`}
-                />
-                <span>{logo.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* Description + Features — left half only */}
         <div
@@ -138,26 +103,6 @@ export function DevelopersSection() {
           </div>
         </div>
       </div>
-      <style jsx>{`
-        @keyframes logoMarquee {
-          from {
-            transform: translate3d(0, 0, 0);
-          }
-          to {
-            transform: translate3d(-50%, 0, 0);
-          }
-        }
-
-        .animate-logo-marquee {
-          animation: logoMarquee 28s linear infinite;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .animate-logo-marquee {
-            animation: none;
-          }
-        }
-      `}</style>
     </section>
   );
 }

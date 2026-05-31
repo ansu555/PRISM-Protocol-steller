@@ -11,12 +11,6 @@ type Partner = {
 
 const partners: Partner[] = [
   {
-    name: "Solana",
-    image: "/logos/solana-logo.png",
-    width: 30,
-    height: 30,
-  },
-  {
     name: "Ika",
     image: "/logos/ika-logo.png",
     width: 30,
@@ -77,7 +71,7 @@ export function TrustedInfrastructure() {
             Built on trusted infrastructure.
           </h2>
           <p className="max-w-3xl text-lg font-medium text-zinc-400 sm:text-xl">
-            Powered by Solana and the partner rails that extend PRISM across collateral, privacy,
+            Powered by Stellar and the partner rails that extend PRISM across collateral, privacy,
             analytics, payments, and verified credit events.
           </p>
         </div>

@@ -174,8 +174,8 @@ export function HeroSection() {
         >
           <span className="inline-flex items-center gap-3 text-sm font-mono text-white/60">
             <span className="h-px w-8 shrink-0 bg-white/30" />
-            <span className="sm:hidden">Programmable credit on Solana</span>
-            <span className="hidden sm:inline">Programmable credit infrastructure on Solana</span>
+            <span className="sm:hidden">Programmable credit on Stellar</span>
+            <span className="hidden sm:inline">Programmable credit infrastructure on Stellar</span>
           </span>
         </div>
         
