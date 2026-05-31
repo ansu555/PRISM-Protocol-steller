@@ -97,19 +97,25 @@ export async function POST(req: NextRequest) {
       nativeToScVal(sigBytes, { type: 'bytes' }),
     ]);
 
-    // 3. Release on EVM vault — only if collateral is actually locked there
-    let evmTxHash: string | null = null;
-    try {
-      const lock = await getEvmLock(loanId);
-      if (lock?.state === 'Locked') {
-        evmTxHash = await evmRelease(loanId);
-      }
-    } catch (evmErr) {
-      // EVM release failure is non-fatal — log and continue (Stellar release succeeded)
-      console.error('[release] EVM vault release failed:', evmErr instanceof Error ? evmErr.message : evmErr);
-    }
+    // 3. EVM release is manual — admin must execute via Gnosis Safe.
+    //    The Safe is the vault admin on mainnet; direct calls from server are rejected.
+    const vaultAddress = process.env.POLYGON_MAINNET_VAULT_ADDRESS ?? process.env.EVM_VAULT_ADDRESS ?? '';
+    const safeAddress  = process.env.EVM_SAFE_ADDRESS ?? '';
+    const safeUrl = safeAddress
+      ? `https://app.safe.global/apps/open?safe=matic:${safeAddress}&appUrl=https://apps.safe.global/tx-builder`
+      : null;
 
-    return NextResponse.json({ ok: true, loanId, stellarHash, evmTxHash, status: 'Released' });
+    return NextResponse.json({
+      ok: true, loanId, stellarHash,
+      evmTxHash: null,
+      status: 'ReleasedOnStellar',
+      evmManual: {
+        message: 'Stellar collateral released. EVM collateral requires a Gnosis Safe transaction.',
+        vault: vaultAddress,
+        call: `release(${loanId})`,
+        safeUrl,
+      },
+    });
   } catch (err) {
     const msg = parseStellarError(err);
     // CollateralStatusMismatch means already released — treat as ok

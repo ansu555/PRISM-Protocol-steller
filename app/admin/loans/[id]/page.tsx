@@ -155,7 +155,7 @@ function LiquidationPanel({
   );
   const [severityBps, setSeverityBps] = useState(8000);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ stellarHash?: string; evmTxHash?: string | null; evmError?: string | null } | null>(null);
+  const [result, setResult] = useState<{ stellarHash?: string; evmManual?: { call: string; safeUrl: string | null; vault: string } } | null>(null);
 
   async function handleLiquidate() {
     const lossAmt = BigInt(Math.round(parseFloat(lossUsd) * 10_000_000));
@@ -164,16 +164,12 @@ function LiquidationPanel({
       const res = await fetch('/api/admin/liquidate-collateral', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          loanId,
-          lossAmount:   lossAmt.toString(),
-          severityBps,
-        }),
+        body: JSON.stringify({ loanId, lossAmount: lossAmt.toString(), severityBps }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error ?? 'Liquidation failed');
-      setResult({ stellarHash: data.stellarHash, evmTxHash: data.evmTxHash, evmError: data.evmError });
-      toast.success(`Loan #${loanId} liquidated — loss cascade fired on Stellar`);
+      setResult({ stellarHash: data.stellarHash, evmManual: data.evmManual });
+      toast.success(`Loan #${loanId} — Stellar liquidated ✓  Now execute EVM via Safe`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Liquidation failed');
     } finally {
@@ -186,22 +182,37 @@ function LiquidationPanel({
       <div className="rounded-2xl border border-rose-500/20 bg-rose-500/[0.04] p-5 space-y-4">
         <div className="flex items-center gap-3">
           <Skull className="h-5 w-5 text-rose-400" />
-          <p className="font-sans text-base font-semibold text-rose-300">Liquidation Complete</p>
+          <p className="font-sans text-base font-semibold text-rose-300">Stellar Liquidation Complete</p>
         </div>
         <div className="space-y-2 font-mono text-[10px]">
           {result.stellarHash && (
             <p className="text-white/40">Stellar tx: {result.stellarHash.slice(0, 16)}…</p>
           )}
-          {result.evmTxHash && (
-            <a href={`${EVM_EXPLORER}/tx/${result.evmTxHash}`} target="_blank" rel="noreferrer"
-              className="flex items-center gap-1 text-rose-300/60 hover:text-rose-300">
-              EVM tx: {result.evmTxHash.slice(0, 16)}… <ExternalLink className="h-3 w-3" />
-            </a>
-          )}
-          {result.evmError && (
-            <p className="text-amber-400/60">EVM warning: {result.evmError.slice(0, 120)}</p>
-          )}
         </div>
+
+        {/* EVM manual step */}
+        {result.evmManual && (
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-4 space-y-3">
+            <p className="font-mono text-[10px] text-amber-300 font-semibold uppercase tracking-widest">
+              Step 2 — Execute EVM Collateral Seizure via Safe
+            </p>
+            <div className="space-y-1.5 font-mono text-[9px] text-white/40">
+              <p>Vault: {result.evmManual.vault}</p>
+              <p>Call: <span className="text-amber-300/70">{result.evmManual.call}</span></p>
+            </div>
+            {result.evmManual.safeUrl ? (
+              <a href={result.evmManual.safeUrl} target="_blank" rel="noreferrer"
+                className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 font-mono text-[10px] text-amber-300 hover:bg-amber-500/20 transition-all">
+                Open Gnosis Safe Transaction Builder <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            ) : (
+              <p className="font-mono text-[9px] text-white/30">
+                Set EVM_SAFE_ADDRESS env var to enable direct Safe link
+              </p>
+            )}
+          </div>
+        )}
+
         <button onClick={onDone}
           className="w-full rounded-xl border border-white/[0.06] py-2.5 font-mono text-[10px] text-white/40 hover:text-white/60 transition-all">
           Close

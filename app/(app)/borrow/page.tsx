@@ -336,7 +336,7 @@ function RepaySection({ address, loanId }: { address: string; loanId: number }) 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ loanId, borrowerAddress: address }),
         }).then(r => r.json()).then(d => {
-          if (d.ok && !d.skipped) toast.success('Collateral released — returning to your EVM wallet');
+          if (d.ok && !d.skipped) toast.success('Repaid ✓ — Admin will return your EVM collateral via Gnosis Safe shortly');
         }).catch(() => {/* silent */});
       }
     } catch (err) {
