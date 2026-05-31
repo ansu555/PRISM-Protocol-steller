@@ -618,6 +618,8 @@ function CompactSwapCard({
   buyBalance,
   sellBalance,
   buyToken,
+  poolEmpty,
+  onGoToAmmPools,
 }: {
   data: TradeData;
   balances: any;
@@ -646,6 +648,8 @@ function CompactSwapCard({
   buyBalance: bigint;
   sellBalance: bigint;
   buyToken: SwapSide;
+  poolEmpty: boolean;
+  onGoToAmmPools: () => void;
 }) {
   const [showDetails, setShowDetails] = useState(true);
   const [mode, setMode] = useState<'swap' | 'send'>('swap');
@@ -853,6 +857,26 @@ function CompactSwapCard({
       </div>
 
       {/* Warnings / Error feedback */}
+      {poolEmpty && (
+        <div className="flex items-start gap-2.5 p-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.05]">
+          <Layers3 className="h-3.5 w-3.5 text-amber-400/70 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="font-mono text-[9px] uppercase tracking-wider font-semibold text-amber-400/80">
+              Pool has no liquidity
+            </p>
+            <p className="font-mono text-[9px] text-white/30 mt-0.5 leading-relaxed">
+              This pool needs liquidity before swaps can execute. Be the first to provide it.
+            </p>
+            <button
+              type="button"
+              onClick={onGoToAmmPools}
+              className="mt-2 font-mono text-[9px] uppercase tracking-wider font-bold text-amber-400/80 hover:text-amber-300 transition-colors underline underline-offset-2"
+            >
+              Provide liquidity → AMM Pools
+            </button>
+          </div>
+        </div>
+      )}
       {insufficientBalance && (
         <div className="flex items-center gap-2 p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 font-mono text-[9px] uppercase tracking-wider font-semibold">
           <TriangleAlert className="h-3.5 w-3.5 shrink-0" />
@@ -1487,6 +1511,8 @@ export function TradeTerminal() {
               buyBalance={buyBalance}
               sellBalance={sellBalance}
               buyToken={buyToken}
+              poolEmpty={poolEmpty}
+              onGoToAmmPools={() => setActiveTab('AMM pools')}
             />
 
             {/* Right Side: Price Action Chart */}

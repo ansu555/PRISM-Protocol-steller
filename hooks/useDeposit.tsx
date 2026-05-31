@@ -26,6 +26,11 @@ import { useStellarWallet } from '@/components/providers/stellar-wallet-provider
 
 const TRANCHE_LABELS = ['Prime', 'Core', 'Alpha'];
 
+// Stellar protocol reserve charged per ledger subentry (e.g. each trustline).
+const BASE_RESERVE_XLM = 0.5;
+// Headroom for the changeTrust fee + the follow-up deposit tx fee + margin.
+const FEE_BUFFER_XLM = 0.02;
+
 // Issuer of the underlying classic Stellar asset wrapped by each pToken SAC.
 // On each network this is the deployer account that ran `stellar contract asset deploy`.
 const PTOKEN_ISSUER: Record<'testnet' | 'mainnet', string> = {
@@ -86,6 +91,31 @@ export function useDeposit() {
       );
 
       if (!hasTrustline) {
+        // Pre-flight: opening a trustline adds one ledger subentry, raising the
+        // account's minimum XLM balance by one base reserve. Check we can cover
+        // it *before* prompting the wallet, so the user isn't asked to sign a tx
+        // that Horizon will reject with op_low_reserve.
+        const nativeBalanceEntry = source.balances.find(
+          (b) => b.asset_type === 'native',
+        ) as { balance: string; selling_liabilities?: string } | undefined;
+        const nativeBalance = Number(nativeBalanceEntry?.balance ?? '0');
+        const sellingLiabilities = Number(nativeBalanceEntry?.selling_liabilities ?? '0');
+        // min balance after the new trustline = (2 base entries + existing
+        // subentries + the trustline we're about to add) × base reserve.
+        const requiredXlm =
+          (2 + source.subentry_count + 1) * BASE_RESERVE_XLM +
+          sellingLiabilities +
+          FEE_BUFFER_XLM;
+
+        if (nativeBalance < requiredXlm) {
+          const shortfall = (requiredXlm - nativeBalance).toFixed(2);
+          throw new Error(
+            `Not enough XLM to add the ${assetCode} trustline. Stellar charges a ` +
+            `${BASE_RESERVE_XLM} XLM reserve per asset, and your wallet is short by ` +
+            `~${shortfall} XLM. Send at least ${shortfall} XLM to your wallet and try again.`,
+          );
+        }
+
         toast.info(`Adding ${assetCode} trustline to your wallet…`);
 
         const pTokenAsset = new Asset(assetCode, issuer);
