@@ -8,7 +8,6 @@
 // Runs under Vercel's 60s function timeout (Pro) or 10s (Hobby).
 
 import { NextRequest, NextResponse } from 'next/server';
-import { hexToBigInt } from 'viem';
 import { parseStellarError } from '@/app/lib/errors';
 import { getCoreClient, keypairSigner, addr, nativeToScVal } from '@/app/lib/stellar';
 import { Keypair } from '@stellar/stellar-sdk';
@@ -50,7 +49,7 @@ async function rpc(url: string, method: string, params: unknown[]): Promise<unkn
 // ─── Attester ─────────────────────────────────────────────────────────────────
 
 async function attestLock(log: RawLog, currentBlock: bigint): Promise<{ loanId: number; status: string }> {
-  const blockNumber   = hexToBigInt(log.blockNumber as `0x${string}`);
+  const blockNumber   = BigInt(log.blockNumber);
   const confirmations = currentBlock - blockNumber;
   const requiredConfs = BigInt(process.env.WATCHER_CONFIRMATIONS ?? '20');
 
@@ -132,7 +131,7 @@ export async function POST(req: NextRequest) {
   const results: unknown[] = [];
 
   try {
-    const currentBlock = hexToBigInt((await rpc(rpcUrl, 'eth_blockNumber', []) as `0x${string}`));
+    const currentBlock = BigInt((await rpc(rpcUrl, 'eth_blockNumber', [])) as string);
     const lookback     = BigInt(process.env.LOOKBACK_BLOCKS ?? '500');
 
     if (!cachedFromBlock) {
@@ -168,7 +167,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok:           true,
-      scannedRange: `${cachedFromBlock - MAX_RANGE}–${toBlock}`,
+      scannedRange: `${cachedFromBlock! - MAX_RANGE}–${toBlock}`,
       logsFound:    activeLogs.length,
       results,
       ms:           Date.now() - startedAt,
