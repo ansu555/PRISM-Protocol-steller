@@ -16,6 +16,7 @@ import {
   Account,
   Address,
   Contract,
+  Horizon,
   Keypair,
   TransactionBuilder,
   rpc,
@@ -38,6 +39,7 @@ import {
 import { CONTRACTS } from './addresses';
 
 let _rpcServer: rpc.Server | null = null;
+let _horizonServer: Horizon.Server | null = null;
 
 /** Lazy singleton Soroban RPC client. Network-aware: re-creates if network changed. */
 export function getRpcServer(): rpc.Server {
@@ -48,6 +50,16 @@ export function getRpcServer(): rpc.Server {
     _rpcServer = new rpc.Server(url, { allowHttp: url.startsWith('http://') });
   }
   return _rpcServer;
+}
+
+/** Lazy singleton Horizon client — used for getAccount (sequence numbers). */
+export function getHorizonServer(): Horizon.Server {
+  resetSingletonsIfNetworkChanged();
+  if (!_horizonServer) {
+    const net = (_singletonNetwork ?? 'testnet') as 'testnet' | 'mainnet';
+    _horizonServer = new Horizon.Server(CONTRACTS[net].horizonUrl);
+  }
+  return _horizonServer;
 }
 
 /** A minimal wallet-shape — any signer that can produce a signature. */
@@ -118,8 +130,8 @@ export class ContractClient {
     const SIM_SOURCE =
       process.env.NEXT_PUBLIC_ADMIN_ADDRESS ??
       'GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO';
-    const sourceAccount = await server
-      .getAccount(SIM_SOURCE)
+    const sourceAccount = await getHorizonServer()
+      .loadAccount(SIM_SOURCE)
       .catch(() => new Account(SIM_SOURCE, '0'));
 
     const tx = new TransactionBuilder(sourceAccount as Account, {
@@ -151,7 +163,7 @@ export class ContractClient {
     args: xdr.ScVal[] = [],
   ): Promise<InvokeResult<T>> {
     const server = getRpcServer();
-    const sourceAccount = await server.getAccount(signer.publicKey());
+    const sourceAccount = await getHorizonServer().loadAccount(signer.publicKey());
 
     let tx = new TransactionBuilder(sourceAccount, {
       fee: '1000',
@@ -228,6 +240,7 @@ function resetSingletonsIfNetworkChanged() {
     _ammClient = null;
     _usdcClient = null;
     _rpcServer = null;
+    _horizonServer = null;
   }
 }
 

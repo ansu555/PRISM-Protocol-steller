@@ -11,6 +11,7 @@ import { NETWORK_PASSPHRASE, VAULT_ID } from '@/app/lib/constants';
 import {
   getCoreClient,
   getRpcServer,
+  getHorizonServer,
   nativeToScVal,
 } from '@/app/lib/stellar';
 import { useStellarWallet } from '@/components/providers/stellar-wallet-context';
@@ -32,7 +33,7 @@ export function useDisburseLoan() {
 
       const core = getCoreClient();
       const server = getRpcServer();
-      const source = await server.getAccount(wallet.address);
+      const source = await getHorizonServer().loadAccount(wallet.address);
 
       let tx = new TransactionBuilder(source, {
         fee: '1000',

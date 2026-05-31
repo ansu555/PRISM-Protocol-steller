@@ -30,7 +30,7 @@ import {
   SOROSWAP_ROUTER_ID,
   USDC_CONTRACT_ID,
 } from './constants';
-import { getRpcServer, type StellarSigner } from './stellar';
+import { getRpcServer, getHorizonServer, type StellarSigner } from './stellar';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -136,7 +136,7 @@ export async function executeSwap(
   routerId = SOROSWAP_ROUTER_ID,
 ): Promise<SwapResult> {
   const server = getRpcServer();
-  const sourceAccount = await server.getAccount(signer.publicKey());
+  const sourceAccount = await getHorizonServer().loadAccount(signer.publicKey());
   const router = new Contract(routerId);
   const deadline = BigInt(Math.floor(Date.now() / 1000) + 300);
 

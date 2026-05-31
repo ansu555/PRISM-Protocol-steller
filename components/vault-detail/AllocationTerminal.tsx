@@ -25,8 +25,13 @@ interface AllocationTerminalProps {
   onTrancheChange: (kind: TrancheKind) => void;
 }
 
+// Non-active states that should actually block deposits. 'Missing' and undefined
+// are transient (data still loading) so we treat them as active to avoid
+// disabling the form mid-poll.
+const BLOCKED_STATES = new Set(['frozen', 'closed', 'liquidating', 'halted']);
+
 export function AllocationTerminal({ vaultStatus, tranches, onTrancheChange }: AllocationTerminalProps) {
-  const isActive = vaultStatus?.toLowerCase() === 'active';
+  const isActive = !BLOCKED_STATES.has((vaultStatus ?? '').toLowerCase());
   const [selectedKind, setSelectedKind] = useState<TrancheKind>(tranches[0].kind);
   const [amount, setAmount] = useState('');
 
@@ -140,12 +145,12 @@ export function AllocationTerminal({ vaultStatus, tranches, onTrancheChange }: A
                     </div>
                   </div>
 
-                  {!isActive && (
+                  {!isActive && vaultStatus && (
                     <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/[0.05] flex items-start gap-3">
                       <TriangleAlert className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
                       <div>
                         <div className="font-mono text-[10px] font-bold text-red-200 uppercase tracking-wider">Vault Inactive</div>
-                        <p className="font-mono text-[9px] text-red-300/60 mt-1">This vault is currently {vaultStatus || 'Initializing'}. Capital allocation is disabled until it reaches Active status.</p>
+                        <p className="font-mono text-[9px] text-red-300/60 mt-1">This vault is currently {vaultStatus}. Capital allocation is disabled until it reaches Active status.</p>
                       </div>
                     </div>
                   )}
@@ -157,8 +162,6 @@ export function AllocationTerminal({ vaultStatus, tranches, onTrancheChange }: A
                   >
                     {deposit.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : !isActive ? (
-                      'Vault Not Active'
                     ) : !amount ? (
                       'Enter Allocation Amount'
                     ) : (

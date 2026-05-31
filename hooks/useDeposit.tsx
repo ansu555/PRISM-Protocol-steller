@@ -26,9 +26,11 @@ import {
 import {
   addr,
   getCoreClient,
+  getHorizonServer,
   getRpcServer,
   nativeToScVal,
 } from '@/app/lib/stellar';
+import { ACTIVE_NETWORK } from '@/app/lib/addresses';
 import { useSelectedVaultId } from '@/hooks/useSelectedVault';
 import { useStellarWallet } from '@/components/providers/stellar-wallet-provider';
 
@@ -53,7 +55,7 @@ export function useDeposit() {
 
       const core = getCoreClient();
       const server = getRpcServer();
-      const source = await server.getAccount(wallet.address);
+      const source = await getHorizonServer().loadAccount(wallet.address);
 
       // Build a tx invoking `deposit(user, vault_id, kind, amount)`.
       let tx = new TransactionBuilder(source, {
@@ -102,7 +104,7 @@ export function useDeposit() {
       toast.success(label, {
         description: (
           <a
-            href={`https://stellar.expert/explorer/testnet/tx/${hash}`}
+            href={`https://stellar.expert/explorer/${ACTIVE_NETWORK}/tx/${hash}`}
             target="_blank"
             rel="noreferrer"
             className="mt-1 flex items-center gap-1 font-mono text-[10px] text-pink-400/80 hover:text-pink-400 hover:underline"

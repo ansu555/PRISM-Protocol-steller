@@ -12,7 +12,7 @@
 // Soroban doesn't have PDAs. The contract id is the only "address" any
 // caller needs, so dashboards display tranche `kind` or the contract id.
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 
 import {
   PRISM_AMM_CONTRACT_ID,
@@ -100,6 +100,7 @@ export function useVaultState(vaultIdOverride?: number) {
   return useQuery({
     queryKey: ['vault-state', PRISM_CORE_CONTRACT_ID, vaultId],
     refetchInterval: 5_000,
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const core    = getCoreClient();
       const factory = new ContractClient(SOROSWAP_FACTORY_ID);

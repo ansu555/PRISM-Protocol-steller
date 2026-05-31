@@ -16,6 +16,7 @@ import {
   addr,
   getCoreClient,
   getRpcServer,
+  getHorizonServer,
   nativeToScVal,
 } from '@/app/lib/stellar';
 import { useStellarWallet } from '@/components/providers/stellar-wallet-provider';
@@ -44,7 +45,7 @@ export function useRepayLoan() {
 
       const core = getCoreClient();
       const server = getRpcServer();
-      const source = await server.getAccount(wallet.address);
+      const source = await getHorizonServer().loadAccount(wallet.address);
 
       let tx = new TransactionBuilder(source, {
         fee: '1000',

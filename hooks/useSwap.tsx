@@ -21,7 +21,7 @@ import {
   VAULT_ID,
   TrancheKind,
 } from '@/app/lib/constants';
-import { getCoreClient, getRpcServer, nativeToScVal as ntsv } from '@/app/lib/stellar';
+import { getCoreClient, getRpcServer, getHorizonServer, nativeToScVal as ntsv } from '@/app/lib/stellar';
 import { useStellarWallet } from '@/components/providers/stellar-wallet-provider';
 import { explorerTxUrl } from '@/app/lib/horizon';
 
@@ -75,7 +75,7 @@ export function useSwap() {
 
       // 3. Build and submit the Soroswap swap_exact_tokens_for_tokens transaction.
       const server = getRpcServer();
-      const source = await server.getAccount(wallet.address);
+      const source = await getHorizonServer().loadAccount(wallet.address);
       const router = new Contract(SOROSWAP_ROUTER_ID);
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 300);
 

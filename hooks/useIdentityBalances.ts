@@ -4,7 +4,7 @@
 // On Stellar, balances are SAC reads on the USDC contract + each tranche's
 // pToken contract.
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 
 import { TrancheKind, VAULT_ID } from '@/app/lib/constants';
 import { toBigInt } from '@/app/lib/format';
@@ -44,6 +44,7 @@ export function useIdentityBalances() {
   return useQuery({
     queryKey: ['identity-balances', authority],
     refetchInterval: 8_000,
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const usdcClient = getUsdcClient();
       const core = getCoreClient();
