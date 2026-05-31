@@ -39,6 +39,7 @@
     "node_modules",
     "contracts/**/*.ts",
     "evm-collateral-service/**/*",
+    "stacyvm/**/*",
     "marketing-video/**/*",
     "sdk/**/*"
   ]
