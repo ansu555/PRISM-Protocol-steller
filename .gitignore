@@ -23,3 +23,4 @@ tsconfig.tsbuildinfo
 
 # SDK build output
 sdk/dist/
+.vercel
