@@ -61,6 +61,28 @@ export function keypairSigner(keypair: Keypair): StellarSigner {
   };
 }
 
+/**
+ * Wrap a Freighter-style signTransaction function as a StellarSigner.
+ * The signFn receives a base64 XDR string and returns the signed XDR.
+ */
+export function freighterSigner(
+  publicKey: string,
+  signFn: (xdr: string) => Promise<string>,
+): StellarSigner {
+  return {
+    publicKey: () => publicKey,
+    sign: async (tx) => {
+      const { TransactionBuilder: TB } = await import('@stellar/stellar-sdk');
+      const signedXdr = await signFn(tx.toXDR());
+      const signed = TB.fromXDR(signedXdr, NETWORK_PASSPHRASE);
+      // Copy signatures from the signed tx back onto the original tx object
+      for (const sig of signed.signatures) {
+        tx.signatures.push(sig);
+      }
+    },
+  };
+}
+
 /** Result of an `invoke` call. */
 export interface InvokeResult<T = unknown> {
   hash: string;
