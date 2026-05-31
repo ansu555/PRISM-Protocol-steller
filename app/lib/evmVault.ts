@@ -36,6 +36,16 @@ function getConfig() {
   return { rpcUrl, vaultAddress, privateKey, treasury: treasury ?? vaultAddress };
 }
 
+// Read-only provider — no private key needed for view calls
+function getEvmReadClient() {
+  const rpcUrl       = process.env.EVM_RPC_URL;
+  const vaultAddress = process.env.EVM_VAULT_ADDRESS;
+  if (!rpcUrl || !vaultAddress) throw new Error('Missing EVM_RPC_URL or EVM_VAULT_ADDRESS');
+  const provider = new JsonRpcProvider(rpcUrl);
+  const vault    = new Contract(vaultAddress, VAULT_ABI, provider);
+  return { vault, provider };
+}
+
 export function getEvmVaultClient() {
   const { rpcUrl, vaultAddress, privateKey } = getConfig();
   const provider = new JsonRpcProvider(rpcUrl);
@@ -45,7 +55,8 @@ export function getEvmVaultClient() {
 }
 
 export async function getEvmLock(stellarLoanId: number): Promise<EVMLock | null> {
-  const { vault } = getEvmVaultClient();
+  // Use read-only client — no signer required for getLock view call
+  const { vault } = getEvmReadClient();
   try {
     const raw = await vault.getLock(stellarLoanId) as [string, string, bigint, number, number, bigint, string];
     const stateIdx = Number(raw[4]);
@@ -58,7 +69,8 @@ export async function getEvmLock(stellarLoanId: number): Promise<EVMLock | null>
       lockedAt:        raw[5],
       stellarBorrower: raw[6],
     };
-  } catch {
+  } catch (err) {
+    console.error('[evmVault] getLock failed:', err instanceof Error ? err.message : err);
     return null;
   }
 }

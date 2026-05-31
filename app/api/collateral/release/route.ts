@@ -85,7 +85,6 @@ export async function POST(req: NextRequest) {
     const { messageHex, signatureHex } = await getOracleAttestation(loanId, 'released');
 
     // 2. Submit release_collateral to Stellar (borrower.require_auth — admin key in demo)
-    const core   = getCoreClient();
     const signer = keypairSigner(keypair);
 
     const msgBytes = Buffer.from(messageHex, 'hex');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStellarWallet } from '@/components/providers/stellar-wallet-provider';
 import { useLoanApplications } from '@/hooks/useLoanApplications';
 import { useRepayLoan } from '@/hooks/useRepayLoan';
@@ -9,6 +9,7 @@ import { formatUsdc } from '@/app/lib/format';
 import { useLoans } from '@/hooks/useLoans';
 import { useCollateralRecord } from '@/hooks/useCollateralFlow';
 import { useVaultState } from '@/hooks/useVaultState';
+import { getBalances } from '@/app/lib/horizon';
 import { EVMCollateralStep } from '@/components/borrower/EVMCollateralStep';
 import { VAULT_ID } from '@/app/lib/constants';
 import {
@@ -215,7 +216,42 @@ function ApplicationStatus({ app, onReset }: {
 function ActiveLoanNotice({ loanId }: { loanId: number }) {
   const { data: loans = [] } = useLoans();
   const loan = loans.find(l => l.id === loanId);
+  const isDisbursed = loan?.state === 'Active' || loan?.state === 'Repaying';
   const outstanding = loan ? (loan.principal > loan.totalRepaid ? loan.principal - loan.totalRepaid : 0n) : 0n;
+
+  if (!isDisbursed) {
+    // Collateral locked, admin has not disbursed yet
+    return (
+      <div className="space-y-3">
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-4">
+          <div className="flex items-center gap-2.5 mb-3">
+            <Clock className="h-4 w-4 text-amber-400" />
+            <div>
+              <p className="font-sans text-sm font-semibold text-amber-300">Waiting for Disbursal</p>
+              <p className="font-mono text-[9px] text-white/25">Collateral verified · Admin will release TUSDC shortly</p>
+            </div>
+          </div>
+          {loan && (
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: 'Approved Amount', value: `$${formatUsdc(loan.principal, 2)}` },
+                { label: 'APR',             value: `${(loan.aprBps / 100).toFixed(1)}%` },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-lg bg-black/20 px-2.5 py-2">
+                  <p className="font-mono text-[8px] text-white/20 uppercase">{label}</p>
+                  <p className="font-mono text-xs text-white/60 mt-0.5">{value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <p className="text-center font-mono text-[9px] text-white/20">
+          The admin will send TUSDC to your wallet once they approve disbursal
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <div className="rounded-xl border border-[#4a9ec9]/20 bg-[#4a9ec9]/[0.04] p-4">
@@ -229,9 +265,9 @@ function ActiveLoanNotice({ loanId }: { loanId: number }) {
         {loan && (
           <div className="grid grid-cols-3 gap-2">
             {[
-              { label: 'Principal',    value: `$${formatUsdc(loan.principal, 2)}` },
-              { label: 'APR',          value: `${(loan.aprBps / 100).toFixed(1)}%` },
-              { label: 'Outstanding',  value: `$${formatUsdc(outstanding, 2)}` },
+              { label: 'Principal',   value: `$${formatUsdc(loan.principal, 2)}` },
+              { label: 'APR',         value: `${(loan.aprBps / 100).toFixed(1)}%` },
+              { label: 'Outstanding', value: `$${formatUsdc(outstanding, 2)}` },
             ].map(({ label, value }) => (
               <div key={label} className="rounded-lg bg-black/20 px-2.5 py-2">
                 <p className="font-mono text-[8px] text-white/20 uppercase">{label}</p>
@@ -252,7 +288,21 @@ function RepaySection({ address, loanId }: { address: string; loanId: number }) 
   const { data: loans = [] } = useLoans();
   const repay = useRepayLoan();
   const [amount, setAmount] = useState('');
+  const [ptBalance, setPtBalance] = useState<bigint | null>(null);
   const loan = loans.find(l => l.id === loanId);
+
+  // Fetch PTUSDC balance so we can warn if the amount exceeds what the borrower holds
+  useEffect(() => {
+    if (!address) return;
+    getBalances(address).then(bals => {
+      const pt = bals.find(b =>
+        'asset_code' in b && b.asset_code === 'PTUSDC'
+      );
+      if (pt && 'balance' in pt) {
+        setPtBalance(BigInt(Math.round(parseFloat(pt.balance) * 10_000_000)));
+      }
+    }).catch(() => {});
+  }, [address]);
 
   const accruedInterest = (() => {
     if (!loan || loan.totalRepaid >= loan.principal) return 0n;
@@ -332,6 +382,19 @@ function RepaySection({ address, loanId }: { address: string; loanId: number }) 
               Repay full amount with interest (${formatUsdc(totalDue, 2)})
             </button>
           )}
+          {/* Warn if repayment amount exceeds PTUSDC balance */}
+          {ptBalance !== null && amount && (() => {
+            const amtMicro = BigInt(Math.round(parseFloat(amount) * 10_000_000));
+            const shortfall = amtMicro - ptBalance;
+            if (shortfall > 0n) return (
+              <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] px-3 py-2">
+                <p className="font-mono text-[9px] text-amber-300">
+                  Your PTUSDC balance (${formatUsdc(ptBalance, 2)}) is ${formatUsdc(shortfall, 4)} short.
+                  Ask the admin to mint extra PTUSDC to your wallet to cover the interest.
+                </p>
+              </div>
+            );
+          })()}
         </div>
         <button type="submit" disabled={repay.isPending}
           className="w-full flex items-center justify-center gap-2 rounded-xl bg-white py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-black hover:bg-white/90 disabled:opacity-40 transition-all">

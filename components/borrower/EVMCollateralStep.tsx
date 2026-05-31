@@ -359,8 +359,8 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
 
       setTxHash(tx.hash);
       await tx.wait();
+
       toast.success('Collateral locked on Ethereum — register on Stellar next');
-      // EVM lock confirmed → borrower must now sign attach_collateral with Freighter
       setFlowStep('stellar_register');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Lock failed';
@@ -388,15 +388,24 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
     setFlowStep('stellar_registering');
     setError('');
     try {
-      // 1. Get oracle pubkey
+      // 1. Fetch live USD value: EVM lock amount × Chainlink price (server-side)
+      const usdRes         = await fetch(`/api/collateral/evm-usd?loanId=${loanId}`);
+      const usdData        = await usdRes.json() as { usdMicro?: string };
+      const amountUsdMicro = usdData.usdMicro ?? '0';
+
+      // 2. Get oracle pubkey + signed attestation
       const nonce = BigInt(Date.now()).toString();
       const attestRes = await fetch('/api/collateral-oracle/attest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          loan_id: loanId, chain_id: 1, asset_address: '00'.repeat(32),
-          amount_usd_micro: '0', valued_at_ts: Math.floor(Date.now() / 1000).toString(),
-          nonce, status: 'attached',
+          loan_id:          loanId,
+          chain_id:         1,
+          asset_address:    '00'.repeat(32),
+          amount_usd_micro: amountUsdMicro,
+          valued_at_ts:     Math.floor(Date.now() / 1000).toString(),
+          nonce,
+          status:           'attached',
         }),
       });
       const attestData = await attestRes.json() as { oracle_pubkey_hex?: string; message_hex?: string; signature?: string; error?: string };

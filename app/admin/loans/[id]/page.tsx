@@ -35,7 +35,7 @@ function useEvmLock(loanId: number | undefined) {
     queryFn: async () => {
       const res = await fetch(`/api/collateral/evm-lock?loanId=${loanId}`);
       const d = await res.json() as { ok: boolean; lock: EVMLock | null };
-      return d.lock;
+      return d.lock ?? null;
     },
   });
 }
