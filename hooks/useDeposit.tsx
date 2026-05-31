@@ -33,6 +33,14 @@ const TRANCHE_LABELS = ['Prime', 'Core', 'Alpha'];
 // Users must connect a different wallet to deposit on mainnet.
 const PTOKEN_ISSUER_MAINNET = 'GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO';
 
+// Classic asset codes for each tranche's pToken (issuer = PTOKEN_ISSUER_MAINNET on mainnet).
+// Wallets must hold a trustline for this asset before prism_core can mint into them.
+const PTOKEN_ASSET_CODE: Record<TrancheKind, string> = {
+  [TrancheKind.Prime]: 'PPRIME',
+  [TrancheKind.Core]: 'PCORE',
+  [TrancheKind.Alpha]: 'PALPHA',
+};
+
 export function useDeposit() {
   const wallet = useStellarWallet();
   const queryClient = useQueryClient();
@@ -62,6 +70,24 @@ export function useDeposit() {
       const core = getCoreClient();
       const server = getRpcServer();
       const source = await getHorizonServer().loadAccount(wallet.address);
+
+      // Stellar requires a trustline before any asset can be received. Check
+      // before submitting so we get a clear error instead of a cryptic on-chain failure.
+      if (ACTIVE_NETWORK === 'mainnet') {
+        const assetCode = PTOKEN_ASSET_CODE[trancheKind];
+        const hasTrustline = source.balances.some(
+          (b) =>
+            b.asset_type !== 'native' &&
+            (b as { asset_code: string; asset_issuer: string }).asset_code === assetCode &&
+            (b as { asset_code: string; asset_issuer: string }).asset_issuer === PTOKEN_ISSUER_MAINNET,
+        );
+        if (!hasTrustline) {
+          throw new Error(
+            `Your wallet has no trustline for ${assetCode}. ` +
+            `In Freighter: Add Asset → enter code "${assetCode}" and issuer "${PTOKEN_ISSUER_MAINNET}".`,
+          );
+        }
+      }
 
       // Build a tx invoking `deposit(user, vault_id, kind, amount)`.
       let tx = new TransactionBuilder(source, {
