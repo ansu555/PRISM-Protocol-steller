@@ -33,16 +33,19 @@ import {
   NETWORK_PASSPHRASE,
   PRISM_AMM_CONTRACT_ID,
   PRISM_CORE_CONTRACT_ID,
-  SOROBAN_RPC_URL,
   USDC_CONTRACT_ID,
 } from './constants';
+import { CONTRACTS } from './addresses';
 
 let _rpcServer: rpc.Server | null = null;
 
-/** Lazy singleton Soroban RPC client. */
+/** Lazy singleton Soroban RPC client. Network-aware: re-creates if network changed. */
 export function getRpcServer(): rpc.Server {
+  resetSingletonsIfNetworkChanged();
   if (!_rpcServer) {
-    _rpcServer = new rpc.Server(SOROBAN_RPC_URL, { allowHttp: SOROBAN_RPC_URL.startsWith('http://') });
+    const net = (_singletonNetwork ?? 'testnet') as 'testnet' | 'mainnet';
+    const url = CONTRACTS[net].rpcUrl;
+    _rpcServer = new rpc.Server(url, { allowHttp: url.startsWith('http://') });
   }
   return _rpcServer;
 }
@@ -203,23 +206,52 @@ async function pollTransaction(hash: string, timeoutMs = 30_000) {
 }
 
 // ── Module-level singletons for our two contracts + USDC SAC ─────────────────
+// Keyed by network so a runtime network switch (localStorage) gets fresh clients.
 
+let _singletonNetwork: string | null = null;
 let _coreClient: ContractClient | null = null;
 let _ammClient: ContractClient | null = null;
 let _usdcClient: ContractClient | null = null;
 
+function currentNetwork(): string {
+  if (typeof window !== 'undefined') {
+    return window.localStorage.getItem('prism_network') ?? 'testnet';
+  }
+  return process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? 'testnet';
+}
+
+function resetSingletonsIfNetworkChanged() {
+  const net = currentNetwork();
+  if (net !== _singletonNetwork) {
+    _singletonNetwork = net;
+    _coreClient = null;
+    _ammClient = null;
+    _usdcClient = null;
+    _rpcServer = null;
+  }
+}
+
 export function getCoreClient(): ContractClient {
-  if (!_coreClient) _coreClient = new ContractClient(PRISM_CORE_CONTRACT_ID);
+  resetSingletonsIfNetworkChanged();
+  if (!_coreClient) {
+    const net = (_singletonNetwork ?? 'testnet') as 'testnet' | 'mainnet';
+    _coreClient = new ContractClient(CONTRACTS[net].prismCore);
+  }
   return _coreClient;
 }
 
 export function getAmmClient(): ContractClient {
+  resetSingletonsIfNetworkChanged();
   if (!_ammClient) _ammClient = new ContractClient(PRISM_AMM_CONTRACT_ID);
   return _ammClient;
 }
 
 export function getUsdcClient(): ContractClient {
-  if (!_usdcClient) _usdcClient = new ContractClient(USDC_CONTRACT_ID);
+  resetSingletonsIfNetworkChanged();
+  if (!_usdcClient) {
+    const net = (_singletonNetwork ?? 'testnet') as 'testnet' | 'mainnet';
+    _usdcClient = new ContractClient(CONTRACTS[net].usdc);
+  }
   return _usdcClient;
 }
 

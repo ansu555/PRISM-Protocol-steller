@@ -42,7 +42,7 @@ const TRANCHE_META = {
 const TRADE_TABS = ['Secondary swap', 'AMM pools', 'Cross-chain margin'] as const;
 
 const SIDE_INFO: Record<string, { symbol: string; color: string; desc: string }> = {
-  usdc: { symbol: 'USDC', color: '#4ade80', desc: 'Stellar Devnet' },
+  usdc: { symbol: 'USDC', color: '#4ade80', desc: typeof window !== 'undefined' && window.localStorage.getItem('prism_network') === 'mainnet' ? 'Stellar Mainnet' : 'Stellar Testnet' },
   [String(TrancheKind.Prime)]: { symbol: 'pPRIME', color: '#647b8c', desc: 'PRISM Senior' },
   [String(TrancheKind.Core)]:  { symbol: 'pCORE',  color: '#b29b70', desc: 'PRISM Mezz' },
   [String(TrancheKind.Alpha)]: { symbol: 'pALPHA', color: '#b07073', desc: 'PRISM Equity' },
