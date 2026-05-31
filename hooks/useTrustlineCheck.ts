@@ -8,13 +8,15 @@ import {
   USDC_ASSET_ISSUER,
   NETWORK_PASSPHRASE,
 } from '@/app/lib/constants';
+import { ACTIVE_NETWORK } from '@/app/lib/addresses';
 
-export const REQUIRED_ASSETS = [
+// On mainnet pTokens are Soroban SAC contracts — no classic Stellar trustlines needed.
+export const REQUIRED_ASSETS = ACTIVE_NETWORK === 'mainnet' ? ([] as const) : ([
   { code: 'PTUSDC', issuer: USDC_ASSET_ISSUER, label: 'PTUSDC (testnet USDC)' },
   { code: 'PPRIME', issuer: USDC_ASSET_ISSUER, label: 'PPRIME (Prime tranche token)' },
   { code: 'PCORE',  issuer: USDC_ASSET_ISSUER, label: 'PCORE (Core tranche token)' },
   { code: 'PALPHA', issuer: USDC_ASSET_ISSUER, label: 'PALPHA (Alpha tranche token)' },
-] as const;
+] as const);
 
 export type MissingTrustline = (typeof REQUIRED_ASSETS)[number];
 
