@@ -8,8 +8,7 @@
 //!   bump TTL on the entities they touch.
 //! - **Temporary** — none.
 //!
-//! Replaces the Anchor PDA model (no findProgramAddress, no `bump` fields). Each
-//! `DataKey` variant uniquely identifies a stored entity.
+//! Each `DataKey` variant uniquely identifies a stored entity.
 
 use soroban_sdk::{contracttype, Env};
 

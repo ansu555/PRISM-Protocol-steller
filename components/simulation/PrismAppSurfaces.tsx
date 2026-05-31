@@ -94,7 +94,7 @@ type DashboardTranche = {
   cumulativeLoss: bigint;
   ammQuoteBalance: bigint;
   ammTrancheBalance: bigint;
-  pdaLabel: string;
+  addressLabel: string;
 };
 
 type PrismData = {
@@ -140,7 +140,7 @@ function usePrismData(): PrismData {
       cumulativeLoss: live?.cumulativeLoss ?? 0n,
       ammQuoteBalance: live?.ammQuoteBalance ?? 0n,
       ammTrancheBalance: live?.ammTrancheBalance ?? 0n,
-      pdaLabel: live ? shortKey(live.pda) : meta.token,
+      addressLabel: live ? shortKey(live.tokenAddress) : meta.token,
     };
   });
 
@@ -150,7 +150,7 @@ function usePrismData(): PrismData {
   return {
     connected,
     walletLabel: connected && publicKey ? shortKey(publicKey) : 'Not connected',
-    vaultLabel: data ? shortKey(data.vaultPda) : 'Vault #0',
+    vaultLabel: data ? shortKey(data.vaultAddress) : 'Vault #0',
     vaultStatus: stateName(data?.vault?.state),
     tranches,
     vaultCapital: trancheAssets > 0n ? trancheAssets : reserveBalance,
@@ -182,7 +182,7 @@ function usePrismDataById(vaultId: number): PrismData {
       cumulativeLoss: live?.cumulativeLoss ?? 0n,
       ammQuoteBalance: live?.ammQuoteBalance ?? 0n,
       ammTrancheBalance: live?.ammTrancheBalance ?? 0n,
-      pdaLabel: live ? shortKey(live.pda) : meta.token,
+      addressLabel: live ? shortKey(live.tokenAddress) : meta.token,
     };
   });
 
@@ -192,7 +192,7 @@ function usePrismDataById(vaultId: number): PrismData {
   return {
     connected,
     walletLabel: connected && publicKey ? shortKey(publicKey) : 'Not connected',
-    vaultLabel: data ? shortKey(data.vaultPda) : `Vault #${vaultId}`,
+    vaultLabel: data ? shortKey(data.vaultAddress) : `Vault #${vaultId}`,
     vaultStatus: stateName(data?.vault?.state),
     tranches,
     vaultCapital: trancheAssets > 0n ? trancheAssets : reserveBalance,
@@ -823,7 +823,7 @@ const UPCOMING_VAULTS = [
   {
     label: 'Vault #3 · Queued',
     title: 'Validator Credit',
-    copy: 'Lending against staked SOL · 120-day',
+    copy: 'Lending against tokenized collateral · 120-day',
   },
 ] as const;
 
@@ -1347,7 +1347,7 @@ function SwapPanel({ data }: { data: PrismData }) {
           <div className="border-b border-white/10 bg-white/[0.045] px-6 py-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <Eyebrow>Swap · PRISM AMM</Eyebrow>
+                <Eyebrow>Swap · Soroswap</Eyebrow>
                 <p className="mt-2 text-sm text-white/50">
                   Trade USDC against tranche tokens through constant-product pools.
                 </p>

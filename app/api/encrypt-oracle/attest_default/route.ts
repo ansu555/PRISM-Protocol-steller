@@ -26,16 +26,18 @@ import {
   selectOracleSigner,
 } from '@/app/lib/oracle-security';
 
-const signerBundle = loadManagedOracleSigner({
-  oracleName: 'encrypt',
-  primarySeedEnv: 'ENCRYPT_ORACLE_SECRET_SEED',
-  legacySeedEnvs: ['IKA_TEST_ORACLE_SECRET_SEED'],
-  devSeedEnv: 'ENCRYPT_ORACLE_SECRET_SEED_DEV',
-  nextSeedEnv: 'ENCRYPT_ORACLE_SECRET_SEED_NEXT',
-  activeKeyIdEnv: 'ENCRYPT_ORACLE_ACTIVE_KEY_ID',
-  primaryKeyIdEnv: 'ENCRYPT_ORACLE_PRIMARY_KEY_ID',
-  nextKeyIdEnv: 'ENCRYPT_ORACLE_NEXT_KEY_ID',
-});
+function loadSignerBundle() {
+  return loadManagedOracleSigner({
+    oracleName: 'encrypt',
+    primarySeedEnv: 'ENCRYPT_ORACLE_SECRET_SEED',
+    legacySeedEnvs: [],
+    devSeedEnv: 'ENCRYPT_ORACLE_SECRET_SEED_DEV',
+    nextSeedEnv: 'ENCRYPT_ORACLE_SECRET_SEED_NEXT',
+    activeKeyIdEnv: 'ENCRYPT_ORACLE_ACTIVE_KEY_ID',
+    primaryKeyIdEnv: 'ENCRYPT_ORACLE_PRIMARY_KEY_ID',
+    nextKeyIdEnv: 'ENCRYPT_ORACLE_NEXT_KEY_ID',
+  });
+}
 
 function buildMessage(loanId: number, scoreCommitmentHex: string, defaultProven: boolean): Buffer {
   const buf = Buffer.alloc(73);
@@ -132,6 +134,25 @@ export async function POST(req: NextRequest) {
       { error: 'score_commitment must be 64 hex chars (32 bytes)' },
       { status: 400, headers: rateHeaders },
     );
+  }
+
+  const signerBundle = (() => {
+    try {
+      return loadSignerBundle();
+    } catch (error) {
+      return error as Error;
+    }
+  })();
+  if (signerBundle instanceof Error) {
+    await recordOracleOperationalEvent({
+      route: '/api/encrypt-oracle/attest_default',
+      oracle: 'encrypt',
+      outcome: 'error',
+      clientKey: rate.clientKey,
+      success: false,
+      detail: { error: signerBundle.message },
+    });
+    return NextResponse.json({ error: 'oracle unavailable' }, { status: 503, headers: rateHeaders });
   }
 
   const signer = (() => {

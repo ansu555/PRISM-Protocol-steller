@@ -6,30 +6,29 @@ import Image from "next/image";
 const features = [
   { 
     title: "Stellar settlement",
-    description: "Fast finality for tranche minting, NAV updates, AMM swaps, and withdrawals."
+    description: "Soroban contracts settle tranche minting, NAV updates, credit events, and withdrawals."
   },
-  { 
-    title: "Cross-chain collateral", 
-    description: "Ika extends the borrower model toward BTC, RWAs, and MPC-secured assets."
+  {
+    title: "Market liquidity",
+    description: "Soroswap pools make tranche exposure tradable against Stellar asset contracts."
   },
-  { 
-    title: "Private flows", 
-    description: "Encrypt and Cloak add confidential scoring, strategy data, and shielded exits."
+  {
+    title: "Verified collateral",
+    description: "PRISM signed attestations and Reflector price feeds keep credit controls explicit."
   },
-  { 
-    title: "Verified events", 
-    description: "Switchboard and Dune SIM make credit events observable, indexable, and demo-ready."
+  {
+    title: "Accessible rails",
+    description: "Horizon account reads and MoneyGram Access connect the protocol to Stellar-native rails."
   },
 ];
 
 const logos = [
   { name: "Stellar", src: "/logos/stellar-logo.png", width: 28, height: 28 },
-  { name: "Ika", src: "/logos/ika-logo.png", width: 28, height: 28 },
-  { name: "Encrypt", src: "/logos/encrypt-logo.png", width: 28, height: 28 },
-  { name: "Cloak", src: "/logos/cloak-logo.png", width: 78, height: 24, wide: true },
-  { name: "Dune SIM", src: "/logos/sim-logo.png", width: 28, height: 28 },
-  { name: "Dodo Payments", src: "/logos/dodo-logo.png", width: 86, height: 22, wide: true },
-  { name: "Switchboard", src: "/logos/switchboard-logo.png", width: 28, height: 28 },
+  { name: "Soroban" },
+  { name: "Soroswap" },
+  { name: "Reflector" },
+  { name: "Horizon" },
+  { name: "MoneyGram Access" },
 ];
 
 export function DevelopersSection() {
@@ -99,13 +98,17 @@ export function DevelopersSection() {
                 key={`${logo.name}-${index}`}
                 className="flex shrink-0 items-center gap-3 text-sm font-semibold text-zinc-400"
               >
-                <Image
-                  src={logo.src}
-                  alt={`${logo.name} logo`}
-                  width={logo.width}
-                  height={logo.height}
-                  className={`${logo.wide ? "h-5 w-auto" : "h-6 w-6"} object-contain`}
-                />
+                {logo.src ? (
+                  <Image
+                    src={logo.src}
+                    alt={`${logo.name} logo`}
+                    width={logo.width}
+                    height={logo.height}
+                    className="h-6 w-6 object-contain"
+                  />
+                ) : (
+                  <span className="h-2 w-2 rounded-full bg-[#eca8d6]/70" />
+                )}
                 <span>{logo.name}</span>
               </div>
             ))}
@@ -119,8 +122,8 @@ export function DevelopersSection() {
           }`}
         >
           <p className="mb-10 max-w-md text-base leading-relaxed text-muted-foreground sm:text-lg lg:mb-12 lg:text-xl">
-            Powered by Stellar and partner protocols that secure collateral, privacy, analytics,
-            payments, and verified credit events.
+            Powered by Stellar-native settlement, market liquidity, oracle feeds, account reads,
+            and accessible USDC rails.
           </p>
           <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
             {features.map((feature, index) => (

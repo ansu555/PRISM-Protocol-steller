@@ -1,11 +1,11 @@
 'use client';
 
-// Context + hooks ONLY. The actual StellarWalletsKit (which touches
-// window.localStorage at construction) lives in stellar-wallet-provider.tsx.
+// Context + hooks only. The browser-only Freighter API integration lives in
+// stellar-wallet-provider.tsx.
 //
 // Keeping these split means hooks like useStellarWallet / useWallet /
 // useConnection can be imported anywhere (SSR-safe) without pulling the
-// Wallets Kit into the SSR bundle.
+// the extension API into the SSR bundle.
 
 import { createContext, useContext } from 'react';
 
@@ -49,9 +49,7 @@ export function useStellarWallet(): StellarWalletContext {
   return ctx;
 }
 
-// Compatibility helpers for components that still expect the old wallet hook shape.
-
-/** Stellar wallet hook (also serves as compatibility shim for legacy imports). */
+/** Compact wallet hook for app surfaces that only need connection state. */
 export function useWallet() {
   const w = useContext(StellarWalletCtx);
   if (!w) {
@@ -65,32 +63,16 @@ export function useWallet() {
     };
   }
   return {
-    publicKey: w.address
-      ? { toBase58: () => w.address!, toString: () => w.address! }
-      : null,
+    publicKey: w.address,
     connected: w.connected,
     connecting: w.pending,
     disconnect: w.disconnect,
     signTransaction: async (_tx: unknown) => {
       throw new Error(
-        'useWallet().signTransaction is a compat shim. Use useStellarWallet().signTransaction(xdr) instead.',
+        'Use useStellarWallet().signTransaction(xdr) for Stellar transaction signing.',
       );
     },
     signAllTransactions: undefined,
-  };
-}
-
-export function useAnchorWallet() {
-  const w = useContext(StellarWalletCtx);
-  if (!w?.address) return null;
-  return {
-    publicKey: { toBase58: () => w.address!, toString: () => w.address! },
-    signTransaction: async () => {
-      throw new Error('Use useStellarWallet().signTransaction(xdr) for Stellar transactions.');
-    },
-    signAllTransactions: async () => {
-      throw new Error('Batch transaction signing is not wired for the Stellar build.');
-    },
   };
 }
 

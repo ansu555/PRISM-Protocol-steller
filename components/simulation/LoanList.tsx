@@ -65,7 +65,7 @@ function LoanRow({ loan, isLast }: { loan: LoanRecord; isLast: boolean }) {
       {/* Borrower */}
       <div>
         <div className="font-mono text-[11px] text-white/50">{shortKey(loan.borrower)}</div>
-        <div className="mt-0.5 font-mono text-[10px] text-white/20">{loan.pda.slice(0, 12)}…</div>
+        <div className="mt-0.5 font-mono text-[10px] text-white/20">{loan.contractRef.slice(0, 12)}…</div>
       </div>
 
       {/* Principal */}

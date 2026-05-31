@@ -111,7 +111,7 @@ function useTradeData() {
     connected,
     publicKey,
     walletLabel: connected && publicKey ? shortKey(publicKey) : 'Not connected',
-    vaultLabel: raw ? shortKey(raw.vaultPda) : 'Vault #0',
+    vaultLabel: raw ? shortKey(raw.vaultAddress) : 'Vault #0',
     tranches,
     poolLiquidity,
     activePools,

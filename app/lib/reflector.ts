@@ -13,7 +13,7 @@
 //
 // No state is written; this is always a simulation (no fee, no signing).
 //
-// Asset symbols Reflector tracks (mainnet Pulse): BTC, ETH, USDC, XLM, SOL, ...
+// Asset symbols Reflector tracks (mainnet Pulse): BTC, ETH, USDC, XLM, ...
 // Use `getReflectorAssets()` to enumerate what the live oracle supports.
 
 import { Contract, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';

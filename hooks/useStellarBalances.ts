@@ -2,12 +2,12 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { fetchDuneBalances, type FetchBalancesResult } from '@/app/lib/dune-sim';
+import { fetchStellarBalances, type FetchBalancesResult } from '@/app/lib/stellar-ledger';
 
-export function useDuneBalances(address: string) {
+export function useStellarBalances(address: string) {
   return useQuery<FetchBalancesResult>({
-    queryKey: ['dune-balances', address],
-    queryFn: () => fetchDuneBalances(address),
+    queryKey: ['stellar-balances', address],
+    queryFn: () => fetchStellarBalances(address),
     refetchInterval: 30_000,
     staleTime: 20_000,
     enabled: !!address,

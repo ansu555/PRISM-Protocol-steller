@@ -206,8 +206,7 @@ fn oracle_allowlist_respects_max_size() {
 // Phase 2 — full lifecycle harness
 // ──────────────────────────────────────────────────────────────────────────────
 
-/// USDC has 7 decimals on Stellar (vs 6 on Solana). Helper to keep test
-/// constants readable.
+/// USDC has 7 decimals on Stellar. Helper to keep test constants readable.
 const USDC_UNIT: i128 = 10_000_000;
 
 struct Harness<'a> {
@@ -378,8 +377,7 @@ fn accrue_yield_alpha_only_lifts_nav() {
     assert_eq!(alpha.nav_per_share_q, expected_nav);
 
     // Withdraw 50 shares → ≈ 50 × 1.05 = 52.5 USDC, modulo 1-unit Q64.64
-    // truncation (NAV stored at finite precision; matches the Solana behavior
-    // in contracts/programs/prism-core/src/math/q.rs::withdraw_payout).
+    // truncation from finite-precision NAV storage.
     let payout = h.client.withdraw(&h.user, &0_u32, &2_u32, &(50 * USDC_UNIT));
     let diff = (525_000_000i128 - payout).abs();
     assert!(diff <= 1, "payout {payout} not within 1 unit of 525_000_000");

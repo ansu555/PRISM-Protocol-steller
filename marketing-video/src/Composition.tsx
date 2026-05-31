@@ -808,11 +808,11 @@ const SponsorScene = ({ variant }: { variant: Variant }) => {
   const isVertical = variant === "vertical";
   const title = enter(local, fps, 0);
   const sponsors = [
-    ["Ika", "cross-chain collateral", "assets/ika-logo.png"],
-    ["Encrypt", "private credit signals", "assets/encrypt-logo.png"],
-    ["Cloak", "shielded payouts", "assets/cloak-logo.png"],
-    ["Dune SIM", "protocol analytics", "assets/dune-logo.png"],
-    ["Dodo", "capital entry rails", "assets/dodo-logo.png"],
+    ["Stellar", "settlement network", "ST"],
+    ["Soroban", "contract engine", "SO"],
+    ["Soroswap", "tranche liquidity", "SW"],
+    ["Reflector", "oracle pricing", "RF"],
+    ["MoneyGram", "USDC access rails", "MG"],
   ] as const;
 
   return (
@@ -841,7 +841,7 @@ const SponsorScene = ({ variant }: { variant: Variant }) => {
               marginBottom: 16,
             }}
           >
-            sponsors are built into the credit stack
+            stellar-native rails are built into the credit stack
           </div>
           <div
             style={{
@@ -852,9 +852,9 @@ const SponsorScene = ({ variant }: { variant: Variant }) => {
               letterSpacing: 0,
             }}
           >
-            Not logo soup.
+            Connected rails.
             <br />
-            <GradientText>Protocol primitives.</GradientText>
+            <GradientText>Composable primitives.</GradientText>
           </div>
         </div>
         <div
@@ -865,7 +865,7 @@ const SponsorScene = ({ variant }: { variant: Variant }) => {
             alignSelf: "center",
           }}
         >
-          {sponsors.map(([name, label, logo], index) => {
+          {sponsors.map(([name, label, mark], index) => {
             const p = enter(local, fps, 52 + index * 9);
             return (
               <div
@@ -887,14 +887,23 @@ const SponsorScene = ({ variant }: { variant: Variant }) => {
                   boxShadow: "0 24px 70px rgba(0,0,0,0.30)",
                 }}
               >
-                <Img
-                  src={staticFile(logo)}
+                <div
                   style={{
-                    maxWidth: isVertical ? 142 : 140,
-                    maxHeight: isVertical ? 58 : 74,
-                    objectFit: "contain",
+                    display: "flex",
+                    width: isVertical ? 58 : 66,
+                    height: isVertical ? 58 : 66,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: 18,
+                    border: `1px solid ${COLORS.border}`,
+                    color: COLORS.text,
+                    fontSize: isVertical ? 20 : 22,
+                    fontWeight: 850,
+                    letterSpacing: 1,
                   }}
-                />
+                >
+                  {mark}
+                </div>
                 <div style={{ textAlign: isVertical ? "left" : "center" }}>
                   <div
                     style={{
@@ -985,7 +994,7 @@ const CtaScene = ({ variant }: { variant: Variant }) => {
           >
             Structured credit,
             <br />
-            <GradientText>built on Solana.</GradientText>
+            <GradientText>built on Stellar.</GradientText>
           </div>
           <div
             style={{
@@ -1093,7 +1102,7 @@ export const PrismThumbnail = () => (
             fontWeight: 620,
           }}
         >
-          PRISM Protocol on Solana
+          PRISM Protocol on Stellar
         </div>
       </div>
       <BrowserFrame

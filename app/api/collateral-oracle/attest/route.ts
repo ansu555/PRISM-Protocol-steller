@@ -2,15 +2,13 @@
  * PRISM Collateral Oracle — Ed25519 attestation signer.
  *
  * Signs the 73-byte `col_atts` message on behalf of the PRISM-hosted collateral oracle.
- * This replaces the IKA dWallet flow (§6.6 of stellar-migration-plan.md).
- *
  * Trust model (v1): oracle key is held by the PRISM team.
  * Trust model (v1.5+): key moves behind a 2-of-3 multisig.
  *
  * Message layout (73 bytes, must match prism-core's verify_collateral):
  *   bytes  0..8    b"col_atts"
  *   bytes  8..12   loan_id (u32 LE)
- *   bytes 12..16   chain_id (u32 LE)  — 0=BTC, 1=ETH, 2=SOL, 3=XLM, 4=USDC-Stellar
+ *   bytes 12..16   chain_id (u32 LE)  — 3=XLM, 4=USDC-Stellar
  *   bytes 16..48   asset_address (32 bytes)
  *   bytes 48..56   amount_usd_micro (u64 LE)
  *   bytes 56..64   valued_at_ts (i64 LE)
@@ -28,16 +26,18 @@ import {
   selectOracleSigner,
 } from '@/app/lib/oracle-security';
 
-const signerBundle = loadManagedOracleSigner({
-  oracleName: 'collateral',
-  primarySeedEnv: 'COLLATERAL_ORACLE_SEED',
-  legacySeedEnvs: ['IKA_TEST_ORACLE_SECRET_SEED'],
-  devSeedEnv: 'COLLATERAL_ORACLE_SEED_DEV',
-  nextSeedEnv: 'COLLATERAL_ORACLE_SEED_NEXT',
-  activeKeyIdEnv: 'COLLATERAL_ORACLE_ACTIVE_KEY_ID',
-  primaryKeyIdEnv: 'COLLATERAL_ORACLE_PRIMARY_KEY_ID',
-  nextKeyIdEnv: 'COLLATERAL_ORACLE_NEXT_KEY_ID',
-});
+function loadSignerBundle() {
+  return loadManagedOracleSigner({
+    oracleName: 'collateral',
+    primarySeedEnv: 'COLLATERAL_ORACLE_SEED',
+    legacySeedEnvs: [],
+    devSeedEnv: 'COLLATERAL_ORACLE_SEED_DEV',
+    nextSeedEnv: 'COLLATERAL_ORACLE_SEED_NEXT',
+    activeKeyIdEnv: 'COLLATERAL_ORACLE_ACTIVE_KEY_ID',
+    primaryKeyIdEnv: 'COLLATERAL_ORACLE_PRIMARY_KEY_ID',
+    nextKeyIdEnv: 'COLLATERAL_ORACLE_NEXT_KEY_ID',
+  });
+}
 
 const STATUS_MAP: Record<string, number> = {
   attached: 0x01,
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
 
   const {
     loan_id,
-    chain_id = 0,
+    chain_id = 3,
     asset_address = '00'.repeat(32),
     amount_usd_micro = '0',
     valued_at_ts = '0',
@@ -160,6 +160,25 @@ export async function POST(req: NextRequest) {
       { error: 'status must be one of: attached, released, liquidated' },
       { status: 400, headers: rateHeaders },
     );
+  }
+
+  const signerBundle = (() => {
+    try {
+      return loadSignerBundle();
+    } catch (error) {
+      return error as Error;
+    }
+  })();
+  if (signerBundle instanceof Error) {
+    await recordOracleOperationalEvent({
+      route: '/api/collateral-oracle/attest',
+      oracle: 'collateral',
+      outcome: 'error',
+      clientKey: rate.clientKey,
+      success: false,
+      detail: { error: signerBundle.message },
+    });
+    return NextResponse.json({ error: 'oracle unavailable' }, { status: 503, headers: rateHeaders });
   }
 
   const signer = (() => {

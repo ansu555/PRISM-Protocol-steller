@@ -116,7 +116,7 @@ function ArticleSection({
   );
 }
 
-export default function SolanaFixedSpeedArticlePage() {
+export default function StellarFixedSpeedArticlePage() {
   return (
     <main className="relative min-h-screen overflow-x-clip bg-background text-foreground">
       <Navigation />

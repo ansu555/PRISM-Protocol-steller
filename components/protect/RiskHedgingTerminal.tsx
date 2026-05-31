@@ -137,7 +137,7 @@ export function RiskHedgingTerminal() {
                      </div>
                   </div>
                   
-                  {/* Dune-style visual placeholder */}
+                  {/* Exposure distribution visual */}
                   <div className="h-24 w-full flex items-end gap-1 px-1">
                      {[40, 65, 30, 85, 45, 90, 55, 35, 75, 60, 40, 80, 50, 70, 30, 95].map((h, i) => (
                         <div 
@@ -151,7 +151,7 @@ export function RiskHedgingTerminal() {
                   <div className="grid grid-cols-2 gap-4">
                      <div className="rounded-sm bg-white/5 p-4 space-y-1">
                         <div className="text-[9px] text-white/20 uppercase font-mono">Reference Vault</div>
-                        <div className="text-xs text-white font-mono">PRISM-SOL-V1</div>
+                        <div className="text-xs text-white font-mono">PRISM-XLM-V1</div>
                      </div>
                      <div className="rounded-sm bg-white/5 p-4 space-y-1 text-right">
                         <div className="text-[9px] text-white/20 uppercase font-mono">Tranche Nodes</div>
@@ -350,10 +350,10 @@ export function RiskHedgingTerminal() {
                 </div>
                 <div className="space-y-2">
                    <h2 className="font-display text-5xl text-white tracking-tighter">CDS Agreement Bound</h2>
-                   <p className="font-mono text-[10px] text-white/40 uppercase tracking-[0.5em]">Network ID: TX-CDS-99281-IKA</p>
+                   <p className="font-mono text-[10px] text-white/40 uppercase tracking-[0.5em]">Network ID: TX-CDS-99281-STELLAR</p>
                 </div>
                 <div className="max-w-md text-xs text-white/40 leading-relaxed uppercase tracking-widest font-mono">
-                  Your Credit Default Swap has been cryptographically registered and settled via the PRISM IKA Network. 
+                  Your Credit Default Swap has been registered on Stellar and settled through the PRISM contract.
                   Protection coverage is now active and monitoring live oracle feeds.
                 </div>
                 <div className="flex gap-4">
@@ -361,7 +361,7 @@ export function RiskHedgingTerminal() {
                     Back to Terminal
                   </button>
                   <button className="px-8 py-3 rounded-sm bg-white font-mono text-[10px] uppercase tracking-widest text-black hover:bg-emerald-500 hover:text-white transition-all">
-                    View on Dune
+                    View on Stellar Expert
                   </button>
                 </div>
               </div>
@@ -409,7 +409,7 @@ export function RiskHedgingTerminal() {
                   <div className="flex items-center justify-center gap-4">
                      <div className="h-px w-12 bg-white/10" />
                      <p className="font-mono text-[9px] text-white/20 uppercase tracking-[0.4em]">
-                       Auth Identity: {publicKey?.toBase58().slice(0, 12)}...
+                       Auth Identity: {publicKey?.slice(0, 12)}...
                      </p>
                      <div className="h-px w-12 bg-white/10" />
                   </div>

@@ -1,15 +1,7 @@
 //! On-chain state types for prism-core.
 //!
-//! These mirror the Anchor structs in
-//! `contracts/programs/prism-core/src/state.rs` but with Soroban idioms:
-//!
-//! - `Pubkey` → `Address`
-//! - `[u8; 32]` → `BytesN<32>`
-//! - `Vec<Pubkey>` from std → Soroban's `Vec<Address>` (host-managed)
-//! - `bump` fields dropped (Soroban has no PDAs)
-//! - Token-account fields (`usdc_reserve`, `loss_bucket`, `tranche_mints`)
-//!   dropped: the contract instance *is* the reserve, and per-tranche SAC
-//!   token contracts are tracked by their `Address` directly.
+//! The contract instance is the reserve, and per-tranche SAC token contracts
+//! are tracked directly by their `Address`.
 
 use soroban_sdk::{contracttype, Address, BytesN, Vec};
 

@@ -19,7 +19,7 @@ interface CategoryMeta {
 
 const CATEGORIES: CategoryMeta[] = [
   { label: 'Structured Credit', icon: Database,  iconBg: 'rgba(139,92,246,0.06)',  iconBorder: 'rgba(139,92,246,0.15)', iconColor: '#a78bfa' },
-  { label: 'Institutional SOL', icon: Building2, iconBg: 'rgba(14,165,233,0.06)',   iconBorder: 'rgba(14,165,233,0.15)', iconColor: '#7dd3fc' },
+  { label: 'Institutional Credit', icon: Building2, iconBg: 'rgba(14,165,233,0.06)',   iconBorder: 'rgba(14,165,233,0.15)', iconColor: '#7dd3fc' },
   { label: 'RWA Financed',      icon: Layers,    iconBg: 'rgba(16,185,129,0.06)',   iconBorder: 'rgba(16,185,129,0.15)', iconColor: '#6ee7b7' },
   { label: 'Liquidity Alpha',   icon: Zap,       iconBg: 'rgba(245,158,11,0.06)',   iconBorder: 'rgba(245,158,11,0.15)', iconColor: '#fcd34d' },
 ];

@@ -163,7 +163,7 @@ export function LoansSection({ loans = [], borrowingCapacity = 0n }: LoansSectio
                   <tr key={loan.id} className="hover:bg-white/[0.005] transition-all duration-200">
                     <td className="px-3 py-3.5">
                       <div className="font-mono text-xs text-white/70 font-medium">{loan.collateral}</div>
-                      <div className="mt-0.5 font-mono text-[8px] text-white/20 uppercase">Locked IKA</div>
+                      <div className="mt-0.5 font-mono text-[8px] text-white/20 uppercase">Oracle verified</div>
                     </td>
                     <td className="px-3 py-3.5">
                       <div className="font-mono text-xs text-white/70 font-medium">${formatUsdc(loan.borrowed, 2)}</div>

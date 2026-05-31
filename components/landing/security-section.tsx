@@ -6,8 +6,8 @@ import { Shield, Lock, Eye, FileCheck } from "lucide-react";
 const securityFeatures = [
   {
     icon: Shield,
-    title: "PDA authorities",
-    description: "Vaults, reserves, mints, and pools are controlled by program-derived authorities.",
+    title: "Contract authorities",
+    description: "Vaults, reserves, and tranche controls are enforced by explicit Soroban contract state.",
     image: "/images/isolated.jpg",
   },
   {
@@ -30,7 +30,7 @@ const securityFeatures = [
   },
 ];
 
-const certifications = ["Anchor", "SPL", "Q64.64", "PDA"];
+const certifications = ["Soroban", "SAC", "Q64.64", "SEP-40"];
 
 export function SecuritySection() {
   const [isVisible, setIsVisible] = useState(false);

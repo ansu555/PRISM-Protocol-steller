@@ -78,7 +78,7 @@ export function usePrismData(vaultId: number = VAULT_ID): PrismData {
   return {
     connected,
     walletLabel: connected && address ? shortKey(address) : 'Not connected',
-    vaultLabel: data ? shortKey(data.vaultPda) : 'Vault #0',
+    vaultLabel: data ? shortKey(data.vaultAddress) : 'Vault #0',
     vaultStatus: stateName(data?.vault?.state),
     tranches,
     vaultCapital,

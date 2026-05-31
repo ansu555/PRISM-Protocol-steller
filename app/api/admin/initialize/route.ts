@@ -14,8 +14,8 @@ import {
   PTOKEN_PRIME_CONTRACT_ID,
   PTOKEN_CORE_CONTRACT_ID,
   PTOKEN_ALPHA_CONTRACT_ID,
-  ENCRYPT_ORACLE_PUBKEY,
-  CLOAK_ORACLE_PUBKEY,
+  ENCRYPT_ORACLE_PUBKEY_HEX,
+  CLOAK_ORACLE_PUBKEY_HEX,
   DEFAULT_DEMO_LOAN_PRINCIPAL,
 } from '@/app/lib/constants';
 
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
         addr(USDC_CONTRACT_ID),
         nativeToScVal(800, { type: 'u32' }),
         xdr.ScVal.scvVec(
-          [ENCRYPT_ORACLE_PUBKEY, CLOAK_ORACLE_PUBKEY].map((hex) =>
+          [ENCRYPT_ORACLE_PUBKEY_HEX, CLOAK_ORACLE_PUBKEY_HEX].map((hex) =>
             nativeToScVal(Buffer.from(hex, 'hex'), { type: 'bytes' }),
           ),
         ),

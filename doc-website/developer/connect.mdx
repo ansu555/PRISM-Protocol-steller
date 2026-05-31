@@ -1,293 +1,122 @@
 ---
-title: Connect to Devnet
-description: Wire the PRISM SDK to a Solana RPC, build an Anchor provider, and load the prism_core and prism_amm programs.
+title: Connect a Client
+description: Wire the PRISM client to a Soroban RPC endpoint, sign with Freighter or a server keypair, and run the simulate → prepare → sign → send flow against prism_core.
 ---
 
-# Connect to Devnet
+# Connect a Client
 
-PRISM is deployed on Solana Devnet. To talk to it from a frontend, server script, or indexer you need three things:
+PRISM Core is deployed on **Stellar Testnet**. To talk to it from a frontend, server script, or indexer you need three things:
 
-1. A `Connection` to a Solana RPC endpoint.
-2. An `AnchorProvider` that bundles the connection with a signer.
-3. A `Program` instance for each on-chain program, built from the bundled IDL.
+1. A **Soroban RPC** server to simulate and submit transactions.
+2. A **signer** — Freighter in the browser, or a `Keypair` on the server.
+3. The **contract ID** for `prism_core`.
 
-This page walks through every variation — server-side keypairs, browser wallet adapters, read-only providers, account subscriptions, and the production polling pattern PRISM's own frontend uses.
-
-## Architecture
-
-```text
-┌──────────────────┐     ┌──────────────────┐     ┌──────────────────────┐
-│ @solana/web3.js  │────▶│ @coral-xyz/anchor│────▶│ prismprotocol-sdk  │
-│ Connection       │     │ AnchorProvider   │     │ buildPrograms()      │
-│ (RPC + WS)       │     │ Program(idl)     │     │ → { core, amm }      │
-└──────────────────┘     └──────────────────┘     └──────────────────────┘
-        ▲                         ▲                          │
-        │                         │                          ▼
-   RPC endpoint              Signer (keypair          Typed instruction
-   (Helius, public)          or wallet adapter)       calls + account reads
+```
+┌──────────────────┐     ┌──────────────────┐     ┌────────────────────┐
+│ @stellar/         │────▶│ Contract +        │────▶│ prism_core          │
+│ stellar-sdk       │     │ TransactionBuilder│     │ on Soroban testnet  │
+│ (rpc.Server)      │     │ + signer          │     │ deposit / get_vault │
+└──────────────────┘     └──────────────────┘     └────────────────────┘
 ```
 
-Every read or write you make from the SDK passes through this stack. The SDK does not maintain its own connection or signer — it always defers to the Anchor provider you supply.
+Reads are dry-run simulations (no signature, no fee). Writes simulate, then prepare, sign, and submit.
 
-## Step-by-Step
+## The client wrapper
+
+The PRISM frontend wraps this stack in a small `ContractClient` (`app/lib/stellar.ts`) with two methods — `read` and `invoke`. You can copy the pattern or use the raw SDK directly.
+
+```ts
+import { rpc, Contract, TransactionBuilder, scValToNative } from '@stellar/stellar-sdk';
+
+const server = new rpc.Server('https://soroban-testnet.stellar.org');
+const contract = new Contract('CCULBBT4PA64GWXSKT4G7HOYQ4RXRNYY2JP5MZ2G73VKRFAJ6CHB3RZK');
+```
+
+## Steps
 
 <Steps>
-  <Step title="Create a Solana connection">
-    The connection wraps the RPC URL, a commitment level, and an optional WebSocket endpoint.
+  <Step title="Provide a signer">
+    **Server scripts** — load a `Keypair` from a secret seed (`S...`):
 
-    ```typescript
-    import { Connection, clusterApiUrl } from '@solana/web3.js';
-
-    const connection = new Connection(
-      process.env.NEXT_PUBLIC_RPC_URL ?? clusterApiUrl('devnet'),
-      'confirmed',
-    );
+    ```ts
+    import { Keypair } from '@stellar/stellar-sdk';
+    const signer = Keypair.fromSecret(process.env.SECRET_SEED!);
     ```
 
-    For production-grade clients use Helius or another commercial RPC — the public devnet endpoint is rate-limited and shares one queue with every other developer.
+    **Browser apps** — sign with [Freighter](https://www.freighter.app/) via its browser API. You never handle the user's secret; the wallet signs the prepared transaction:
 
-    ```typescript
-    const connection = new Connection(
-      'https://devnet.helius-rpc.com/?api-key=YOUR_KEY',
-      {
-        commitment: 'confirmed',
-        wsEndpoint: 'wss://devnet.helius-rpc.com/?api-key=YOUR_KEY',
-      },
-    );
-    ```
+    ```ts
+    import { requestAccess, signTransaction } from '@stellar/freighter-api';
 
-    Setting `wsEndpoint` is what enables real-time `onAccountChange` subscriptions later.
-  </Step>
-
-  <Step title="Build a wallet-bound provider">
-    The provider attaches a signer to the connection. The SDK supports two patterns.
-
-    **Server scripts and indexers** (a `Keypair` you control):
-
-    ```typescript
-    import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
-    import { Keypair } from '@solana/web3.js';
-    import fs from 'node:fs';
-
-    const secret = JSON.parse(fs.readFileSync('keys/admin.json', 'utf-8'));
-    const signer = Keypair.fromSecretKey(Uint8Array.from(secret));
-
-    const provider = new AnchorProvider(connection, new Wallet(signer), {
-      commitment: 'confirmed',
-      preflightCommitment: 'confirmed',
+    const { address } = await requestAccess();
+    const { signedTxXdr } = await signTransaction(prepared.toXDR(), {
+      address,
+      networkPassphrase: Networks.TESTNET,
     });
     ```
+  </Step>
 
-    **Browser apps** (Solana wallet adapter — Phantom, Backpack, Solflare):
+  <Step title="Read contract state">
+    Reads are a single simulation — no signing, no fee. `get_vault`, `get_tranche`, `get_config`, and `get_loan` all return their value directly. Note many getters return an `Option`, decoded as the value or `null`:
 
-    ```typescript
-    'use client';
+    ```ts
+    import {
+      Contract, TransactionBuilder, BASE_FEE, Networks, nativeToScVal, scValToNative, rpc,
+    } from '@stellar/stellar-sdk';
 
-    import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
-    import { AnchorProvider } from '@coral-xyz/anchor';
-    import { useMemo } from 'react';
+    async function getVault(vaultId: number) {
+      const account = await server.getAccount(PUBLIC_SIM_ADDRESS);
+      const tx = new TransactionBuilder(account, {
+        fee: BASE_FEE,
+        networkPassphrase: Networks.TESTNET,
+      })
+        .addOperation(contract.call('get_vault', nativeToScVal(vaultId, { type: 'u32' })))
+        .setTimeout(30)
+        .build();
 
-    function usePrismProvider() {
-      const { connection } = useConnection();
-      const wallet = useAnchorWallet();
-      return useMemo(() => {
-        if (!wallet) return null;
-        return new AnchorProvider(connection, wallet, {
-          commitment: 'confirmed',
-        });
-      }, [connection, wallet]);
+      const sim = await server.simulateTransaction(tx);
+      if (rpc.Api.isSimulationError(sim)) throw new Error(sim.error);
+      return scValToNative(sim.result!.retval); // Vault | null
     }
     ```
 
-    `useAnchorWallet()` returns `undefined` until the user connects, so always guard the provider against `null`.
-
-    **Read-only** (no signer needed for queries):
-
-    ```typescript
-    import { AnchorProvider } from '@coral-xyz/anchor';
-
-    const readOnlyProvider = new AnchorProvider(
-      connection,
-      {} as any,                  // dummy wallet — never used for reads
-      { commitment: 'confirmed' },
-    );
-    ```
-
-    Read paths (`program.account.X.fetch`) never require a signature, so a dummy wallet is fine for indexers, dashboards, and SSR.
+    <Note>
+      A read needs a source account only to build the simulation transaction — it is never signed or submitted. Any funded testnet address works (the frontend uses the deployed admin address).
+    </Note>
   </Step>
 
-  <Step title="Load both programs">
-    From the IDL bundles in the SDK:
+  <Step title="Send a transaction">
+    Writes follow **build → prepare → sign → send → poll**:
 
-    ```typescript
-    import { Program, type Idl } from '@coral-xyz/anchor';
-    import { prismCoreIdl, prismAmmIdl } from 'prismprotocol-sdk';
-    import type { PrismCore, PrismAmm } from 'prismprotocol-sdk';
+    ```ts
+    async function sendTx(tx) {
+      const prepared = await server.prepareTransaction(tx); // adds the Soroban footprint + resource fee
+      prepared.sign(signer);                                 // browser apps send prepared.toXDR() to Freighter
 
-    const core = new Program<PrismCore>(prismCoreIdl as Idl, provider);
-    const amm = new Program<PrismAmm>(prismAmmIdl as Idl, provider);
+      const sent = await server.sendTransaction(prepared);
+      let res = await server.getTransaction(sent.hash);
+      while (res.status === 'NOT_FOUND') {
+        await new Promise((r) => setTimeout(r, 1500));
+        res = await server.getTransaction(sent.hash);
+      }
+      if (res.status !== 'SUCCESS') throw new Error(`tx ${sent.hash} failed: ${res.status}`);
+      return res;
+    }
     ```
 
-    Or use the convenience factory for keypair signers:
-
-    ```typescript
-    import { buildPrograms } from 'prismprotocol-sdk';
-
-    const { core, amm, provider } = buildPrograms(connection, signer);
-    ```
-
-    `buildPrograms` is intentionally narrow — it works with `Keypair` only. For wallet-adapter setups, build the provider manually.
+    <Note>
+      `prepareTransaction` runs the simulation for you and attaches the resource footprint and fee. Always call it before signing a write — a raw `build()` transaction has no Soroban authorization data.
+    </Note>
   </Step>
 </Steps>
 
-## Reading a Single Account
-
-Every account type has `fetch` (throws if missing) and `fetchNullable` (returns `null`):
-
-```typescript
-import { getConfigPda, getVaultPda } from 'prismprotocol-sdk';
-
-const [configPda] = getConfigPda();
-const [vaultPda]  = getVaultPda(0);
-
-const config = await core.account.globalConfig.fetchNullable(configPda);
-if (!config) {
-  throw new Error('Protocol not initialized — call initializeGlobalConfig first');
-}
-
-console.log('admin:        ', config.admin.toBase58());
-console.log('USDC mint:    ', config.usdcMint.toBase58());
-console.log('paused:       ', config.paused);
-console.log('oracle count: ', config.oracleAllowlist.length);
-```
-
-## Reading Multiple Accounts in Parallel
-
-Promise.all is fine for a handful of accounts. For dashboards that read dozens at once, prefer `getMultipleAccountsInfo` and decode manually — one network round trip instead of N:
-
-```typescript
-import { TrancheKind, getTranchePda } from 'prismprotocol-sdk';
-
-const tranchePdas = [TrancheKind.Prime, TrancheKind.Core, TrancheKind.Alpha].map(
-  (kind) => getTranchePda(vaultPda, kind)[0],
-);
-
-const infos = await connection.getMultipleAccountsInfo(tranchePdas);
-const tranches = infos.map((info, i) =>
-  info ? core.coder.accounts.decode('tranche', info.data) : null,
-);
-
-console.log(tranches.map((t) => t?.totalAssets.toString()));
-```
-
-## Decoding NAV (Q64.64)
-
-NAV-per-share is stored as a Q64.64 fixed-point `u128`. `Q64_ONE = 2^64` represents the value `1.0`. Convert with the SDK helper or inline:
-
-```typescript
-import { Q64_ONE, formatNavQ } from 'prismprotocol-sdk';
-
-// Helper — returns a string like "1.004110"
-formatNavQ(tranche.navPerShareQ);
-
-// Manual — returns a JS number
-const navUsdc =
-  Number((BigInt(tranche.navPerShareQ.toString()) * 1_000_000n) / Q64_ONE) /
-  1_000_000;
-```
-
-Never convert Q64.64 values through `Number()` directly — JavaScript loses precision above 2^53. Always go through `BigInt`.
-
-## Live Updates with Account Subscriptions
-
-For a live dashboard, subscribe to account changes over WebSocket:
-
-```typescript
-import { useEffect, useState } from 'react';
-import type { PublicKey } from '@solana/web3.js';
-
-function useTrancheLive(programs, tranchePda: PublicKey) {
-  const [tranche, setTranche] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    // Initial read
-    programs.core.account.tranche.fetchNullable(tranchePda).then((value) => {
-      if (!cancelled) setTranche(value);
-    });
-
-    // Live updates
-    const subId = programs.core.provider.connection.onAccountChange(
-      tranchePda,
-      (accountInfo) => {
-        const decoded = programs.core.coder.accounts.decode('tranche', accountInfo.data);
-        setTranche(decoded);
-      },
-      'confirmed',
-    );
-
-    return () => {
-      cancelled = true;
-      programs.core.provider.connection.removeAccountChangeListener(subId);
-    };
-  }, [programs, tranchePda]);
-
-  return tranche;
-}
-```
-
-This pattern fires on every yield event, deposit, or withdrawal that touches the tranche — typically within 400 ms of confirmation.
-
-## The Polling Pattern (No WebSocket)
-
-If your environment doesn't support WebSockets (Cloudflare Workers, some serverless platforms), poll instead. The PRISM frontend uses 5-second polling via React Query:
-
-```typescript
-import { useQuery } from '@tanstack/react-query';
-
-const { data } = useQuery({
-  queryKey: ['vault-state'],
-  refetchInterval: 5000,
-  queryFn: async () => {
-    const [config, vault] = await Promise.all([
-      core.account.globalConfig.fetch(configPda),
-      core.account.vault.fetch(vaultPda),
-    ]);
-    return { config, vault };
-  },
-});
-```
-
-5 seconds is the empirical sweet spot — fast enough that demo NAV updates feel live, slow enough that public RPCs don't rate-limit you.
-
-## Error Handling
-
-Read paths throw if the network fails or an account is missing (`fetch`) or truncated. Wrap in try/catch and prefer `fetchNullable` when an account may legitimately not exist yet:
-
-```typescript
-try {
-  const vault = await core.account.vault.fetch(vaultPda);
-} catch (e) {
-  if ((e as Error).message.includes('Account does not exist')) {
-    // Vault not initialized — guide the admin to run setup
-  } else {
-    // RPC error — retry with exponential backoff
-  }
-}
-```
-
-For write paths, see the [Invest in a Tranche](/developer/invest) page for the full pre-flight + error-decoding pattern.
-
-## What's Next
-
-Now that you have a live `core` and `amm` program in hand, the next step is your first signed transaction:
+## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Invest in a Tranche" icon="vault" href="/developer/invest">
-    Deposit USDC and receive Prime, Core, or Alpha tranche tokens.
+  <Card title="Deposit example" icon="code" href="/developer/invest">
+    A complete deposit + withdraw walkthrough.
   </Card>
-  <Card title="Deployed Addresses" icon="map-pin" href="/developer/addresses">
-    Reference for every program ID, PDA seed, and mint.
+  <Card title="Addresses" icon="book" href="/developer/addresses">
+    Every contract ID and function signature.
   </Card>
 </CardGroup>

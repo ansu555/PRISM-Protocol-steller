@@ -17,8 +17,6 @@ import { VAULT_ID } from '@/app/lib/constants';
 export const CHAIN_OPTIONS = [
   { id: 3, label: 'XLM (Stellar)', symbol: 'XLM' },
   { id: 4, label: 'USDC (Stellar)', symbol: 'USDC' },
-  { id: 0, label: 'BTC', symbol: 'BTC' },
-  { id: 1, label: 'ETH', symbol: 'ETH' },
 ] as const;
 
 export interface CollateralFlowParams {

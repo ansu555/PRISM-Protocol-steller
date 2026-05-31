@@ -53,7 +53,7 @@ export function VaultStateDashboard() {
               Vault State
             </div>
             <div className="mt-1 font-mono text-xs text-white/40">
-              {data ? shortKey(data.vaultPda) : `Vault #${vaultId} not initialized`}
+              {data ? shortKey(data.vaultAddress) : `Vault #${vaultId} not initialized`}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -68,17 +68,17 @@ export function VaultStateDashboard() {
           <Metric
             label="Vault Reserve"
             value={`${formatUsdc(data?.reserveBalance ?? 0n)} USDC`}
-            detail={data ? shortKey(data.reservePda) : undefined}
+            detail={data ? shortKey(data.reserveAddress) : undefined}
           />
           <Metric
             label="Loss Bucket"
             value={`${formatUsdc(data?.lossBucketBalance ?? 0n)} USDC`}
-            detail={data ? shortKey(data.lossBucketPda) : undefined}
+            detail={data ? shortKey(data.lossBucketAddress) : undefined}
           />
           <Metric
             label="Outstanding Principal"
             value={`${formatUsdc(toBigInt(data?.vault?.totalLoaned ?? 0))} USDC`}
-            detail={data?.loan ? `Loan ${shortKey(data.loanPda)}` : 'Loan not initialized'}
+            detail={data?.loan ? `Loan ${shortKey(data.loanAddress)}` : 'Loan not initialized'}
           />
         </div>
       </div>
@@ -100,7 +100,7 @@ export function VaultStateDashboard() {
                 <Landmark className={['h-4 w-4', tranche.tone].join(' ')} />
                 <h3 className="text-sm font-semibold text-white">{tranche.label}</h3>
               </div>
-              <span className="font-mono text-[11px] text-white/45">{shortKey(tranche.pda)}</span>
+              <span className="font-mono text-[11px] text-white/45">{shortKey(tranche.tokenAddress)}</span>
             </div>
             <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
               <div>

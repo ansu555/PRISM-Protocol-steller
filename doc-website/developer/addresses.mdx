@@ -1,244 +1,102 @@
 ---
-title: Deployed Addresses
-description: PRISM Protocol program IDs, mint addresses, PDA derivation rules, and account size reference for Solana Devnet.
+title: Addresses
+description: PRISM Protocol contract IDs, tranche tokens, oracle and AMM integrations, the public function surface, events, and network parameters for Stellar Testnet.
 ---
 
-# Deployed Addresses
+# Addresses
 
-All addresses below are on **Solana Devnet**. Mainnet has its own deployment with different program IDs and a hardware-wallet upgrade authority controlled by a multisig.
+All addresses below are on **Stellar Testnet**. Mainnet contract IDs are published separately once the production deployment is live.
 
-## Quick Reference
+Soroban contract IDs are 56-character StrKeys that begin with `C`. They are derived deterministically from the contract's WASM hash plus a salt at deploy time. Account addresses begin with `G`.
 
-<CardGroup cols={2}>
-  <Card title="prism_core" icon="cube">
-    `GGb2hHKW…26BKp`
+## Core contract
 
-    Credit engine — vault, tranches, loans, NAV, waterfall, default cascade, IKA collateral.
-  </Card>
-  <Card title="prism_amm" icon="arrows-rotate">
-    `6xu3TJub…1S5M6Q`
-
-    Constant-product AMM for tranche tokens vs USDC. Independent of `prism_core`.
-  </Card>
-  <Card title="USDC (devnet)" icon="dollar-sign">
-    `4zMMC9sr…JDncDU`
-
-    Circle's official devnet USDC mint. 6 decimals.
-  </Card>
-  <Card title="Vault #1" icon="vault">
-    `8TDuRCL3…28UPYH`
-
-    The live demo vault on devnet (`vault_id = 1`).
-  </Card>
-</CardGroup>
-
-## Programs
-
-| Program | Address | Purpose |
+| Contract | Address | Role |
 | --- | --- | --- |
-| `prism_core` | [`GGb2hHKWGxFT72wFDMtyLrqCj9yQaE8etpPTw1p26BKp`](https://explorer.solana.com/address/GGb2hHKWGxFT72wFDMtyLrqCj9yQaE8etpPTw1p26BKp?cluster=devnet) | Credit engine |
-| `prism_amm` | [`6xu3TJubMGdepBDoyKN4dC8rHytK35FRbG2fdZ1S5M6Q`](https://explorer.solana.com/address/6xu3TJubMGdepBDoyKN4dC8rHytK35FRbG2fdZ1S5M6Q?cluster=devnet) | Secondary market AMM |
+| `prism_core` | [`CCULBBT4PA64GWXSKT4G7HOYQ4RXRNYY2JP5MZ2G73VKRFAJ6CHB3RZK`](https://stellar.expert/explorer/testnet/contract/CCULBBT4PA64GWXSKT4G7HOYQ4RXRNYY2JP5MZ2G73VKRFAJ6CHB3RZK) | Credit engine — vaults, tranches, waterfall, cascade, loans |
 
-The two programs are intentionally separated. `prism_amm` only depends on the SPL mints exposed by `prism_core` — it never reads or writes vault state. This blast-radius isolation means a bug in the AMM can't compromise vault accounting, and each program can be audited and upgraded independently.
+## Tranche tokens
 
-## Tokens
+Each tranche is a Stellar Asset Contract (`pPRIME` / `pCORE` / `pALPHA`). `prism_core` is set as each token's SAC admin so it can mint on deposit and burn on withdraw.
 
-| Token | Address | Decimals |
+| Token | Tranche | Address |
 | --- | --- | --- |
-| Devnet USDC | [`4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`](https://explorer.solana.com/address/4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU?cluster=devnet) | 6 |
+| `pPRIME` | Prime | [`CDFRSCBDTGIWCQSPVQEWHJJ7HVOGBLUTQBIKRYC3D5VQV5UDLBVGYM7H`](https://stellar.expert/explorer/testnet/contract/CDFRSCBDTGIWCQSPVQEWHJJ7HVOGBLUTQBIKRYC3D5VQV5UDLBVGYM7H) |
+| `pCORE` | Core | [`CDBDYXZTY5ZEUCIZM7RTDS5GOOA43BT5ARQCGYKQQNOYCBZQAZC5JYBW`](https://stellar.expert/explorer/testnet/contract/CDBDYXZTY5ZEUCIZM7RTDS5GOOA43BT5ARQCGYKQQNOYCBZQAZC5JYBW) |
+| `pALPHA` | Alpha | [`CB5DNWDNIMG75NSUN7GQXXH775TIEXNEIRWXIX4GDPVRR2YVGD3BGWBO`](https://stellar.expert/explorer/testnet/contract/CB5DNWDNIMG75NSUN7GQXXH775TIEXNEIRWXIX4GDPVRR2YVGD3BGWBO) |
 
-The protocol is denominated in USDC. All tranche mints (`pPRIME`, `pCORE`, `pALPHA`) and AMM LP mints also use 6 decimals so NAV math stays integer-clean at NAV = 1.0.
+## Settlement asset
 
-## Vault #1 — Live Demo
-
-The current devnet demo runs against `vault_id = 1`. The protocol-level singletons and the vault top-level account:
-
-| Account | Address |
-| --- | --- |
-| `GlobalConfig` | [`5tgMtuBABb6jM4mLVfQuPsJuFJWN82LuvmqeE5ATFgvo`](https://explorer.solana.com/address/5tgMtuBABb6jM4mLVfQuPsJuFJWN82LuvmqeE5ATFgvo?cluster=devnet) |
-| `Vault` | [`8TDuRCL3S6i8zLFrVauP8uHhwErqD1X6aJVDLY28UPYH`](https://explorer.solana.com/address/8TDuRCL3S6i8zLFrVauP8uHhwErqD1X6aJVDLY28UPYH?cluster=devnet) |
-
-All other vault-scoped accounts (tranche state, tranche mints, USDC reserve, loss bucket, loan, credit events, AMM pools) derive deterministically from the vault PDA.
-
-## IKA Test Oracle
-
-For local development, the project ships a fixed-keypair test oracle that signs the 81-byte attestation message. The pubkey is constant across runs:
-
-| Account | Address |
-| --- | --- |
-| Test oracle pubkey | [`5nmEq5cNc9yXpK1ySrb4XH65zccBvRK2hwKnEJePjcrf`](https://explorer.solana.com/address/5nmEq5cNc9yXpK1ySrb4XH65zccBvRK2hwKnEJePjcrf?cluster=devnet) |
-
-Use this as `oracle_pubkey` when calling `attach_ika_collateral` against a locally-served oracle endpoint. **Never** use this key on mainnet — the secret is checked into the repo.
-
-## PDA Seed Reference
-
-PRISM uses Program-Derived Addresses for every protocol-controlled account. Use the SDK helpers (recommended) or derive locally with these seeds:
-
-| PDA | Seeds | Owner program | SDK helper |
-| --- | --- | --- | --- |
-| `GlobalConfig` | `["config2"]` | `prism_core` | `getConfigPda()` |
-| `Vault` | `["vault", vault_id_le_bytes]` | `prism_core` | `getVaultPda(id)` |
-| `Tranche` | `["tranche", vault, [kind]]` | `prism_core` | `getTranchePda(vault, kind)` |
-| `Tranche Mint` | `["mint", vault, [kind]]` | `prism_core` | `getTrancheMintPda(vault, kind)` |
-| `Vault USDC reserve` | `["reserve", vault]` | `prism_core` | `getVaultReservePda(vault)` |
-| `Loss bucket` | `["loss_bucket", vault]` | `prism_core` | `getLossBucketPda(vault)` |
-| `Loan` | `["loan", vault, loan_id_le_bytes]` | `prism_core` | `getLoanPda(vault, id)` |
-| `CreditEvent` | `["credit_event", vault, seq_le_bytes]` | `prism_core` | `getCreditEventPda(vault, seq)` |
-| `IkaCollateral` | `["ika_collateral_v2", loan]` | `prism_core` | `getIkaCollateralPda(loan)` |
-| `EncryptHealth` | `["encrypt_health", loan]` | `prism_core` | `getEncryptHealthPda(loan)` |
-| `CloakPayout` | `["cloak_payout", vault]` | `prism_core` | `getCloakPayoutPda(vault)` |
-| `AmmPool` | `["amm", tranche_mint]` | `prism_amm` | `getPoolPda(trancheMint)` |
-| `AMM Tranche reserve` | `["amm_tranche", tranche_mint]` | `prism_amm` | `getPoolTrancheReservePda(trancheMint)` |
-| `AMM Quote reserve` | `["amm_quote", tranche_mint]` | `prism_amm` | `getPoolQuoteReservePda(trancheMint)` |
-| `AMM LP mint` | `["amm_lp", tranche_mint]` | `prism_amm` | `getLpMintPda(trancheMint)` |
-
-`kind` byte: `0 = Prime`, `1 = Core`, `2 = Alpha`. All multi-byte integer seeds are little-endian.
-
-## Derive Every PDA in TypeScript
-
-The full set for a single vault, in one snippet you can paste into a script:
-
-```typescript
-import {
-  PRISM_CORE_PROGRAM_ID,
-  PRISM_AMM_PROGRAM_ID,
-  TrancheKind,
-  USDC_MINT,
-  getConfigPda,
-  getVaultPda,
-  getTranchePda,
-  getTrancheMintPda,
-  getVaultReservePda,
-  getLossBucketPda,
-  getLoanPda,
-  getCreditEventPda,
-  getIkaCollateralPda,
-  getPoolPda,
-  getPoolTrancheReservePda,
-  getPoolQuoteReservePda,
-  getLpMintPda,
-} from 'prismprotocol-sdk';
-
-const VAULT_ID = 1;
-const LOAN_ID = 0;
-const CREDIT_EVENT_SEQ = 0;
-
-const [config]      = getConfigPda();
-const [vault]       = getVaultPda(VAULT_ID);
-const [reserve]     = getVaultReservePda(vault);
-const [lossBucket]  = getLossBucketPda(vault);
-const [loan]        = getLoanPda(vault, LOAN_ID);
-const [creditEvent] = getCreditEventPda(vault, CREDIT_EVENT_SEQ);
-const [collateral]  = getIkaCollateralPda(loan);
-
-// Per-tranche
-const tranches = [TrancheKind.Prime, TrancheKind.Core, TrancheKind.Alpha].map((kind) => {
-  const [pda]     = getTranchePda(vault, kind);
-  const [mint]    = getTrancheMintPda(vault, kind);
-  const [pool]    = getPoolPda(mint);
-  const [pTRsv]   = getPoolTrancheReservePda(mint);
-  const [pQRsv]   = getPoolQuoteReservePda(mint);
-  const [lpMint]  = getLpMintPda(mint);
-  return { kind, pda, mint, pool, trancheReserve: pTRsv, quoteReserve: pQRsv, lpMint };
-});
-
-console.log({
-  programs: {
-    core: PRISM_CORE_PROGRAM_ID.toBase58(),
-    amm: PRISM_AMM_PROGRAM_ID.toBase58(),
-  },
-  tokens: {
-    usdc: USDC_MINT.toBase58(),
-  },
-  vault: {
-    config: config.toBase58(),
-    vault: vault.toBase58(),
-    reserve: reserve.toBase58(),
-    lossBucket: lossBucket.toBase58(),
-    loan: loan.toBase58(),
-    creditEvent: creditEvent.toBase58(),
-    collateral: collateral.toBase58(),
-  },
-  tranches: tranches.map((t) => ({
-    kind: TrancheKind[t.kind],
-    tranche: t.pda.toBase58(),
-    mint: t.mint.toBase58(),
-    pool: t.pool.toBase58(),
-  })),
-});
-```
-
-## Account Sizes & Rent
-
-Anchor accounts include an 8-byte discriminator. The on-chain layouts:
-
-| Account | Size (bytes) | Rent (SOL, devnet) |
+| Asset | Address | Decimals |
 | --- | --- | --- |
-| `GlobalConfig` | 350 | ~0.0026 |
-| `Vault` | 250 | ~0.0019 |
-| `Tranche` | 132 | ~0.0011 |
-| `Loan` | 135 | ~0.0011 |
-| `CreditEvent` | 145 | ~0.0011 |
-| `IkaCollateral` | 122 | ~0.0010 |
-| `AmmPool` | 171 | ~0.0014 |
+| USDC (Stellar Asset Contract) | [`CDJND4DUKT4CJELQCFLNYQM345WECQ6JQORCKVXAT3HYPBOY4YLZZNAH`](https://stellar.expert/explorer/testnet/contract/CDJND4DUKT4CJELQCFLNYQM345WECQ6JQORCKVXAT3HYPBOY4YLZZNAH) | 7 |
 
-These are rent-exempt by default (Anchor's `init` constraint). The admin pays rent at `initialize_*` time and the lamports stay locked for the lifetime of the account.
+The testnet build uses a mintable test USDC, classic asset `PTUSDC:GCZFPAJEJHMQPZ4BQUWUEBV7KJQ7GEKDF4FAWYUW4NOIRSWXCMDEOESW`, so demos are fully scriptable. Mainnet uses Circle's official Stellar USDC.
 
-## Authority Model
+## Integrations
 
-Every signing requirement, in one place:
-
-| Resource | Authority | Notes |
+| Integration | Address | Purpose |
 | --- | --- | --- |
-| `initialize_global_config` | New admin pubkey | Set on first call, immutable thereafter |
-| `initialize_vault` | `config.admin` | Enforced via `has_one = admin` |
-| `initialize_tranche` | `config.admin` | Same |
-| `initialize_loan` | `config.admin` | Same |
-| `disburse_loan` | `config.admin` | Optional `IkaCollateral` must be `Locked` |
-| `pause` / `unpause` | `config.admin` | Emergency switch |
-| `accrue_yield` | `config.admin` OR allowlisted oracle | Plus borrower co-signs to authorize the USDC pull |
-| `trigger_credit_event` | `config.admin` OR allowlisted oracle | |
-| `liquidate_ika_collateral` | `config.admin` | Vault must be `Defaulted`/`Resolved` |
-| `deposit` / `withdraw` | User | Token transfer authority is the user's wallet |
-| `repay_loan` | The exact `loan.borrower` pubkey | |
-| `attach_ika_collateral` | The exact `loan.borrower` pubkey | |
-| `verify_ika_collateral` | Anyone (relayer-friendly) | Validity proven by ed25519 precompile, not signer |
-| `release_ika_collateral` | Anyone (loan must be `Repaid`) | |
-| Tranche mint authority | `Tranche` PDA | Only `prism_core` can mint/burn pTokens |
-| Vault USDC reserve authority | `Vault` PDA | Only `prism_core` can move reserve USDC |
-| AMM pool reserves authority | `AmmPool` PDA | Only `prism_amm` can move pool reserves |
-| LP mint authority | `AmmPool` PDA | Only `prism_amm` can mint/burn LP shares |
+| Soroswap Router | [`CCJUD55AG6W5HAI5LRVNKAE5WDP5XGZBUDS5WNTIVDU7O264UZZE7BRD`](https://stellar.expert/explorer/testnet/contract/CCJUD55AG6W5HAI5LRVNKAE5WDP5XGZBUDS5WNTIVDU7O264UZZE7BRD) | Secondary-market AMM (CPMM) for tranche tokens |
+| Soroswap Factory | [`CDP3HMUH6SMS3S7NPGNDJLULCOXXEPSHY4JKUKMBNQMATHDHWXRRJTBY`](https://stellar.expert/explorer/testnet/contract/CDP3HMUH6SMS3S7NPGNDJLULCOXXEPSHY4JKUKMBNQMATHDHWXRRJTBY) | Pool creation |
+| Reflector Oracle | [`CCYOZJCOPG34LLQQ7N24YXBM7QM2ZKJKR2Z7LSYXQBGKM2KTEOXKBAX`](https://stellar.expert/explorer/testnet/contract/CCYOZJCOPG34LLQQ7N24YXBM7QM2ZKJKR2Z7LSYXQBGKM2KTEOXKBAX) | SEP-40 price feeds for collateral valuation |
 
-`oracle_allowlist` lives in `GlobalConfig.oracle_allowlist` — up to 8 pubkeys allowed to call privileged read-only triggers.
+## Authorities
 
-## Verifying On-Chain
+| Role | Address | Notes |
+| --- | --- | --- |
+| Admin | `GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO` | Initialization, vault/tranche setup, pause, credit-event triggers, loan origination |
+| Deployer / USDC issuer | `GCZFPAJEJHMQPZ4BQUWUEBV7KJQ7GEKDF4FAWYUW4NOIRSWXCMDEOESW` | Deploys contracts and issues test USDC |
 
-Cross-check any address using the Solana CLI:
+The oracle allowlist (`GlobalConfig.oracle_allowlist`) holds up to 8 Ed25519 pubkeys (`BytesN<32>`) permitted to sign collateral / Encrypt / Cloak attestations.
+
+## Public functions
+
+| Function | Kind | Signature |
+| --- | --- | --- |
+| `init_config` | admin | `(admin, usdc_token, default_yield_rate_bps, oracle_allowlist)` |
+| `init_vault` | admin | `(vault_id)` |
+| `init_tranche` | admin | `(vault_id, kind, target_apy_bps, ptoken)` |
+| `deposit` | user | `(user, vault_id, kind, amount) → shares` |
+| `withdraw` | user | `(user, vault_id, kind, shares) → payout` |
+| `accrue_yield` | admin | `(authority, vault_id, payer, amount)` |
+| `trigger_credit_event` | admin | `(authority, vault_id, event_type, loss_amount, severity_bps, loan_id) → seq` |
+| `init_loan` | admin | `(vault_id, loan_id, borrower, principal, apr_bps, maturity_ts)` |
+| `disburse_loan` | admin | `(vault_id, loan_id)` — gated on collateral verified, if a record exists |
+| `repay_loan` | borrower | `(borrower, loan_id, amount)` |
+| `attach_collateral` / `verify_collateral` / `release_collateral` / `liquidate_collateral` | borrower / oracle / admin | collateral attestation lifecycle |
+| `attach_encrypt_score` / `verify_encrypt_default` | borrower / relayer | Encrypt FHE default proof |
+| `record_cloak_payout` | relayer | shielded batch-payout attestation |
+| `add_oracle_to_allowlist` / `remove_oracle_from_allowlist` / `rotate_oracle_allowlist_key` | admin | manage the oracle allowlist |
+| `pause` / `unpause` / `update_admin` | admin | lifecycle controls |
+| `seed_pool_liquidity` | admin | `(admin, vault_id, kind, soroswap_router, usdc_amount, ptoken_amount, usdc_min, ptoken_min) → (usdc_used, ptoken_used, lp_minted)` |
+| `read_reflector_price` | view | `(reflector, asset_symbol) → Option<i128>` |
+| `get_config` / `get_vault` / `get_tranche` / `get_loan` / `get_collateral` / `get_loss_bucket_balance` | view | read-only state |
+
+## State & events
+
+PRISM exposes activity primarily through its **getters** — clients poll `get_vault`, `get_tranche`, and `get_loan` to track balances, NAV, and loan state. The contract publishes a `seed_pool` contract event when liquidity is seeded into Soroswap; standard USDC and tranche-token transfers are observable as token-contract events. Index any of these from Soroban RPC `getEvents`.
+
+## Inspect any address
+
+With the [Stellar CLI](https://developers.stellar.org/docs/tools/cli):
 
 ```bash
-# Confirm a program is deployed
-solana program show GGb2hHKWGxFT72wFDMtyLrqCj9yQaE8etpPTw1p26BKp --url devnet
+# Read the live protocol config
+stellar contract invoke \
+  --id CCULBBT4PA64GWXSKT4G7HOYQ4RXRNYY2JP5MZ2G73VKRFAJ6CHB3RZK \
+  --network testnet \
+  -- get_config
 
-# Inspect the GlobalConfig PDA
-solana account 5tgMtuBABb6jM4mLVfQuPsJuFJWN82LuvmqeE5ATFgvo --url devnet --output json
-
-# View the vault USDC reserve token balance
-spl-token account-info <vault_reserve_pda> --url devnet
+# Read vault 0
+stellar contract invoke \
+  --id CCULBBT4PA64GWXSKT4G7HOYQ4RXRNYY2JP5MZ2G73VKRFAJ6CHB3RZK \
+  --network testnet \
+  -- get_vault --vault_id 0
 ```
 
-Or jump directly to [Solana Explorer (devnet)](https://explorer.solana.com/?cluster=devnet) and paste any address from the tables above.
+Or open [stellar.expert (testnet)](https://stellar.expert/explorer/testnet) and paste any address from the tables above.
 
-<Warning>
-These are **devnet** program IDs. They will be re-deployed for mainnet with a new upgrade authority. Never assume program IDs are stable across networks — always read them from the SDK constants or your environment configuration. Do not hard-code these into Rust programs that target mainnet.
-</Warning>
+## Mainnet
 
-## Mainnet (Coming Soon)
-
-Mainnet program IDs will be published here once:
-
-1. Programs are re-deployed under a hardware-wallet upgrade authority.
-2. Upgrade authority is rotated to a Squads multisig.
-3. Third-party audit is complete with all findings remediated.
-4. USDC mint references switch to mainnet (`EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`).
-
-Track progress in the project's `before-mainnet.md` checklist.
+The production registry will be published here after audit and operational readiness review. Mainnet settlement uses Circle-issued Stellar USDC. Never assume contract IDs are stable across networks — always read them from your environment configuration.

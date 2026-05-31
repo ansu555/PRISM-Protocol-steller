@@ -12,7 +12,7 @@ The protocol runs on Soroban with tranche accounting, live NAV, yield waterfall,
 
 - Soroban core contract: `soroban/prism-core`
 - Next.js app (landing, app shell, admin, borrower, simulation): `app/`, `components/`
-- Stellar wallet integration (Freighter via Stellar Wallets Kit): `components/providers/`
+- Stellar wallet integration (Freighter API): `components/providers/`
 - Oracle attestation routes (collateral, Encrypt, Cloak): `app/api/*-oracle/`
 - Protocol/event metadata services backed by Postgres: `lib/`, `app/api/events`, `app/api/loans`, `app/api/vaults`
 

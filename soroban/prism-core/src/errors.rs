@@ -1,8 +1,6 @@
 use soroban_sdk::contracterror;
 
-/// Mirrors the Anchor PrismError variants from the Solana implementation.
-/// Codes are sequential starting at 1 (Soroban convention) rather than 6000 (Anchor).
-/// The variant *names* are preserved so existing docs and oracle messages remain meaningful.
+/// Protocol error variants. Codes are sequential starting at 1.
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]

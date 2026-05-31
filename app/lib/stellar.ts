@@ -29,7 +29,6 @@ import {
 
 import {
   NETWORK_PASSPHRASE,
-  PRISM_AMM_CONTRACT_ID,
   PRISM_CORE_CONTRACT_ID,
   SOROBAN_RPC_URL,
   USDC_CONTRACT_ID,
@@ -180,20 +179,14 @@ async function pollTransaction(hash: string, timeoutMs = 30_000) {
   return lastStatus;
 }
 
-// ── Module-level singletons for our two contracts + USDC SAC ─────────────────
+// ── Module-level singletons for the core contract + USDC SAC ─────────────────
 
 let _coreClient: ContractClient | null = null;
-let _ammClient: ContractClient | null = null;
 let _usdcClient: ContractClient | null = null;
 
 export function getCoreClient(): ContractClient {
   if (!_coreClient) _coreClient = new ContractClient(PRISM_CORE_CONTRACT_ID);
   return _coreClient;
-}
-
-export function getAmmClient(): ContractClient {
-  if (!_ammClient) _ammClient = new ContractClient(PRISM_AMM_CONTRACT_ID);
-  return _ammClient;
 }
 
 export function getUsdcClient(): ContractClient {

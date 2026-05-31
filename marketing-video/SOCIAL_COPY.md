@@ -13,7 +13,7 @@ crypto credit has a blind spot.
 every lending protocol still treats every loan like one bucket of risk.
 
 PRISM splits that bucket into 3 tradable tranches — Prime, Core, Alpha —
-priced live by the market, on Solana.
+priced live by the market, on Stellar.
 
 docs.prismprotocol.dev ↓
 ```
@@ -28,7 +28,7 @@ attach: `prism-marketing.mp4`
 risk is still one pool.
 
 we just submitted to Frontier with a fix:
-structured credit on Solana — Prime / Core / Alpha tranches,
+structured credit on Stellar — Prime / Core / Alpha tranches,
 NAV-per-share accounting, on-chain loss waterfall, AMM-priced risk.
 
 45 seconds 👇
@@ -45,7 +45,7 @@ attach: `prism-marketing.mp4`
 ```
 yield flows up. losses flow down.
 
-PRISM turns credit risk into a tradable market on Solana.
+PRISM turns credit risk into a tradable market on Stellar.
 
 prismprotocol.dev
 ```
@@ -61,10 +61,10 @@ Use `prism-marketing-vertical.mp4` (1080×1920).
 ```
 DeFi has lending. Not credit.
 
-PRISM is the missing piece — structured credit on Solana,
+PRISM is the missing piece — structured credit on Stellar,
 with risk priced live by the market.
 
-#solana #defi #structuredcredit
+#stellar #defi #structuredcredit
 docs.prismprotocol.dev
 ```
 
@@ -76,7 +76,7 @@ If you embed the landscape file as the hero video on prismprotocol.dev,
 pair it with this short caption under the player:
 
 ```
-Structured credit, built on Solana.
+Structured credit, built on Stellar.
 Prime · Core · Alpha tranches. Transparent NAV. Tradable risk.
 ```
 
@@ -85,8 +85,8 @@ Prime · Core · Alpha tranches. Transparent NAV. Tradable risk.
 ## Hashtags / mentions to consider
 
 ```
-@solana @superteamearn @colosseum
-#frontier2026 #solana #defi #structuredcredit #tradablerisk
+@StellarOrg
+#stellar #defi #structuredcredit #tradablerisk
 ```
 
 ---

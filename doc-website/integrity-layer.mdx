@@ -12,16 +12,10 @@ PRISM is designed so financial state transitions can be reproduced and inspected
 
 Credit events represent realized impairment to the vault.
 
-Primary path:
+PRISM supports two verified paths:
 
-- Oracle-based triggers.
-- External data providers report credit events.
-- On-chain instruction applies the verified loss.
-
-Fallback path:
-
-- Authorized admin triggers.
-- Used for early demo operation, simulation, or emergency intervention.
+- An authorized admin can submit a credit event directly.
+- Allowlisted Ed25519 oracle attestations can prove an Encrypt default or collateral liquidation before the contract applies the loss cascade.
 
 All credit events are recorded on-chain.
 
@@ -38,9 +32,9 @@ A credit event should make the following information observable:
 
 ## Optional Privacy
 
-PRISM can support optional shielded transfers during withdrawal flows.
+PRISM records optional Cloak batch-payout attestations from allowlisted Ed25519 oracle keys.
 
-Privacy is not required for the base accounting model. The base model prioritizes transparent financial state. Optional privacy modules can protect user-level transfer behavior while preserving protocol-level accounting verifiability.
+Privacy is not required for the base accounting model. The base model prioritizes transparent financial state. The Cloak record preserves an auditable on-chain confirmation for shielded payout batches without changing vault accounting.
 
 ## Identity Extensions
 
@@ -53,4 +47,3 @@ Future modules can support:
 - Portfolio-level risk metadata.
 
 These modules should not weaken the deterministic vault engine. They should add richer sourcing and risk context around it.
-

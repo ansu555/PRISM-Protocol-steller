@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, Activity, Layers3, Radio, ShieldCheck, Lock, EyeOff, Zap, Shield, BarChart2 } from "lucide-react";
+import { ArrowUpRight, Activity, Layers3, Radio, ShieldCheck } from "lucide-react";
 import { FooterSection } from "@/components/landing/footer-section";
 import { Navigation } from "@/components/landing/navigation";
 import { DOCS_URL } from "@/lib/site-links";
@@ -26,65 +26,10 @@ const featuredPosts = [
     title: "Stellar fixed speed. It didn't fix credit.",
     excerpt:
       "Stellar made execution fast and cheap. PRISM adds the missing credit primitive: explicit risk, structured markets, and liquid exposure.",
-    href: "/blog/solana-fixed-speed-not-credit",
+    href: "/blog/stellar-fixed-speed-not-credit",
     image: "/images/isolated.jpg",
     metric: "3",
     metricLabel: "risk layers",
-  },
-  {
-    category: "Infrastructure",
-    date: "MAY 2026",
-    title: "Cross-chain collateral was the missing piece.",
-    excerpt:
-      "IKA Network's threshold MPC dWallets let borrowers lock BTC and ETH without trusting a single intermediary. This is the foundation PRISM couldn't exist without.",
-    href: "/blog/cross-chain-collateral-ika",
-    image: "/images/permissions.jpg",
-    metric: "81",
-    metricLabel: "byte attestation",
-  },
-  {
-    category: "Privacy",
-    date: "MAY 2026",
-    title: "The default you can prove without seeing.",
-    excerpt:
-      "Encrypt's FHE oracle proves a loan is in default without revealing a single byte of borrower financial data. The loss cascade fires from a cryptographic proof, not a data disclosure.",
-    href: "/blog/fhe-default-without-disclosure",
-    image: "/images/encrypted.jpg",
-    metric: "73",
-    metricLabel: "byte proof",
-  },
-  {
-    category: "Payments",
-    date: "MAY 2026",
-    title: "Dodo payments. Why PRISM had to exist.",
-    excerpt:
-      "The world's payment and credit rails were built before programmable money existed. They are slow, opaque, and structurally incapable of pricing risk. PRISM exists because they cannot be patched — only replaced.",
-    href: "/blog/dodo-payments-why-prism",
-    image: "/images/connection-hands.png",
-    metric: "50+",
-    metricLabel: "years old",
-  },
-  {
-    category: "Privacy",
-    date: "MAY 2026",
-    title: "Yield payouts can't be public.",
-    excerpt:
-      "Every coupon payment on a public ledger is permanently indexed. PRISM uses Cloak's shielded batch disbursement so LP payouts stay confidential while remaining fully auditable via viewing keys.",
-    href: "/blog/cloak-private-yield-payouts",
-    image: "/images/shield.png",
-    metric: "73",
-    metricLabel: "byte attestation",
-  },
-  {
-    category: "Analytics",
-    date: "MAY 2026",
-    title: "On-chain data needs a reader.",
-    excerpt:
-      "Programmable credit only delivers on its transparency promise if the data is actually readable. Dune SIM powers PRISM's entire analytics layer — NAV, TVL, yield, defaults — with one API call.",
-    href: "/blog/dune-sim-real-time-credit-analytics",
-    image: "/images/audit.jpg",
-    metric: "6",
-    metricLabel: "indexed events",
   },
 ];
 
@@ -115,51 +60,6 @@ const fieldNotes = [
     excerpt:
       "Tranche swaps expose the market's appetite for Prime protection, Core yield, Alpha upside, and post-event repricing.",
     href: `${docsBase}risk-market-layer`,
-  },
-  {
-    icon: Lock,
-    category: "Infrastructure",
-    date: "MAY 2026",
-    title: "IKA + encryption: why PRISM needed threshold MPC.",
-    excerpt:
-      "Borrowers can now lock BTC and ETH as collateral without any custodian. Here is the cryptographic path from dWallet to on-chain credit.",
-    href: "/blog/cross-chain-collateral-ika",
-  },
-  {
-    icon: EyeOff,
-    category: "Privacy",
-    date: "MAY 2026",
-    title: "FHE defaults: proving a condition without seeing the data.",
-    excerpt:
-      "Encrypt's homomorphic circuit runs total_repaid < principal on sealed borrower data and signs the result. No raw financial figures ever touch the chain.",
-    href: "/blog/fhe-default-without-disclosure",
-  },
-  {
-    icon: Zap,
-    category: "Payments",
-    date: "MAY 2026",
-    title: "Dodo payments: why 50-year-old rails made PRISM necessary.",
-    excerpt:
-      "SWIFT, ACH, and syndicated loan desks were built for a world without programmable money. Here is why they cannot be patched — and what PRISM replaces them with.",
-    href: "/blog/dodo-payments-why-prism",
-  },
-  {
-    icon: Shield,
-    category: "Privacy",
-    date: "MAY 2026",
-    title: "Cloak: shielded LP payouts with viewing key audits.",
-    excerpt:
-      "Cloak's batch disbursement primitive maps directly onto PRISM's tranche waterfall. Individual payout amounts stay hidden — only the LP with the viewing key can decrypt their yield.",
-    href: "/blog/cloak-private-yield-payouts",
-  },
-  {
-    icon: BarChart2,
-    category: "Analytics",
-    date: "MAY 2026",
-    title: "Dune SIM: six events, one API key, zero custom indexer.",
-    excerpt:
-      "PRISM emits six event types covering every moment in the credit lifecycle. Dune SIM indexes them all in real time — powering the NAV chart, credit event log, TVL tracker, and AMM price feed.",
-    href: "/blog/dune-sim-real-time-credit-analytics",
   },
 ];
 
@@ -208,7 +108,6 @@ function ArticleCard({
           <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground md:text-lg lg:mt-4 lg:text-base">
             {post.excerpt}
           </p>
-
         </div>
 
       </div>

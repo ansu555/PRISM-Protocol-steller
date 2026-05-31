@@ -41,11 +41,9 @@ export function formatNavQ(value: unknown): string {
   return `${whole.toString()}.${fraction}`;
 }
 
-export function shortKey(value: { toBase58: () => string } | string | null | undefined): string {
+export function shortKey(value: string | null | undefined): string {
   if (!value) return '—';
-  const key = typeof value === 'string' ? value : value.toBase58();
-  if (!key) return '—';
-  return `${key.slice(0, 4)}...${key.slice(-4)}`;
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }
 
 export function delta(before: bigint, after: bigint) {

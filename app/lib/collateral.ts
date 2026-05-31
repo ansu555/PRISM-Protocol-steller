@@ -1,12 +1,11 @@
 /**
  * PRISM Collateral Oracle — client library (Stellar build).
  *
- * Replaces app/lib/ika.ts for the attestation flow. The on-chain message
- * layout mirrors §6.6 of stellar-migration-plan.md and must stay byte-identical
- * to prism-core's verify_collateral handler.
+ * The on-chain message layout must stay byte-identical to prism-core's
+ * verify_collateral handler.
  *
  * chain_id values:
- *   0 = BTC, 1 = ETH, 2 = SOL, 3 = XLM, 4 = USDC-Stellar
+ *   3 = XLM, 4 = USDC-Stellar
  */
 
 import { Buffer } from 'buffer';
@@ -98,7 +97,7 @@ export async function getCollateralAttestation(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       loan_id: params.loanId,
-      chain_id: params.chainId ?? 0,
+      chain_id: params.chainId ?? 3,
       asset_address: params.assetAddressHex ?? '00'.repeat(32),
       amount_usd_micro: (params.amountUsdMicro ?? 0n).toString(),
       valued_at_ts: (params.valuedAtTs ?? BigInt(Math.floor(Date.now() / 1000))).toString(),

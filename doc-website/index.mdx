@@ -6,7 +6,7 @@ title: Introduction
 
 PRISM stands for **Programmable Risk & Income Structured Markets**.
 
-The name describes the protocol's core purpose: PRISM takes a credit pool and refracts it into distinct risk and income layers, the same way a prism separates light into visible bands. Each layer has its own primeity, yield profile, loss exposure, token, and market price.
+The name describes the protocol's core purpose: PRISM takes a credit pool and refracts it into distinct risk and income layers, the same way a prism separates light into visible bands. Each layer has its own seniority, yield profile, loss exposure, token, and market price.
 
 PRISM Protocol is decentralized, non-custodial credit infrastructure for creating, structuring, trading, and managing credit risk on-chain.
 
@@ -17,7 +17,7 @@ The protocol introduces a system where:
 - Credit is decomposed into risk-segmented tranches.
 - Cash flows are distributed through deterministic waterfall logic.
 - Losses are absorbed through predefined subordination hierarchies.
-- Credit positions are represented as fungible SPL tokens.
+- Credit positions are represented as fungible Stellar tokens (Soroban token contracts).
 - Tranche tokens can trade in open markets against USDC.
 
 <Info>
@@ -40,7 +40,7 @@ That is why PRISM expands to **Programmable Risk & Income Structured Markets**.
 
 ## Why PRISM Exists
 
-Credit is one of the largest financial primitives in the world, but most credit exposure is hard to inspect, hard to transfer, and hard to price in real time. Traditional structured credit uses primeity and subordination, but those mechanics usually live behind private documents, manual administration, and opaque secondary markets.
+Credit is one of the largest financial primitives in the world, but most credit exposure is hard to inspect, hard to transfer, and hard to price in real time. Traditional structured credit uses seniority and subordination, but those mechanics usually live behind private documents, manual administration, and opaque secondary markets.
 
 PRISM brings those mechanics on-chain. Vault state, tranche accounting, NAV updates, waterfall distributions, credit events, token balances, and AMM prices are all visible to the user.
 
@@ -48,7 +48,7 @@ PRISM brings those mechanics on-chain. Vault state, tranche accounting, NAV upda
 
 PRISM enables a new category of on-chain financial products:
 
-- Structured credit vaults with explicit primeity.
+- Structured credit vaults with explicit seniority.
 - Tokenized credit positions that can be transferred or traded.
 - Live market pricing for tranche-specific risk.
 - Deterministic yield and loss accounting.
@@ -63,7 +63,7 @@ A PRISM vault is a credit pool split into three risk layers:
 | --- | --- | --- | --- |
 | Prime | Paid first | Most protected | Conservative capital |
 | Core | Paid second | Intermediate exposure | Balanced capital |
-| Alpha | Paid last | First-loss absorber | 15% target-yield exposure |
+| Alpha | Paid last | First-loss absorber | Higher-risk residual upside |
 
 When yield enters the vault, it flows from the safest layer to the riskiest layer. When losses hit, they flow in the opposite direction.
 

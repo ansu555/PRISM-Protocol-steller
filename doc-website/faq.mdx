@@ -16,7 +16,7 @@ See [Token Model](./token-model) for the full breakdown.
 
 ### Is there a PRISM governance or protocol token?
 
-No. PRISM remains tokenless until a clear utility — most likely an insurance backstop tranche — emerges in a later phase. The only tokens the protocol issues are the three tranche tokens (`pPRIME`, `pCORE`, `pALPHA`) and AMM liquidity-provider tokens.
+No. PRISM remains tokenless until a clear utility — most likely an insurance backstop tranche — emerges in a later phase. The only tokens the protocol issues are the three tranche tokens (`pPRIME`, `pCORE`, `pALPHA`); secondary liquidity uses Soroswap liquidity-provider tokens.
 
 ### What happens if I buy `pCORE` on the AMM at a price different from NAV?
 
@@ -38,7 +38,7 @@ See [Risk & Market Layer](./risk-market-layer).
 
 When a credit event is recorded, realized loss is applied to tranche assets in reverse priority — Alpha first, then Core, then Prime — until the loss is fully absorbed. Each tranche's NAV updates as its assets shrink. Token supply does not change.
 
-A USDC amount equal to the realized loss is moved from the vault reserve to the loss bucket account so the reserve invariant continues to hold.
+The contract increments an internal `loss_bucket_balance` by the realized loss so the reserve invariant continues to hold. The corresponding USDC remains inside `prism_core`; no separate loss-sink transfer occurs.
 
 See [Edge Case Handling](./edge-case-handling) for boundary conditions.
 
@@ -48,7 +48,7 @@ Yes, but only after Alpha and Core have been fully wiped. Prime is loss-protecte
 
 ### What if I deposit into a tranche that's been wiped?
 
-Deposits into a tranche with NAV equal to zero and non-zero token supply are blocked. This prevents new depositors from being minted into a broken accounting state where worthless tokens are still outstanding. A tranche must either be fully drained (supply returns to zero) or recapitalized through a recovery event before deposits resume.
+Deposits into a tranche with NAV equal to zero and non-zero token supply are blocked. This prevents new depositors from being minted into a broken accounting state where worthless tokens are still outstanding. Holders can redeem wiped tokens for zero until supply returns to zero; the current contract does not expose a recapitalization operation.
 
 ## Operations
 
@@ -66,24 +66,24 @@ In the current implementation, an authorized account simulates the borrower so t
 
 ### What does pause actually block?
 
-Pause blocks user-facing operations: deposit, withdraw, swap. It does not block credit-event resolution or accounting updates, because pausing user interaction should never prevent the protocol from applying a necessary loss or preserving accounting integrity.
+The `prism_core` pause flag blocks deposits, withdrawals, and admin pool seeding. It does not block credit-event resolution or accounting updates. Soroswap is an external market, so direct swaps remain outside the vault contract's pause boundary.
 
 See [Security & Controls](./security-controls).
 
 ## Architecture
 
-### Why are the vault and the AMM separate programs?
+### Why is the secondary market separate from the vault contract?
 
-Blast-radius isolation. A bug in the AMM should never compromise vault accounting. Splitting the credit risk engine and the market layer into two on-chain programs means each domain can be audited and upgraded independently.
+Blast-radius isolation. A bug in the market layer should never compromise vault accounting. The credit risk engine lives in the `prism_core` Soroban contract, while secondary trading runs on Soroswap — Stellar's constant-product AMM. Keeping the two separate means each domain can be audited and upgraded independently.
 
-The AMM only depends on the SPL mints exposed by the vault. It never reads or writes vault state.
+Soroswap only depends on the tranche token contracts the vault exposes. It never reads or writes vault state.
 
 ### Why does the vault reserve need to equal the sum of tranche assets?
 
-If the reserve held more USDC than the tranches were entitled to, withdrawal would be inconsistent — some users could pull more than their share. If it held less, some users could not be paid out. The reserve invariant guarantees that protocol accounting and physical cash always agree.
+If the contract held less USDC than its accounting required, some users could not be paid out. The reserve invariant guarantees that protocol accounting and physical cash always agree.
 
-The loss bucket exists to maintain the invariant: when a credit event reduces tranche assets, the corresponding USDC is moved out of the reserve so totals continue to match.
+The internal loss-accounting balance exists to maintain the invariant: when a credit event reduces tranche assets, the contract increments `loss_bucket_balance` by the same amount so totals continue to match.
 
 ### Where can I find implementation details?
 
-This site documents the protocol design — the conceptual model, financial mechanics, and architectural decisions. For implementation details (Anchor instructions, account structures, deployment scripts), see the engineering documentation in the project repository.
+This site documents the protocol design — the conceptual model, financial mechanics, and architectural decisions. For implementation details (Soroban contract functions, storage layouts, deployment scripts), see the engineering documentation in the project repository.

@@ -1,7 +1,6 @@
 // Deployed contract registry — single source of truth for all Soroban contract IDs.
 //
-// Replaces Solana's pda.ts (PDAs are program-derived; Soroban contracts have
-// stable addresses derived from WASM hash + salt at deploy time).
+// Soroban contracts have stable addresses derived from WASM hash + salt at deploy time.
 //
 // Usage:
 //   import { CONTRACTS } from '@/app/lib/addresses';

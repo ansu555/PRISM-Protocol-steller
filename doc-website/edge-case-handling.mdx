@@ -29,7 +29,7 @@ if total_assets == 0:
   NAV = 0
 ```
 
-Tokens can still exist after a wipeout, but they retain no redemption value unless the protocol explicitly supports recapitalization logic.
+Tokens can still exist after a wipeout, but they retain no redemption value. Holders can redeem them for zero to drain the outstanding supply. The current contract does not expose a recapitalization operation.
 
 ## Post-Wipe Deposit Restrictions
 
@@ -58,7 +58,6 @@ If reserve reconciliation fails, the operation should revert rather than silentl
 
 ## Loss Greater Than Vault Assets
 
-If a submitted loss exceeds total vault assets, the protocol caps realized loss at available assets and wipes all tranches.
+If a submitted loss exceeds total vault assets, the transaction reverts with `LossExceedsTotalAssets`.
 
-The remaining off-chain loss is outside the vault's recoverable accounting domain.
-
+The caller must submit a loss amount that fits inside the vault's current accounting domain.

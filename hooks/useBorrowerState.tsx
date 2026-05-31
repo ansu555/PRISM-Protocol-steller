@@ -3,12 +3,9 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
 // Collateral chain IDs matching the PRISM Collateral Oracle message layout (§6.6).
-export type CollateralChain = 'BTC' | 'ETH' | 'SOL' | 'XLM' | 'USDC';
+export type CollateralChain = 'XLM' | 'USDC';
 
 export const COLLATERAL_CHAIN: Record<CollateralChain, number> = {
-  BTC: 0,
-  ETH: 1,
-  SOL: 2,
   XLM: 3,
   USDC: 4,
 };
@@ -52,7 +49,7 @@ export function BorrowerProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(90);
   const [purpose, setPurpose] = useState<BorrowPurpose>('working-capital');
   const [borrowerType, setBorrowerType] = useState<BorrowerType>('institutional');
-  const [chainId, setChainId] = useState<CollateralChain>('BTC');
+  const [chainId, setChainId] = useState<CollateralChain>('XLM');
   const [collateralUsd, setCollateralUsd] = useState('75000');
   const [selectedVaultId, setSelectedVaultId] = useState<number | null>(null);
   const [currentStep, setCurrentStep] = useState(1);

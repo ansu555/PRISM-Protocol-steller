@@ -36,7 +36,7 @@ Speaker boost: ON
 ### Scene 1 — Hook · 0:00 → 0:07
 
 ```
-Every lending protocol on Solana still treats credit risk like
+Every lending protocol still treats credit risk like
 one bucket.
 
 [ beat ]
@@ -66,7 +66,7 @@ Everything lives on-chain.
 Deposits. Defaults. Real PnL — accounted in fixed-point NAV.
 
 Every credit event runs the full loss waterfall
-in a single Solana transaction.
+in a single Soroban transaction.
 ```
 *~25 words · "Deposits. Defaults. Real PnL." matches the on-screen rhythm —
 hit each word with the same beat the text uses.*
@@ -74,7 +74,7 @@ hit each word with the same beat the text uses.*
 ### Scene 4 — Trading · 0:28 → 0:35
 
 ```
-Each tranche is its own SPL token, trading live against USDC.
+Each tranche is a Stellar asset contract, trading live against USDC.
 
 When credit moves, **prices react.**
 ```
@@ -83,18 +83,18 @@ When credit moves, **prices react.**
 ### Scene 5 — Sponsors · 0:35 → 0:41
 
 ```
-Ika brings cross-chain collateral.
-Encrypt keeps credit data private.
-Cloak shields the payouts.
+Stellar settles the market.
+Soroswap keeps tranche risk liquid.
+Reflector keeps pricing observable.
 
-Not logo soup. **Protocol primitives.**
+Connected rails. **Composable primitives.**
 ```
 *~16 words · staccato delivery on the three sponsors — one beat each.*
 
 ### Scene 6 — CTA · 0:41 → 0:45
 
 ```
-Structured credit. Built on Solana.
+Structured credit. Built on Stellar.
 
 PRISM Protocol — **docs dot prism protocol dot dev.**
 ```
@@ -111,7 +111,7 @@ The ellipses `…` are intentional pause markers — most TTS engines honor them
 as ~400ms beats.
 
 ```
-Every lending protocol on Solana still treats credit risk like one bucket.
+Every lending protocol still treats credit risk like one bucket.
 … PRISM splits it. Into a market.
 
 One pool. Three tranches. Prime gets paid first, and loses last. Alpha takes
@@ -120,15 +120,15 @@ Losses flow down.
 
 Everything lives on-chain. Deposits. Defaults. Real PnL — accounted in
 fixed-point NAV. Every credit event runs the full loss waterfall in a single
-Solana transaction.
+Soroban transaction.
 
-Each tranche is its own SPL token, trading live against USDC. When credit
+Each tranche is a Stellar asset contract, trading live against USDC. When credit
 moves, prices react.
 
-Ika brings cross-chain collateral. Encrypt keeps credit data private. Cloak
-shields the payouts. Not logo soup. Protocol primitives.
+Stellar settles the market. Soroswap keeps tranche risk liquid. Reflector keeps
+pricing observable. Connected rails. Composable primitives.
 
-Structured credit. Built on Solana. PRISM Protocol — docs dot prism protocol
+Structured credit. Built on Stellar. PRISM Protocol — docs dot prism protocol
 dot dev.
 ```
 

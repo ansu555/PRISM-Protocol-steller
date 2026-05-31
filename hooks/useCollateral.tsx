@@ -3,9 +3,7 @@
 /**
  * PRISM Collateral Oracle hooks.
  *
- * Replaces hooks/useIkaCollateral.tsx for the Stellar build (§8.1).
- * The IKA dWallet flow is gone; collateral is now attested by the
- * PRISM-hosted Ed25519 oracle (§6.6 of stellar-migration-plan.md).
+ * Collateral records are attested by the PRISM-hosted Ed25519 oracle.
  */
 
 import { useMutation, useQuery } from '@tanstack/react-query';

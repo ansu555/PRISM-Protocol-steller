@@ -75,7 +75,7 @@ export function useDeposit() {
       // Soroban-specific simulation + footprint assembly.
       tx = await server.prepareTransaction(tx);
 
-      // Sign through the wallet kit (Freighter etc.).
+      // Sign through Freighter.
       const signedXdr = await wallet.signTransaction(tx.toXDR());
       const signedTx = TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
 

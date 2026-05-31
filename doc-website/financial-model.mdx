@@ -31,7 +31,7 @@ Example yield order:
 
 1. Prime receives yield up to its target.
 2. Core receives yield up to its target.
-3. Alpha receives yield up to its 15% target.
+3. Alpha receives the remaining yield.
 
 This lets PRISM express different risk-return profiles inside the same vault.
 
@@ -49,18 +49,18 @@ If Alpha has 5,014.50 USDC of assets and the vault realizes a 6,500 USDC loss, A
 
 ## Accounting Integrity
 
-The vault's USDC reserve must equal the sum of all tranche assets:
+The contract's USDC balance must equal tranche assets plus the internal loss-accounting balance:
 
 ```text
-reserve = prime_assets + core_assets + alpha_assets
+contract_usdc_balance = prime_assets + core_assets + alpha_assets + loss_bucket_balance
 ```
 
 To maintain this invariant:
 
-- Deposits transfer USDC into the reserve and increase tranche assets.
-- Yield transfers USDC into the reserve and increases tranche assets.
-- Withdrawals transfer USDC out of the reserve and decrease tranche assets.
-- Losses transfer USDC out of the reserve to a dedicated loss bucket account and decrease tranche assets.
+- Deposits transfer USDC into the contract and increase tranche assets.
+- Yield transfers USDC into the contract and increases tranche assets.
+- Withdrawals transfer USDC out of the contract and decrease tranche assets.
+- Losses decrease tranche assets and increment `loss_bucket_balance` by the same amount. The corresponding USDC remains held by `prism_core`.
 
 ## NAV and Market Price
 

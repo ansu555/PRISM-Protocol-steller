@@ -12,9 +12,9 @@ const footerLinks = {
   ],
   Developers: [
     { name: "Documentation", href: DOCS_URL },
-    { name: "Anchor programs", href: "/#infra" },
-    { name: "Typed IDL", href: "/#developers" },
-    { name: "Devnet status", href: "#" },
+    { name: "Soroban contract", href: "/#infra" },
+    { name: "Typed bindings", href: "/#developers" },
+    { name: "Testnet status", href: "#" },
   ],
   Company: [
     { name: "About", href: "#" },
@@ -139,7 +139,7 @@ export function FooterSection() {
               </a>
 
               <p className="text-white/50 leading-relaxed mb-6 max-w-xs text-sm">
-                Programmable credit risk on Solana. Split deposits into tranches, distribute yield by waterfall, and let markets price the risk.
+                Programmable credit risk on Stellar. Split deposits into tranches, distribute yield by waterfall, and let markets price the risk.
               </p>
 
               {/* Social Links */}
@@ -192,7 +192,7 @@ export function FooterSection() {
           <div className="flex items-center gap-4 text-sm text-white/30">
             <span className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#eca8d6]" />
-              Devnet demo operational
+              Stellar testnet demo operational
             </span>
           </div>
         </div>

@@ -1,21 +1,20 @@
 'use client';
 
 // Poll the deployed Soroban contracts for the full vault snapshot.
-// Replaces the Anchor `account.fetchNullable` flow with Soroban contract reads.
+// Reads the deployed Soroban contracts for the dashboard.
 //
 // Returned shape:
 //   {
 //     config, vault, loan, tranches[3], reserveBalance, lossBucketBalance,
-//     usdcMint, programIds
+//     usdcMint
 //   }
 //
-// Soroban doesn't have PDAs. The contract id is the only "address" any
-// caller needs, so dashboards display tranche `kind` or the contract id.
+// The contract id is the canonical address callers need, so dashboards
+// display tranche `kind` or the relevant contract id.
 
 import { useQuery } from '@tanstack/react-query';
 
 import {
-  PRISM_AMM_CONTRACT_ID,
   PRISM_CORE_CONTRACT_ID,
   SOROSWAP_FACTORY_ID,
   TRANCHE_CONFIG,
@@ -120,7 +119,7 @@ export function useVaultState(vaultIdOverride?: number) {
         .read<LoanSnapshot | null>('get_loan', [nativeToScVal(1, { type: 'u32' })])
         .catch(() => null);
 
-      // Per-tranche reads — get_tranche on prism-core + get_pool/get_reserves on prism-amm.
+      // Per-tranche reads: get_tranche on prism-core + get_pair/get_reserves on Soroswap.
       const tranches = await Promise.all(
         trancheKinds.map(async (kind) => {
           const tranche = await core
@@ -155,7 +154,7 @@ export function useVaultState(vaultIdOverride?: number) {
           return {
             kind,
             ...TRANCHE_CONFIG[kind],
-            pda: tranche?.ptoken ?? PRISM_CORE_CONTRACT_ID, // legacy field name kept
+            tokenAddress: tranche?.ptoken ?? PRISM_CORE_CONTRACT_ID,
             mint: tranche?.ptoken ?? '',
             account: tranche
               ? {
@@ -169,7 +168,7 @@ export function useVaultState(vaultIdOverride?: number) {
                 }
               : null,
             pool: null,
-            poolPda: '',
+            poolAddress: '',
             poolTrancheReserve: '',
             poolQuoteReserve: '',
             totalAssets: tranche ? toBigInt(tranche.total_assets) : 0n,
@@ -193,7 +192,7 @@ export function useVaultState(vaultIdOverride?: number) {
               oracleAllowlist: config.oracle_allowlist,
             }
           : null,
-        configPda: PRISM_CORE_CONTRACT_ID,
+        configAddress: PRISM_CORE_CONTRACT_ID,
         vault: vault
           ? {
               id: vault.id,
@@ -204,10 +203,10 @@ export function useVaultState(vaultIdOverride?: number) {
               creditEventSeq: vault.credit_event_seq,
             }
           : null,
-        vaultPda: PRISM_CORE_CONTRACT_ID,
-        reservePda: PRISM_CORE_CONTRACT_ID,
+        vaultAddress: PRISM_CORE_CONTRACT_ID,
+        reserveAddress: PRISM_CORE_CONTRACT_ID,
         reserveBalance: contractUsdcBalance,
-        lossBucketPda: PRISM_CORE_CONTRACT_ID,
+        lossBucketAddress: PRISM_CORE_CONTRACT_ID,
         lossBucketBalance: 0n, // Loss bucket is informational on Stellar; the contract holds USDC directly.
         loan: loan
           ? {
@@ -221,13 +220,9 @@ export function useVaultState(vaultIdOverride?: number) {
               totalRepaid: toBigInt(loan.total_repaid),
             }
           : null,
-        loanPda: PRISM_CORE_CONTRACT_ID,
+        loanAddress: PRISM_CORE_CONTRACT_ID,
         usdcMint: config?.usdc_token ?? USDC_CONTRACT_ID,
         tranches,
-        programIds: {
-          core: { toBase58: () => PRISM_CORE_CONTRACT_ID, toString: () => PRISM_CORE_CONTRACT_ID },
-          amm: { toBase58: () => PRISM_AMM_CONTRACT_ID, toString: () => PRISM_AMM_CONTRACT_ID },
-        },
       };
     },
   });

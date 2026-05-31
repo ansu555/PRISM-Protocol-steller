@@ -42,10 +42,10 @@ export default function SimulationPage() {
           <div className="relative">
             <div className="mb-3 flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.4em] text-white/30">
               <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-              Node Status: DUNE-SIM-PRISM-01
+              Node Status: SOROBAN-RPC-PRISM-01
             </div>
             <h1 className="font-display text-6xl tracking-tight text-white italic drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-               DUNE <span className="text-white/20">/</span> SIM
+               PRISM <span className="text-white/20">/</span> LIVE
             </h1>
             <p className="mt-4 font-mono text-sm uppercase tracking-widest text-white/40">
                Institutional Risk & Liquidity Simulation Terminal
@@ -90,7 +90,7 @@ export default function SimulationPage() {
 
         <div className="grid grid-cols-1 gap-10 xl:grid-cols-[minmax(0,1fr)_440px]">
           <div className="space-y-12">
-            {/* Dune Style Flow Charts */}
+            {/* Soroban flow charts */}
             <section className="space-y-6">
                <div className="flex items-center justify-between border-b border-white/5 pb-4">
                   <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.2em] text-white/40">

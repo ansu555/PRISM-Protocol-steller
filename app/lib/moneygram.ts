@@ -1,6 +1,6 @@
 // MoneyGram Access — SEP-24 interactive deposit client.
 //
-// Replaces the Dodo Payments fiat ramp for borrower USDC funding (Phase 3 §4).
+// MoneyGram Access fiat ramp for borrower USDC funding.
 //
 // Flow:
 //   1. Fetch stellar.toml from the anchor domain to discover SEP-10 + SEP-24 URLs.

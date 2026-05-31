@@ -2,8 +2,7 @@
 
 // Real Stellar borrow flow — admin originates + disburses, borrower repays.
 //
-// This replaces the IKA-centric BorrowingWorkflow component on the Stellar
-// build. Everything here writes to the deployed prism-core contract; you can
+// Everything here writes to the deployed prism-core contract; you can
 // see state change live on https://stellar.expert.
 //
 // Three sections (all collapsible by role):

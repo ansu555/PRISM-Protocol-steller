@@ -36,7 +36,7 @@
 //!     SAC admin off-chain before `init_tranche` is called, so `deposit` and
 //!     `withdraw` can mint/burn via the standard token interface.
 //!   - The contract instance holds USDC directly (the contract's address is
-//!     both the USDC custodian and the loss bucket — no separate PDA needed).
+//!     both the USDC custodian and the loss bucket).
 
 #![no_std]
 
@@ -457,11 +457,8 @@ impl PrismCore {
 
         let cfg = storage::read_config(&env);
 
-        // Authorization: admin OR allowlisted oracle pubkey? Soroban doesn't
-        // surface a pubkey for an Address, so we approximate Solana's "admin
-        // OR oracle" check by requiring admin. Oracle-driven yield arrives
-        // via Phase 3's signature-verified handlers (`verify_encrypt_default`
-        // etc.) — those don't need an Address allowlist.
+        // Yield accrual is admin-gated. Signature-verified oracle handlers
+        // cover oracle-driven state transitions separately.
         if authority != cfg.admin {
             return Err(PrismError::Unauthorized);
         }
@@ -645,10 +642,7 @@ impl PrismCore {
 
     /// Originate a loan against a vault. Admin-only. No USDC moves yet —
     /// disbursement happens via `disburse_loan` (so admins can verify
-    /// off-chain collateral before unlocking funds, even though the IKA
-    /// collateral feature itself was dropped).
-    ///
-    /// Mirrors `contracts/programs/prism-core/src/instructions/initialize_loan.rs`.
+    /// off-chain collateral before unlocking funds).
     pub fn init_loan(
         env: Env,
         vault_id: u32,
@@ -698,8 +692,6 @@ impl PrismCore {
     /// Disburse a loan: contract sends USDC from its reserve to the borrower.
     /// Admin-only. Loan must be in `Originated` state and vault must be `Active`.
     ///
-    /// Mirrors `contracts/programs/prism-core/src/instructions/disburse_loan.rs`,
-    /// minus the IKA collateral gate (cut for v1).
     pub fn disburse_loan(env: Env, vault_id: u32, loan_id: u32) -> Result<(), PrismError> {
         let cfg = storage::read_config(&env);
         cfg.admin.require_auth();
@@ -838,9 +830,7 @@ impl PrismCore {
 
     /// Verify an Encrypt FHE default attestation and fire the loss cascade.
     ///
-    /// Attestation message layout (73 bytes), byte-identical to the Solana
-    /// version so the off-chain oracle can produce one message for either
-    /// chain by just swapping the loan-identifier semantics:
+    /// Attestation message layout (73 bytes):
     ///   bytes 0..8    "enc_atts"     prefix
     ///   bytes 8..40   loan_id_padded (loan_id as u32 LE, zero-padded to 32 bytes)
     ///   bytes 40..72  score_commitment (must match attach time)
@@ -1057,7 +1047,7 @@ impl PrismCore {
     }
 
     // ──────────────────────────────────────────────────────────────────────
-    // Phase 3: PRISM Collateral Oracle (replaces IKA — §6.6)
+    // PRISM Collateral Oracle
     // ──────────────────────────────────────────────────────────────────────
 
     /// Register a PRISM Collateral Oracle pubkey for a loan. Creates a

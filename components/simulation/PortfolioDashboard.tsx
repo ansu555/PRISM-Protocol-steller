@@ -10,7 +10,7 @@ import {
 
 import { Q64_ONE, TRANCHE_CONFIG, TrancheKind } from '@/app/lib/constants';
 import { formatUsdc, shortKey, stateName, toBigInt } from '@/app/lib/format';
-import type { ProtocolEvent } from '@/app/lib/dune-sim';
+import type { ProtocolEvent } from '@/app/lib/stellar-ledger';
 import { useEvents } from '@/hooks/useEvents';
 import { useIdentity } from '@/hooks/useIdentity';
 import { useSimulationLog } from '@/hooks/useSimulationLog';
@@ -144,8 +144,8 @@ function useDashboardData() {
     connected,
     publicKey,
     walletLabel: connected && publicKey ? shortKey(publicKey) : 'Not connected',
-    vaultLabel: raw ? shortKey(raw.vaultPda) : 'Vault #0',
-    vaultPda: raw?.vaultPda ,
+    vaultLabel: raw ? shortKey(raw.vaultAddress) : 'Vault #0',
+    vaultAddress: raw?.vaultAddress,
     vaultStatus: stateName(raw?.vault?.state),
     tranches,
     userPositions: userPositions ?? [],
@@ -291,11 +291,11 @@ function relTime(unixSec: number): string {
 }
 
 function HorizontalTicker() {
-  const { data: duneEvents, isFetching } = useEvents();
+  const { data: chainEvents, isFetching } = useEvents();
   const { entries: logEntries } = useSimulationLog();
 
-  const duneList = Array.isArray(duneEvents) ? duneEvents : (duneEvents as any)?.events ?? [];
-  const hasDuneData = duneList.length > 0;
+  const chainList = Array.isArray(chainEvents) ? chainEvents : (chainEvents as any)?.events ?? [];
+  const hasChainData = chainList.length > 0;
   const localEvents: ProtocolEvent[] = logEntries.slice(0, 20).map((e) => ({
     signature: e.id,
     timestamp: Math.floor(new Date(e.timestamp).getTime() / 1000),
@@ -304,8 +304,8 @@ function HorizontalTicker() {
     signer: e.role,
   }));
 
-  const events = hasDuneData ? duneList.slice(0, 20) : localEvents;
-  const isLocal = !hasDuneData;
+  const events = hasChainData ? chainList.slice(0, 20) : localEvents;
+  const isLocal = !hasChainData;
 
   if (events.length === 0) {
     return (
@@ -331,7 +331,7 @@ function HorizontalTicker() {
         <div className="h-px flex-1 bg-white/[0.02]" />
         <div className="flex items-center gap-1.5">
           {isFetching && <RefreshCw className="h-2.5 w-2.5 animate-spin text-white/20" />}
-          <span className="font-mono text-[9px] text-white/20">{isLocal ? 'devnet' : 'dune'}</span>
+          <span className="font-mono text-[9px] text-white/20">{isLocal ? 'simulation' : 'soroban'}</span>
         </div>
       </div>
 

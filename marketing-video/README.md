@@ -19,8 +19,8 @@ distribution. Two formats (16:9 + 9:16), a still poster, plus social copy.
 | 0:07–0:17 | **Waterfall** | "Yield flows up. Losses flow down." with Prime / Core / Alpha tranche cards |
 | 0:17–0:28 | **Product** | Live Mission Control dashboard — "Deposits. Defaults. Real PnL." |
 | 0:28–0:35 | **Trading** | Live Liquidity Hub — "When credit moves, prices react." |
-| 0:35–0:41 | **Sponsors** | Ika · Encrypt · Cloak · Dune SIM · Dodo — "Not logo soup. Protocol primitives." |
-| 0:41–0:45 | **CTA** | "Structured credit, built on Solana." + `docs.prismprotocol.dev` |
+| 0:35–0:41 | **Ecosystem** | Stellar · Soroban · Soroswap · Reflector · MoneyGram — "Connected rails. Composable primitives." |
+| 0:41–0:45 | **CTA** | "Structured credit, built on Stellar." + `docs.prismprotocol.dev` |
 
 ## Run it locally
 
@@ -52,8 +52,7 @@ src/
 
 public/assets/
 ├── prism-header-mark.svg, prism.png, prism-wordmark-light.svg
-├── ui-dashboard.png, ui-trade.png         ← product screenshots
-└── ika-logo.png, encrypt-logo.png, cloak-logo.png, dune-logo.png, dodo-logo.png
+└── ui-dashboard.png, ui-trade.png         ← product screenshots
 ```
 
 ## Iterating on the content

@@ -5,9 +5,9 @@ import { useWallet } from '@/components/providers/stellar-wallet-provider';
 import { useWalletModal } from '@/components/providers/stellar-wallet-provider';
 
 import { useEvents } from '@/hooks/useEvents';
-import { useDuneBalances } from '@/hooks/useDuneBalances';
+import { useStellarBalances } from '@/hooks/useStellarBalances';
 import { useSimulationLog } from '@/hooks/useSimulationLog';
-import type { ProtocolEvent } from '@/app/lib/dune-sim';
+import type { ProtocolEvent } from '@/app/lib/stellar-ledger';
 
 const EVENT_STYLES: Record<string, { dot: string; badge: string }> = {
   'Deposit':        { dot: 'bg-blue-400',   badge: 'border-blue-500/25 bg-blue-500/10 text-blue-300' },
@@ -71,11 +71,11 @@ export function EventTickerPanel() {
   const { data, isFetching } = useEvents();
   const { publicKey } = useWallet();
   const { setVisible } = useWalletModal();
-  const walletAddress = publicKey?.toBase58() ?? null;
-  const { data: balances, isFetching: balancesFetching } = useDuneBalances(walletAddress ?? '');
+  const walletAddress = publicKey ?? null;
+  const { data: balances, isFetching: balancesFetching } = useStellarBalances(walletAddress ?? '');
   const { entries: logEntries } = useSimulationLog();
 
-  const hasDuneData = data.duneCount > 0;
+  const hasChainData = data.chainCount > 0;
 
   const localEvents: ProtocolEvent[] = logEntries.slice(0, 15).map((e) => ({
     signature: e.id,
@@ -85,8 +85,8 @@ export function EventTickerPanel() {
     signer: e.role,
   }));
 
-  const events = hasDuneData ? data.events.slice(0, 15) : localEvents;
-  const isLocal = !hasDuneData;
+  const events = hasChainData ? data.events.slice(0, 15) : localEvents;
+  const isLocal = !hasChainData;
 
   return (
     <section className="mt-16">
@@ -94,25 +94,25 @@ export function EventTickerPanel() {
         <h2 className="font-display text-4xl leading-none text-white">Live Protocol Events</h2>
         <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em] text-white/30">
           {isFetching && <RefreshCw className="h-3 w-3 animate-spin" />}
-          <span className="text-[#FF6154]/70">Dune SIM</span>
+          <span className="text-[#FF6154]/70">Soroban RPC</span>
           <span>·</span>
-          <span>{hasDuneData ? 'mainnet · live' : 'devnet · no mainnet txs yet'}</span>
+          <span>{hasChainData ? 'testnet · live' : 'simulation fallback'}</span>
         </div>
       </div>
 
-      {/* Dune SIM API status */}
+      {/* Stellar RPC status */}
       <div className="mb-4 rounded border border-[#FF6154]/15 bg-[#FF6154]/5 px-4 py-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <span className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-[#FF6154]/60">Dune SIM API</span>
+          <span className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-[#FF6154]/60">Stellar ledger</span>
           <div className="flex flex-1 flex-wrap items-center gap-x-6 gap-y-1 font-mono text-[10px] text-white/35">
             <span>
               <span className="text-white/20">GET</span>{' '}
-              /beta/svm/transactions/…{' '}
-              <span className="text-white/50">{data.duneCount} results</span>
+              Soroban RPC · getEvents{' '}
+              <span className="text-white/50">{data.chainCount} results</span>
             </span>
             <span>
               <span className="text-white/20">GET</span>{' '}
-              /beta/svm/balances/…{' '}
+              Horizon · /accounts/…{' '}
               {walletAddress
                 ? <span className="text-white/50">{balancesFetching ? '…' : `${balances.balances.length} tokens`}</span>
                 : <button onClick={() => setVisible(true)} className="inline-flex items-center gap-1 text-[#FF6154]/60 hover:text-[#FF6154] transition-colors cursor-pointer">
@@ -124,7 +124,7 @@ export function EventTickerPanel() {
           </div>
         </div>
 
-        {/* Show balances if wallet connected and Dune returned data */}
+        {/* Show balances if wallet connected and Horizon returned data */}
         {walletAddress && balances.balances.length > 0 && (
           <div className="mt-2.5 flex flex-wrap gap-3 border-t border-[#FF6154]/10 pt-2.5">
             {balances.balances.map((b) => (
@@ -137,7 +137,7 @@ export function EventTickerPanel() {
 
         {walletAddress && balances.balances.length === 0 && !balancesFetching && (
           <p className="mt-1.5 font-mono text-[10px] text-white/25">
-            No mainnet tokens found · Dune SIM indexes mainnet only
+            No Stellar balances found for this account
           </p>
         )}
       </div>

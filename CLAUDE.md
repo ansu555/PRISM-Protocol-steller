@@ -4,9 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 You are coding on the PRISM Protocol codebase — a structured credit protocol built on **Stellar Soroban**. These rules apply to every file you write or edit.
 
-If you're new to this project, **read [stellar-migration-plan.md](stellar-migration-plan.md) first** for architecture context, then [stellar-deploy-plan.md](stellar-deploy-plan.md) for the current delivery plan, then this file, then [docs/12-reference-card.md](docs/12-reference-card.md). After that, you have full context to start coding.
-
-> **Solana is retired.** `contracts/programs/prism-core/` and `contracts/programs/prism-amm/` are historical. The active contract is `soroban/prism-core/`. Do not create or reference Anchor/Solana artifacts.
+If you're new to this project, read [stellar-deploy-plan.md](stellar-deploy-plan.md) for the current delivery plan, then this file, then [docs/README.md](docs/README.md). After that, you have full context to start coding.
 
 ---
 
@@ -46,7 +44,7 @@ Soroban does not use IDL JSON files. Contract bindings for the frontend are eith
 stellar contract bindings typescript --network testnet --id $CID --output-dir app/lib/bindings/
 ```
 
-There is no `anchor build && cp` step.
+There is no separate IDL sync step.
 
 ---
 
@@ -87,7 +85,7 @@ prism-protocol/
 │   ├── useVaultState.ts     Polls all on-chain state every 8s via React Query
 │   ├── useIdentity.tsx      Demo role switcher (admin/senior/junior/borrower)
 │   ├── useCollateral.tsx    PRISM Collateral Oracle hooks
-│   ├── useSwap.tsx          Soroswap swap hook (rewired from prism_amm)
+│   ├── useSwap.tsx          Soroswap swap hook
 │   └── useSimulationActions.tsx  Admin action mutations
 ├── lib/                     Shared non-React utilities (utils.ts, waitlist.ts)
 ├── soroban/                 Soroban contract workspace
@@ -137,7 +135,7 @@ All three oracle types (Collateral, Encrypt, Cloak) share the same Ed25519 attes
 env.crypto().ed25519_verify(&oracle_pubkey, &message, &signature);
 ```
 
-This replaces the Solana two-instruction precompile pattern. Each oracle has:
+Each oracle has:
 - An API route under `app/api/{oracle}-oracle/` that signs the message with an Ed25519 seed
 - A client library under `app/lib/{oracle}.ts` that builds the message and calls the route
 - An on-chain handler in `soroban/prism-core/src/lib.rs` that verifies and advances state
@@ -157,7 +155,7 @@ const id = ACTIVE_CONTRACTS.prismCore;
 
 ### Soroswap (AMM)
 
-Tranche token pools live on Soroswap (Uniswap-V2 CPMM). The `prism_amm` Solana program is deleted; swap UI calls Soroswap router via `app/lib/soroswap.ts`. Pool seeding is admin-only via `seed_pool_liquidity` on the core contract.
+Tranche token pools live on Soroswap (Uniswap-V2 CPMM). The swap UI calls the Soroswap router via `app/lib/soroswap.ts`. Pool seeding is admin-only via `seed_pool_liquidity` on the core contract.
 
 ---
 
@@ -272,7 +270,7 @@ env.storage().persistent().extend_ttl(&DataKey::Vault(vault_id), THRESHOLD, EXTE
 - All async data fetching through React Query (`@tanstack/react-query`)
 - All mutations through `useMutation` — never bare `await contract.invoke(...)` in components
 - All errors surface via `sonner` toast (`import { toast } from 'sonner'`) — never silent
-- The wallet kit (`useStellarWallet`) is used for user-facing flows; the simulation harness uses `useIdentity` keypairs directly
+- The Freighter hook (`useStellarWallet`) is used for user-facing flows; the simulation harness uses `useIdentity` keypairs directly
 
 ### Soroban TS gotchas
 
@@ -282,7 +280,7 @@ env.storage().persistent().extend_ttl(&DataKey::Vault(vault_id), THRESHOLD, EXTE
 | ❌ Hardcode contract IDs inline | ✅ Import from `app/lib/addresses.ts` via `ACTIVE_CONTRACTS` |
 | ❌ Call the contract without simulating first | ✅ Use `buildCoreClient(keypair).invoke(...)` which handles simulate+prepare+send |
 | ❌ Read on-chain state with a raw transaction | ✅ Use `buildCoreClient().read(...)` which does a dry-run simulation |
-| ❌ Use `new BN(value)` (Anchor idiom) | ✅ Use native `BigInt` — Soroban SDK uses `bigint` throughout |
+| ❌ Wrap integer values in library-specific number classes | ✅ Use native `BigInt` — Soroban SDK uses `bigint` throughout |
 
 ---
 
@@ -330,7 +328,7 @@ cargo test -p prism-core -- --nocapture           # Show println! output
 
 ## Editing the design docs
 
-The numbered docs in `docs/` (`00-overview.md` through `12-reference-card.md`) are **locked architecture** for the financial model. Don't modify them unless the user explicitly asks. For chain-specific concerns, [stellar-migration-plan.md](stellar-migration-plan.md) is the authoritative override.
+The docs in `docs/` are the architecture source for the financial model. Don't modify them unless the user explicitly asks.
 
 ---
 
@@ -340,7 +338,7 @@ The numbered docs in `docs/` (`00-overview.md` through `12-reference-card.md`) a
 2. The vault USDC reserve invariant (`reserve_balance == Σ tranche.total_assets + loss_bucket_balance`) holds at all times — enforced in the contract's cascade handler
 3. NAV edge cases: handle first-deposit (mint 1:1 at Q64_ONE), total wipeout (block deposits with `TrancheWipedNoDepositsAllowed`), post-wipe withdraw (returns 0 USDC — intentional)
 4. Test math values must match §4.3 and §4.5 of `12-reference-card.md` exactly
-5. No Solana/Anchor imports anywhere in `app/`, `components/`, or `hooks/` — run `grep -r "@solana\|@coral-xyz" app/ hooks/ components/` to verify
+5. Use Stellar SDK and Soroban contract interfaces throughout `app/`, `components/`, and `hooks/`
 6. Never modify locked architecture without user approval
 
 If still stuck, **stop and ask the user** — one clarification beats 200 lines of wrong code.

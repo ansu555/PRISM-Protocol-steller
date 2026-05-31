@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 
 const regions = [
   { name: "Tranche Vaults", nodes: 3, status: "operational" },
-  { name: "AMM Pools", nodes: 3, status: "operational" },
+  { name: "Soroswap Pools", nodes: 3, status: "operational" },
   { name: "Loss Bucket", nodes: 1, status: "operational" },
   { name: "Credit Events", nodes: 3, status: "operational" },
 ];
@@ -72,7 +72,7 @@ export function InfrastructureSection({ id = "infra" }: { id?: string }) {
               <p className={`mt-5 text-lg text-muted-foreground leading-relaxed max-w-lg transition-all duration-1000 delay-100 ${
                 isVisible ? "opacity-100" : "opacity-0"
               }`}>
-                Two Anchor programs on Solana. Vault logic in <span className="font-mono">prism_core</span>. Market layer in <span className="font-mono">prism_amm</span>. No backend, no off-chain trust.
+                One Soroban core contract on Stellar. Vault accounting lives in <span className="font-mono">prism_core</span>. Tranche markets route through <span className="font-mono">Soroswap</span>.
               </p>
             </div>
           </div>
@@ -143,11 +143,11 @@ export function InfrastructureSection({ id = "infra" }: { id?: string }) {
             
             <div className="relative z-10">
               <div className="flex items-baseline gap-2 mb-3">
-                <span className="font-display text-6xl leading-none sm:text-7xl lg:text-[8rem]">2</span>
-                <span className="text-xl text-muted-foreground sm:text-2xl">programs</span>
+                <span className="font-display text-6xl leading-none sm:text-7xl lg:text-[8rem]">1</span>
+                <span className="text-xl text-muted-foreground sm:text-2xl">core contract</span>
               </div>
               <p className="text-muted-foreground max-w-md">
-                Credit risk engine and market layer separated for blast-radius isolation. AMM bug ≠ vault failure.
+                Credit risk accounting stays in the vault engine while Soroswap provides the external market layer.
               </p>
             </div>
           </div>
@@ -164,8 +164,8 @@ export function InfrastructureSection({ id = "infra" }: { id?: string }) {
             <div className={`border border-foreground/10 bg-foreground/[0.02] p-5 transition-all duration-700 delay-200 sm:p-6 ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
             }`}>
-              <span className="text-4xl lg:text-5xl font-display">&lt;400ms</span>
-              <span className="block text-sm text-muted-foreground mt-2">Swap latency</span>
+              <span className="text-4xl lg:text-5xl font-display">~5s</span>
+              <span className="block text-sm text-muted-foreground mt-2">Ledger close cadence</span>
             </div>
           </div>
         </div>
@@ -192,7 +192,7 @@ export function InfrastructureSection({ id = "infra" }: { id?: string }) {
                 </span>
               </div>
               <span className="font-medium block mb-1">{region.name}</span>
-              <span className="text-sm text-muted-foreground">{region.nodes} {region.nodes === 1 ? "PDA" : "PDAs"}</span>
+              <span className="text-sm text-muted-foreground">{region.nodes} {region.nodes === 1 ? "record" : "records"}</span>
             </div>
           ))}
         </div>

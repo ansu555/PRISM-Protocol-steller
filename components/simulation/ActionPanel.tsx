@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 import {
   DEFAULT_DEMO_LOSS_AMOUNT,
   DEFAULT_DEMO_YIELD_AMOUNT,
-  ENCRYPT_ORACLE_PUBKEY,
+  ENCRYPT_ORACLE_PUBKEY_HEX,
   TRANCHE_CONFIG,
   TrancheKind,
   VAULT_ID,
@@ -238,7 +238,7 @@ export function ActionPanel() {
       const stateKey = Object.keys(loan.state as Record<string, unknown>)[0] ?? 'Originated';
       await upsertLoan.mutateAsync({
         loanId,
-        pda: `${VAULT_ID}-${loanId}`,
+        contractRef: `${VAULT_ID}-${loanId}`,
         borrower: String(loan.borrower ?? ''),
         principal: BigInt(String(loan.principal ?? 0)),
         aprBps: Number(loan.apr_bps ?? 0),
@@ -366,7 +366,7 @@ export function ActionPanel() {
       await attachEncryptScore.mutateAsync({
         loanId: activeLoanId,
         commitment,
-        encryptOraclePubkey: Uint8Array.from(Buffer.from(ENCRYPT_ORACLE_PUBKEY, 'hex')),
+        encryptOraclePubkey: Uint8Array.from(Buffer.from(ENCRYPT_ORACLE_PUBKEY_HEX, 'hex')),
       });
     },
     onError: (error) => toast.error(formatError(error)),

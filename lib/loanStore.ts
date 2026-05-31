@@ -21,7 +21,7 @@ async function ensureTable(sql: ReturnType<typeof postgres>) {
         CREATE TABLE IF NOT EXISTS loans (
           loan_id         integer NOT NULL,
           vault_id        integer NOT NULL,
-          pda             text    NOT NULL,
+          contract_ref    text    NOT NULL,
           borrower        text    NOT NULL,
           principal       bigint  NOT NULL,
           apr_bps         integer NOT NULL,
@@ -32,6 +32,27 @@ async function ensureTable(sql: ReturnType<typeof postgres>) {
           updated_at      timestamptz NOT NULL DEFAULT now(),
           PRIMARY KEY (loan_id, vault_id)
         )
+      `;
+      await sql`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'loans'
+              AND column_name = 'pda'
+          ) AND NOT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'loans'
+              AND column_name = 'contract_ref'
+          ) THEN
+            ALTER TABLE loans RENAME COLUMN pda TO contract_ref;
+          END IF;
+        END
+        $$
       `;
     })().catch((err) => {
       globalForLoans.loanSchemaReady = undefined;
@@ -44,7 +65,7 @@ async function ensureTable(sql: ReturnType<typeof postgres>) {
 export type LoanRow = {
   loan_id: number;
   vault_id: number;
-  pda: string;
+  contractRef: string;
   borrower: string;
   principal: string;
   apr_bps: number;
@@ -58,7 +79,7 @@ export async function listLoans(vaultId: number): Promise<LoanRow[]> {
   const sql = getSql();
   await ensureTable(sql);
   return sql<LoanRow[]>`
-    SELECT loan_id, vault_id, pda, borrower, principal, apr_bps,
+    SELECT loan_id, vault_id, contract_ref, borrower, principal, apr_bps,
            origination_ts, maturity_ts, state, total_repaid
     FROM loans
     WHERE vault_id = ${vaultId}
@@ -69,7 +90,7 @@ export async function listLoans(vaultId: number): Promise<LoanRow[]> {
 export type UpsertLoanInput = {
   loanId: number;
   vaultId: number;
-  pda: string;
+  contractRef: string;
   borrower: string;
   principal: bigint;
   aprBps: number;
@@ -84,13 +105,13 @@ export async function upsertLoan(input: UpsertLoanInput): Promise<void> {
   await ensureTable(sql);
   await sql`
     INSERT INTO loans
-      (loan_id, vault_id, pda, borrower, principal, apr_bps, origination_ts, maturity_ts, state, total_repaid)
+      (loan_id, vault_id, contract_ref, borrower, principal, apr_bps, origination_ts, maturity_ts, state, total_repaid)
     VALUES
-      (${input.loanId}, ${input.vaultId}, ${input.pda}, ${input.borrower},
+      (${input.loanId}, ${input.vaultId}, ${input.contractRef}, ${input.borrower},
        ${input.principal.toString()}, ${input.aprBps},
        ${input.originationTs}, ${input.maturityTs}, ${input.state}, ${input.totalRepaid.toString()})
     ON CONFLICT (loan_id, vault_id) DO UPDATE SET
-      pda           = EXCLUDED.pda,
+      contract_ref  = EXCLUDED.contract_ref,
       borrower      = EXCLUDED.borrower,
       principal     = EXCLUDED.principal,
       apr_bps       = EXCLUDED.apr_bps,

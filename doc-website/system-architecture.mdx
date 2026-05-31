@@ -10,7 +10,7 @@ PRISM is organized into five architectural domains. Each domain has a separate r
 | --- | --- | --- |
 | Sourcing Layer | Introduces credit into the system | Origination and capital intake |
 | Core Protocol Layer | Executes deterministic vault accounting | Tranches, waterfall, loss cascade |
-| Risk & Market Layer | Provides liquidity and price discovery | AMMs and market/NAV divergence |
+| Risk & Market Layer | Provides liquidity and price discovery | Soroswap markets and market/NAV divergence |
 | Integrity Layer | Ensures correctness and verifiability | Credit events, controls, optional privacy |
 | Surface Layer | Presents protocol state to users | Dashboard, positions, strategies |
 
@@ -22,7 +22,7 @@ PRISM is organized into five architectural domains. Each domain has a separate r
 
 PRISM separates credit behavior into narrow, inspectable modules.
 
-The vault should not need to know how a frontend visualizes risk. The AMM should not be able to rewrite vault accounting. The dashboard should not create financial truth; it should read and explain the financial truth already committed on-chain.
+The vault should not need to know how a frontend visualizes risk. Soroswap should not be able to rewrite vault accounting. The dashboard should not create financial truth; it should read and explain the financial truth already committed on-chain.
 
 This separation gives PRISM three important properties:
 
@@ -41,11 +41,11 @@ The high-level lifecycle is:
 5. The waterfall distributes yield to tranches by priority.
 6. A credit event may reduce vault assets.
 7. Losses cascade from Alpha to Core to Prime.
-8. Users either withdraw through the vault or trade tranche tokens on AMMs.
+8. Users either withdraw through the vault or trade tranche tokens through Soroswap pools.
 
 ## Accounting Boundary
 
-The vault is the source of truth for intrinsic value. It tracks tranche assets, supply, and NAV. The AMM is the source of market price. It tracks pool reserves and swap pricing.
+The vault is the source of truth for intrinsic value. It tracks tranche assets, supply, and NAV. Soroswap is the source of market price. Its pools track reserves and swap pricing.
 
 PRISM intentionally keeps these two values separate:
 

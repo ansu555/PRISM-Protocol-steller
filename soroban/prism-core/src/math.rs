@@ -1,12 +1,8 @@
-//! Math primitives ported verbatim from the Solana implementation.
+//! Fixed-point math primitives for protocol accounting.
 //!
 //! See [docs/04-data-flows.md](../../../docs/04-data-flows.md) §4.3 / §4.5 for
 //! the reference values the parity tests assert against.
 //!
-//! The math here is byte-identical to
-//! `contracts/programs/prism-core/src/math/q.rs` from the Anchor build — only
-//! the error type changed (Anchor `Result` → Soroban `Result`).
-
 use crate::errors::PrismError;
 
 pub const Q64_SHIFT: u32 = 64;

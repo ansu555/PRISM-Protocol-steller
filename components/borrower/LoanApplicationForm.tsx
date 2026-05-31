@@ -46,7 +46,7 @@ export function LoanApplicationForm({ onSubmitted }: Props) {
     return (
       <div className="rounded-xl border border-dashed border-white/10 bg-black/35 p-8 text-center">
         <p className="text-sm text-white/40">
-          Connect your Phantom wallet to apply for a loan.
+          Connect your Stellar wallet to apply for a loan.
         </p>
       </div>
     );
@@ -105,7 +105,7 @@ export function LoanApplicationForm({ onSubmitted }: Props) {
             <div className="h-2 w-2 rounded-full bg-yellow-400 mt-1 animate-pulse" />
             <p className="text-xs text-white/50 leading-5">
               Your application is under review. The admin will originate the loan on-chain once approved.
-              Come back to attach IKA collateral after approval.
+              Come back to attach verified Stellar collateral after approval.
             </p>
           </div>
         )}
@@ -114,7 +114,7 @@ export function LoanApplicationForm({ onSubmitted }: Props) {
           <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-4 flex gap-3">
             <div className="h-2 w-2 rounded-full bg-green-400 mt-1" />
             <p className="text-xs text-green-400/80 leading-5">
-              Loan originated on-chain. Scroll down to attach IKA collateral to unlock disbursement.
+              Loan originated on-chain. Scroll down to attach verified collateral to unlock disbursement.
             </p>
           </div>
         )}
@@ -160,7 +160,7 @@ export function LoanApplicationForm({ onSubmitted }: Props) {
         <h3 className="text-lg font-semibold text-white">Apply for a Loan</h3>
         <p className="mt-2 text-xs text-white/50 leading-relaxed">
           Submit your loan request. The admin reviews and originates on-chain.
-          You will need to back it with IKA dWallet collateral before disbursement.
+          You will need to back it with a verified Stellar collateral record before disbursement.
         </p>
       </div>
 
@@ -223,8 +223,8 @@ export function LoanApplicationForm({ onSubmitted }: Props) {
             Collateral requirement
           </div>
           <p className="text-xs text-white/50 leading-5">
-            You will need to back this loan with BTC or ETH locked in an IKA dWallet (≥ 150% LTV).
-            The IKA oracle will verify the lock before the admin can disburse.
+            You will need to back this loan with Stellar-native USDC or XLM collateral (≥ 150% coverage).
+            The PRISM Collateral Oracle verifies the attestation before disbursement.
           </p>
         </div>
 

@@ -16,6 +16,7 @@ const config = [
       "contracts/target/**",
       "doc-website/build/**",
       "doc-website/.docusaurus/**",
+      "marketing-video/build/**",
       "pitch-deck-*.html",
     ],
   },

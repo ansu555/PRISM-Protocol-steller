@@ -41,7 +41,7 @@ interface TrancheSnapshot {
 }
 
 export type VaultSummary = {
-  publicKey: { toBase58: () => string; toString: () => string };
+  address: string;
   id: number;
   utilization: number;
   totalDeposits: bigint;
@@ -49,7 +49,7 @@ export type VaultSummary = {
   tranches: Array<
     { kind: 'Prime' | 'Core' | 'Alpha' } & Record<string, unknown>
   >;
-  // Free-form metadata so legacy callers' `vault[anyField]` still resolves.
+  // Free-form metadata lets dashboard cards consume optional market fields.
   [key: string]: unknown;
 };
 
@@ -104,12 +104,7 @@ export function useAllVaults() {
               : 0;
 
           return {
-            // No PDA on Stellar — synthesize a pseudo-PublicKey wrapper so
-            // legacy callers like `vault.publicKey.toBase58()` keep working.
-            publicKey: {
-              toBase58: () => `${PRISM_CORE_CONTRACT_ID}#vault${id}`,
-              toString: () => `${PRISM_CORE_CONTRACT_ID}#vault${id}`,
-            },
+            address: `${PRISM_CORE_CONTRACT_ID}#vault${id}`,
             id,
             utilization,
             totalDeposits,

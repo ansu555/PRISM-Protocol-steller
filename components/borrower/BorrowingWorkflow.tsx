@@ -30,9 +30,8 @@ import { CollateralOnboarding } from './CollateralOnboarding';
 import { formatUsdc } from '@/app/lib/format';
 import { useAllVaults } from '@/hooks/useAllVaults';
 import { useVaultState } from '@/hooks/useVaultState';
-// Phase 4: IKA collateral replaced by PRISM Collateral Oracle. These stubs keep
-// the borrower workflow compiling; the real on-chain reads are wired in Phase 3's
-// useCollateral.tsx for the collateral attestation flow.
+// The borrower workspace surfaces collateral attestation after origination.
+// The live on-chain reads are wired through useCollateral.tsx.
 function useCollateralStub(_key: string | null) { return { data: null as null | { status: string } }; }
 function useLoanStub(_key: string | null) { return { data: null as null | { state: unknown } }; }
 function loanKey(vaultId: number, loanId: number) { return `${vaultId}-${loanId}`; }
@@ -598,7 +597,7 @@ function StepCollateral({
       <StepHeader
         step={4}
         title="Security & Collateral"
-        subtitle="Review collateral requirements. You will attach BTC or ETH collateral via IKA dWallet after your application is approved."
+        subtitle="Review collateral requirements. You will attach Stellar-native collateral after your application is approved."
       />
 
       {/* Institutional Risk Tiers */}
@@ -606,9 +605,9 @@ function StepCollateral({
         {[
           {
             label: 'Accepted Collateral',
-            value: 'BTC · ETH',
+            value: 'USDC · XLM',
             color: 'text-white/70',
-            desc: 'Via IKA dWallet (cross-chain)'
+            desc: 'Stellar account collateral'
           },
           {
             label: 'Min. Coverage Required',
@@ -648,7 +647,7 @@ function StepCollateral({
             <div>
               <div className="text-sm font-medium text-white/80">Collateral Locked After Approval</div>
               <p className="mt-1 text-sm leading-relaxed text-white/30">
-                Once your application is approved and originated on-chain, you will attach BTC or ETH via IKA dWallet. The protocol holds these funds in a programmatic escrow — only accessible in the event of a margin call or maturity default.
+                Once your application is approved and originated on-chain, attach a Stellar-native collateral record. PRISM verifies the signed valuation before enabling protocol-side disbursement.
               </p>
             </div>
           </div>
@@ -660,7 +659,7 @@ function StepCollateral({
                 <span className="font-mono text-xs uppercase tracking-widest text-white/40">Oracle Valuation</span>
               </div>
               <div className="font-mono text-sm text-white/60">Real-time</div>
-              <div className="mt-1 font-mono text-xs uppercase tracking-widest text-white/15">IKA Network Attestation</div>
+              <div className="mt-1 font-mono text-xs uppercase tracking-widest text-white/15">PRISM Signed Attestation</div>
             </div>
             <div className="p-4 rounded-sm border border-white/[0.05] bg-white/[0.01]">
               <div className="flex items-center gap-2 mb-3">
@@ -677,7 +676,7 @@ function StepCollateral({
           <div className="rounded-sm border border-amber-500/10 bg-amber-500/[0.03] p-4 flex items-start gap-3">
             <AlertTriangle className="h-4 w-4 text-amber-500/40 mt-0.5 shrink-0" />
             <p className="text-xs leading-relaxed text-white/30">
-              Collateral attachment is only enabled after admin approval and on-chain loan origination. Submit your application first — you will be guided through the IKA dWallet setup once approved.
+              Collateral attachment is only enabled after admin approval and on-chain loan origination. Submit your application first, then register the required Stellar collateral record.
             </p>
           </div>
         </div>
@@ -888,7 +887,7 @@ function StepSubmission({
             { label: 'Interest Rate',      value: `${apr}% APR (estimated)` },
             { label: 'Total Repayment',    value: `$${total.toFixed(2)} USDC` },
             { label: 'Use of Proceeds',    value: purposeLabel },
-            { label: 'Collateral Type',    value: 'BTC / ETH via IKA dWallet' },
+            { label: 'Collateral Type',    value: 'Stellar USDC / XLM' },
             { label: 'Liquidation Trigger', value: '120% collateral ratio' },
           ].map(({ label, value }) => (
             <div key={label} className="flex justify-between items-center gap-4 py-1.5 border-b border-white/[0.03] last:border-0">
@@ -906,7 +905,7 @@ function StepSubmission({
         </div>
         <div className="space-y-2">
           {[
-            'Lock sufficient BTC/ETH collateral through IKA dWallet within 48 hours of approval',
+            'Register sufficient Stellar USDC or XLM collateral within 48 hours of approval',
             'Maintain collateral ratio above 120% throughout the facility term',
             'Repay principal and interest in full by the maturity date',
             'Acknowledge that collateral liquidation is automated and irreversible below threshold',
@@ -1256,19 +1255,19 @@ export function BorrowingWorkflow() {
                 {loanIsRepaid ? 'Loan Fully Repaid'
                  : loanIsActive ? 'Repayment Due'
                  : isLocked ? 'Collateral Secured'
-                 : isCollateralStage ? 'Register IKA Collateral'
+                 : isCollateralStage ? 'Register Stellar Collateral'
                  : isAwaitingOrigin ? 'Awaiting On-Chain Origination'
                  : 'Application Under Review'}
               </div>
               <div className="font-mono text-xs text-white/25 truncate">
                 {loanIsRepaid
-                  ? 'Facility closed · release IKA collateral when ready'
+                  ? 'Facility closed · release collateral record when ready'
                   : loanIsActive
-                  ? 'USDC disbursed to your wallet · repay via USDC or Dodo (UPI/Cards)'
+                  ? 'USDC disbursed to your wallet · repay via USDC or MoneyGram Access'
                   : isLocked
                   ? 'Facility fully secured · awaiting protocol-side USDC disbursement'
                   : isCollateralStage
-                  ? `Lock BTC or ETH · min $${minCollateral.toLocaleString()} · activates disbursement`
+                  ? `Register USDC or XLM · min $${minCollateral.toLocaleString()} · activates disbursement`
                   : isAwaitingOrigin
                   ? 'Admin is recording your loan on-chain · collateral unlocks after confirmation'
                   : 'Underwriting review in progress · est. 2–4 business hours'}
@@ -1371,8 +1370,8 @@ export function BorrowingWorkflow() {
                   { label: 'Min. Collateral', value: `$${minCollateral.toLocaleString()}`, accent: true },
                   { label: 'Coverage Ratio',  value: '≥ 120%' },
                   { label: 'Liquidation',     value: 'Below 100%' },
-                  { label: 'Accepted Assets', value: 'BTC · ETH' },
-                  { label: 'Custody',         value: 'IKA dWallet' },
+                  { label: 'Accepted Assets', value: 'USDC · XLM' },
+                  { label: 'Custody',         value: 'Stellar account' },
                 ].map(({ label, value, accent }) => (
                   <div key={label} className="flex justify-between items-center">
                     <span className="font-mono text-xs uppercase tracking-widest text-white/20">{label}</span>
@@ -1386,7 +1385,7 @@ export function BorrowingWorkflow() {
                   <div className="h-1 w-1 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="font-mono text-xs uppercase tracking-widest text-white/30">Oracle Status</span>
                 </div>
-                <div className="font-mono text-xs text-white/50">IKA Network · Live attestation ready</div>
+                <div className="font-mono text-xs text-white/50">PRISM Oracle · Live attestation ready</div>
                 <div className="font-mono text-xs text-white/30">Disbursement unlocks after collateral lock confirmation</div>
               </div>
 
@@ -1403,7 +1402,7 @@ export function BorrowingWorkflow() {
           </div>
         )}
 
-        {/* ACTIVE LOAN: disbursed — show repayment with USDC + Dodo */}
+        {/* ACTIVE LOAN: disbursed — show repayment with Stellar USDC rails */}
         {loanIsActive && existingApp.loanId !== undefined && (
           <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
             <LoanRepayment loanId={existingApp.loanId} vaultId={existingApp.vaultId} />
@@ -1429,7 +1428,7 @@ export function BorrowingWorkflow() {
                 <div className="flex items-start gap-2">
                   <CreditCard className="h-3.5 w-3.5 text-amber-400/50 shrink-0 mt-0.5" />
                   <div className="font-mono text-xs text-white/30 leading-relaxed">
-                    Pay via USDC wallet or Dodo Payments (UPI · Cards · 220+ countries). Fiat is bridged to USDC server-side before on-chain settlement.
+                    Repay from your Stellar USDC balance. MoneyGram Access provides the supported Stellar cash-in and cash-out path where available.
                   </div>
                 </div>
               </div>

@@ -27,11 +27,11 @@ Users can permissionlessly:
 
 ## Pause Mechanism
 
-The protocol may pause:
+The `prism_core` pause flag blocks:
 
 - Deposits.
 - Withdrawals.
-- Trading.
+- Admin pool seeding through `prism_core`.
 
 While allowing:
 
@@ -39,7 +39,7 @@ While allowing:
 - Credit event resolution.
 - Emergency reconciliation.
 
-This matters because pausing user interaction should not prevent the protocol from applying a necessary credit event or preserving accounting integrity.
+Direct Soroswap trading remains outside the vault contract's pause boundary. This matters because a vault pause should stop core state-changing user flows without pretending to control an external market.
 
 ## Determinism
 
@@ -51,16 +51,16 @@ All financial logic is:
 
 Given the same vault state and input event, the protocol should produce the same output every time.
 
-## PDA Authorities
+## Contract Authority
 
-Program-derived addresses can control:
+The `prism_core` contract is the on-chain authority. It controls:
 
-- Vault reserves.
-- Tranche mints.
-- AMM reserves.
-- LP mints.
+- The vault USDC reserve.
+- Tranche token mint and burn.
+- The internal loss-accounting balance.
+- Privileged state transitions.
 
-This avoids trusting externally owned accounts with critical financial permissions.
+Privileged flows still require configured admin authentication, but reserve transfers remain enforced by contract code.
 
 ## Checked Math
 
@@ -81,6 +81,5 @@ Every meaningful financial transition should be inspectable:
 - Withdrawals.
 - Yield accrual.
 - Credit events.
-- AMM swaps.
+- Soroswap swaps.
 - Tranche NAV updates.
-

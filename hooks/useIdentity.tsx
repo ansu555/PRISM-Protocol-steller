@@ -10,9 +10,6 @@
 // `mock_all_auths`-style flows, but they can't initiate signed transactions
 // against the live network without first being funded with XLM.
 //
-// Replaces the Solana version which loaded `contracts/keys/*.json` Solana
-// secret arrays.
-
 import { Keypair } from '@stellar/stellar-sdk';
 import {
   createContext,

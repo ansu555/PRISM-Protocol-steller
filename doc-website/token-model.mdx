@@ -4,7 +4,7 @@ title: Token Model
 
 # Token Model
 
-PRISM tokenizes **risk exposure**, not individual loans, and does not introduce a protocol or governance token. The only tokens the protocol issues are tranche tokens and AMM liquidity-provider tokens.
+PRISM tokenizes **risk exposure**, not individual loans, and does not introduce a protocol or governance token. The protocol issues tranche tokens; Soroswap pools may issue liquidity-provider tokens for secondary markets.
 
 ## What PRISM Tokenizes (And What It Doesn't)
 
@@ -42,7 +42,7 @@ Tranche tokens are:
 
 - Minted on deposit.
 - Held in user token accounts.
-- Traded on AMMs.
+- Traded through Soroswap pools.
 - Burned on withdrawal.
 
 They are not receipt NFTs. They are fungible claims on a tranche's current accounting value.
@@ -67,4 +67,3 @@ redemption_value = token_amount * tranche_NAV
 ```
 
 If a user buys pCORE on the AMM at a discount to NAV, the vault still uses NAV for withdrawal. If a user buys above NAV, the vault still uses NAV. The protocol does not remember trade price.
-

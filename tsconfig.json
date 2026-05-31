@@ -38,7 +38,6 @@
   "exclude": [
     "node_modules",
     "contracts/**/*.ts",
-    "marketing-video/**/*",
-    "sdk/**/*"
+    "marketing-video/**/*"
   ]
 }

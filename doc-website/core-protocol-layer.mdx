@@ -28,7 +28,7 @@ Each vault is partitioned into three tranches:
 | --- | --- | --- | --- |
 | Prime | Loss-protected exposure (junior tranches absorb first) | Paid first | Absorbs last |
 | Core | Intermediate risk exposure | Paid second | Absorbs second |
-| Alpha | 15% target-yield exposure (first-loss capital) | Paid last | Absorbs first |
+| Alpha | Residual-yield exposure (first-loss capital) | Paid last | Absorbs first |
 
 Each tranche maintains:
 
@@ -56,7 +56,7 @@ Incoming yield is allocated in priority order:
 2. Core tranche.
 3. Alpha tranche.
 
-Target rates define how much yield each tranche is entitled to in priority order: Prime targets 5%, Core targets 8%, and Alpha targets 15%.
+Target rates define how much yield the senior layers receive in priority order: Prime fills its configured target first, Core fills its configured target second, and Alpha receives the remaining yield.
 
 ## Default Resolution
 
@@ -73,7 +73,7 @@ This makes subordination explicit. Prime protection is not magic; it exists beca
 The core accounting invariant is:
 
 ```text
-vault_usdc_reserve = prime_assets + core_assets + alpha_assets
+contract_usdc_balance = prime_assets + core_assets + alpha_assets + loss_bucket_balance
 ```
 
-When yield enters, both the reserve and tranche assets increase. When a loss is realized, USDC leaves the vault and tranche assets decrease through the cascade.
+When yield enters, both the contract USDC balance and tranche assets increase. When a loss is realized, tranche assets decrease through the cascade and the contract increments an internal loss-accounting balance by the same amount. The USDC remains held by `prism_core`.

@@ -2,8 +2,8 @@
 
 // Probe loan IDs 1..maxScan; collect what comes back.
 //
-// Loans on Soroban are keyed by u32 id (not PDA). We start at 1 because
-// prism-core originates loans starting at id 1 (see Phase 3 contract tests).
+// Loans on Soroban are keyed by u32 id. We start at 1 because
+// prism-core originates loans starting at id 1.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -12,7 +12,7 @@ import { getCoreClient, nativeToScVal } from '@/app/lib/stellar';
 
 export type LoanRecord = {
   id: number;
-  pda: string;
+  contractRef: string;
   borrower: string;
   principal: bigint;
   aprBps: number;
@@ -46,8 +46,7 @@ export function useActiveLoans(vaultId = VAULT_ID, maxScan = 20) {
       const core = getCoreClient();
       const loans: LoanRecord[] = [];
 
-      // Probe in parallel; stop appending after a gap so we mirror the
-      // old "break on first missing" behaviour.
+      // Probe in parallel; stop appending after a gap in the contract ids.
       const results = await Promise.all(
         Array.from({ length: maxScan }, (_, i) =>
           core
@@ -67,7 +66,7 @@ export function useActiveLoans(vaultId = VAULT_ID, maxScan = 20) {
         consecutiveMissing = 0;
         loans.push({
           id: loan.id,
-          pda: `${PRISM_CORE_CONTRACT_ID}#loan${loan.id}`,
+          contractRef: `${PRISM_CORE_CONTRACT_ID}#loan${loan.id}`,
           borrower: loan.borrower,
           principal: BigInt(loan.principal.toString()),
           aprBps: loan.apr_bps,
@@ -88,7 +87,7 @@ export function useActiveLoans(vaultId = VAULT_ID, maxScan = 20) {
 export type UpsertLoanPayload = {
   loanId: number;
   vaultId?: number;
-  pda: string;
+  contractRef: string;
   borrower: string;
   principal: bigint;
   aprBps: number;

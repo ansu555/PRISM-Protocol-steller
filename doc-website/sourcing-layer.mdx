@@ -16,19 +16,21 @@ The Sourcing Layer handles:
 - Capital intake.
 - Borrower interface design.
 - Yield source integration.
-- Future collateral and identity integrations.
+- Collateral attestations and future identity integrations.
 
 ## Current Implementation
 
 The first implementation uses on-chain vault-based credit issuance.
 
-Yield is injected programmatically by authorized accounts. This allows the demo to show how a borrower payment or coupon enters the system and gets distributed through the waterfall without depending on off-chain underwriting during the initial build.
+Yield is injected programmatically by the protocol admin from an authenticated payer account. This allows the demo to show how a borrower payment or coupon enters the system and gets distributed through the waterfall without depending on off-chain underwriting during the initial build.
+
+The current build also supports allowlisted Ed25519 collateral attestations. A borrower can attach an oracle key to a loan, verify a collateral record, and use that verified record as a disbursement gate.
 
 The current design prioritizes:
 
 - Clean vault accounting.
 - Deterministic demo flows.
-- Fast iteration on devnet.
+- Fast iteration on testnet.
 - Transparent yield and default simulation.
 
 ## Future Extensions
@@ -39,7 +41,7 @@ Future extensions may include:
 
 - Real-world asset originators.
 - Institutional borrower onboarding.
-- Cross-chain collateral via MPC networks.
+- Broader collateral custody and verification networks.
 - On-chain or off-chain borrower risk scores.
 - Credit facility management.
 - Oracle-triggered borrower payment verification.
@@ -55,4 +57,3 @@ Examples:
 - "This borrower has repaid principal."
 
 The Core Protocol Layer then decides how those events affect tranche NAV and user redemption value.
-

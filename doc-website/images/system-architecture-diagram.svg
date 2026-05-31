@@ -79,13 +79,13 @@
     <text x="232" y="686" fill="#F3AEDB" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="2.4">04 INTEGRITY</text>
     <text x="232" y="726" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="620">Verified events</text>
     <text x="232" y="758" fill="#9E969F" font-family="Inter, Arial, sans-serif" font-size="16">Controls, oracle attestations,</text>
-    <text x="232" y="781" fill="#9E969F" font-family="Inter, Arial, sans-serif" font-size="16">audit trail, loss bucket</text>
+    <text x="232" y="781" fill="#9E969F" font-family="Inter, Arial, sans-serif" font-size="16">audit trail, loss accounting</text>
   </g>
 
   <g opacity="0.92">
     <rect x="930" y="642" width="304" height="148" rx="18" fill="#080808" stroke="#FFFFFF" stroke-opacity="0.16"/>
     <text x="956" y="686" fill="#F3AEDB" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="2.4">03 RISK &amp; MARKET</text>
-    <text x="956" y="726" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="620">Tranche AMMs</text>
+    <text x="956" y="726" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="620">Soroswap markets</text>
     <text x="956" y="758" fill="#9E969F" font-family="Inter, Arial, sans-serif" font-size="16">pPRIME, pCORE, pALPHA</text>
     <text x="956" y="781" fill="#9E969F" font-family="Inter, Arial, sans-serif" font-size="16">market price discovery</text>
   </g>

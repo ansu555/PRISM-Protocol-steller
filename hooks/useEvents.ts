@@ -5,7 +5,6 @@ import { scValToNative } from '@stellar/stellar-sdk';
 
 import {
   PRISM_CORE_CONTRACT_ID,
-  PRISM_AMM_CONTRACT_ID,
   PTOKEN_PRIME_CONTRACT_ID,
   PTOKEN_CORE_CONTRACT_ID,
   PTOKEN_ALPHA_CONTRACT_ID,
@@ -23,10 +22,10 @@ export type ProtocolEvent = {
 
 export type FetchEventsResult = {
   events: ProtocolEvent[];
-  duneCount: number;
+  chainCount: number;
 };
 
-const EMPTY: FetchEventsResult = { events: [], duneCount: 0 };
+const EMPTY: FetchEventsResult = { events: [], chainCount: 0 };
 
 function findAddressInScVal(val: any): string | null {
   if (!val) return null;
@@ -63,7 +62,6 @@ export function useEvents() {
 
         const contractIds = [
           PRISM_CORE_CONTRACT_ID,
-          PRISM_AMM_CONTRACT_ID,
           PTOKEN_PRIME_CONTRACT_ID,
           PTOKEN_CORE_CONTRACT_ID,
           PTOKEN_ALPHA_CONTRACT_ID,
@@ -132,10 +130,8 @@ export function useEvents() {
           new Map(mapped.map((event) => [event.signature, event])).values()
         );
 
-        return {
-          events: uniqueEvents.sort((a, b) => b.timestamp - a.timestamp),
-          duneCount: 0,
-        };
+        const events = uniqueEvents.sort((a, b) => b.timestamp - a.timestamp);
+        return { events, chainCount: events.length };
       } catch (error) {
         console.error('Error fetching Soroban events:', error);
         return EMPTY;

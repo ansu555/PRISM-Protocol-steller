@@ -211,7 +211,7 @@ export function MarketOverview() {
             </div>
           ) : (
             allVaults.map((vault) => (
-              <VaultMarketCard key={vault.publicKey.toString()} vault={vault} />
+              <VaultMarketCard key={vault.address} vault={vault} />
             ))
           )}
         </div>

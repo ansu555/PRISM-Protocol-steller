@@ -1,8 +1,8 @@
 // Stellar / Soroban deployment constants.
 //
 // All addresses below are 56-char Stellar StrKey contract IDs (CXX...) or
-// account IDs (GXX...). The legacy `PublicKey` import is gone — these
-// values are plain strings now. Use `import { Address } from '@stellar/stellar-sdk'`
+// account IDs (GXX...). These values are plain strings. Use
+// `import { Address } from '@stellar/stellar-sdk'`
 // when you need to wrap one for Soroban invocation.
 
 // Deployed Soroban contract IDs (Soroban testnet, May 2026).
@@ -15,13 +15,7 @@ export const PRISM_CORE_CONTRACT_ID =
   process.env.NEXT_PUBLIC_PRISM_CORE_CONTRACT_ID ??
   'CCULBBT4PA64GWXSKT4G7HOYQ4RXRNYY2JP5MZ2G73VKRFAJ6CHB3RZK';
 
-// Legacy internal AMM — kept as a shim so old imports don't break.
-// Phase 4 deletes this. New swap paths go through SOROSWAP_ROUTER_ID.
-export const PRISM_AMM_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_PRISM_AMM_CONTRACT_ID ??
-  'CAH22DWPILDNYWXBNY7NTUY75FU2ZMJ63ALL2AJ4TPEHOYFYVEJ3YLPY';
-
-// ── Soroswap (Phase 2) ───────────────────────────────────────────────────────
+// ── Soroswap ────────────────────────────────────────────────────────────────
 // Soroswap is the Uniswap-V2 CPMM on Stellar. We use it for pTranche/USDC pools.
 // Source: https://github.com/soroswap/core (public/testnet.contracts.json)
 export const SOROSWAP_ROUTER_ID =
@@ -32,7 +26,7 @@ export const SOROSWAP_FACTORY_ID =
   process.env.NEXT_PUBLIC_SOROSWAP_FACTORY_ID ??
   'CDP3HMUH6SMS3S7NPGNDJLULCOXXEPSHY4JKUKMBNQMATHDHWXRRJTBY';
 
-// ── Reflector oracle (Phase 2) ───────────────────────────────────────────────
+// ── Reflector oracle ─────────────────────────────────────────────────────────
 // Reflector is the decentralized price oracle on Stellar Soroban (SEP-40).
 // Set NEXT_PUBLIC_REFLECTOR_CONTRACT_ID to the testnet instance when running
 // against testnet (Reflector testnet is permissioned — request access at
@@ -56,10 +50,6 @@ export const USDC_ASSET_ISSUER =
   process.env.NEXT_PUBLIC_USDC_ASSET_ISSUER ??
   'GCZFPAJEJHMQPZ4BQUWUEBV7KJQ7GEKDF4FAWYUW4NOIRSWXCMDEOESW';
 
-// Legacy alias kept so old `import { USDC_MINT }` lines don't break.
-// New code should import `USDC_CONTRACT_ID` directly.
-export const USDC_MINT = USDC_CONTRACT_ID;
-
 export const VAULT_ID = Number.parseInt(process.env.NEXT_PUBLIC_VAULT_ID ?? '0', 10);
 
 // Stellar USDC has 7 decimals.
@@ -79,11 +69,6 @@ export const NETWORK_PASSPHRASE =
 // Horizon endpoint (for account / asset queries that aren't Soroban contract calls).
 export const HORIZON_URL =
   process.env.NEXT_PUBLIC_HORIZON_URL ?? 'https://horizon-testnet.stellar.org';
-
-// Legacy program-id aliases. Kept so old `import { PRISM_CORE_PROGRAM_ID }`
-// lines don't break — they now resolve to the same Stellar contract string.
-export const PRISM_CORE_PROGRAM_ID = PRISM_CORE_CONTRACT_ID;
-export const PRISM_AMM_PROGRAM_ID = PRISM_AMM_CONTRACT_ID;
 
 export enum TrancheKind {
   Prime = 0,
@@ -159,8 +144,3 @@ export const ENCRYPT_ORACLE_PUBKEY_HEX =
 export const CLOAK_ORACLE_PUBKEY_HEX =
   process.env.NEXT_PUBLIC_CLOAK_ORACLE_PUBKEY_HEX ??
   '8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c';
-
-// Legacy aliases. Stored as 32-byte hex strings now (no PublicKey wrapping).
-export const ENCRYPT_ORACLE_PUBKEY = ENCRYPT_ORACLE_PUBKEY_HEX;
-export const CLOAK_ORACLE_PUBKEY = CLOAK_ORACLE_PUBKEY_HEX;
-export const CLOAK_PROGRAM_ID = ''; // No equivalent on Stellar; kept for import compatibility.

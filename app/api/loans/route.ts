@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   const b = body as Record<string, unknown>;
   const loanId = Number(b.loanId);
   const vaultId = Number(b.vaultId ?? VAULT_ID);
-  const pda = String(b.pda ?? '');
+  const contractRef = String(b.contractRef ?? '');
   const borrower = String(b.borrower ?? '');
   const principal = BigInt(String(b.principal ?? '0'));
   const aprBps = Number(b.aprBps ?? 0);
@@ -36,12 +36,12 @@ export async function POST(req: NextRequest) {
   const state = String(b.state ?? 'Originated');
   const totalRepaid = BigInt(String(b.totalRepaid ?? '0'));
 
-  if (!pda || !borrower) {
-    return NextResponse.json({ error: 'pda and borrower are required' }, { status: 400 });
+  if (!contractRef || !borrower) {
+    return NextResponse.json({ error: 'contractRef and borrower are required' }, { status: 400 });
   }
 
   try {
-    await upsertLoan({ loanId, vaultId, pda, borrower, principal, aprBps, originationTs, maturityTs, state, totalRepaid });
+    await upsertLoan({ loanId, vaultId, contractRef, borrower, principal, aprBps, originationTs, maturityTs, state, totalRepaid });
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

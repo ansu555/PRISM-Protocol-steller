@@ -11,11 +11,9 @@ import { SimulationLogProvider } from '@/hooks/useSimulationLog';
 import { LoanApplicationProvider } from '@/hooks/useLoanApplications';
 import { SelectedVaultProvider } from '@/hooks/useSelectedVault';
 
-// The wallet provider mounts the Stellar Wallets Kit, which touches
-// `window.localStorage` synchronously at construction. That fails Next's
-// static prerender pass, so we dynamic-import it with SSR disabled. The
-// rest of the app still renders fine during SSR — wallet UI just shows a
-// placeholder until hydration completes.
+// The wallet provider talks to a browser extension API, so we dynamic-import
+// it with SSR disabled. The rest of the app still renders during SSR; wallet UI
+// shows a placeholder until hydration completes.
 const StellarWalletProvider = dynamic(
   () => import('./stellar-wallet-provider').then((m) => m.StellarWalletProvider),
   { ssr: false },

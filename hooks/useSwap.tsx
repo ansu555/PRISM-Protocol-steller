@@ -2,8 +2,8 @@
 
 // Swap pTranche tokens ↔ USDC via the Soroswap router.
 //
-// Phase 2 change: this hook now calls Soroswap's `swap_exact_tokens_for_tokens`
-// directly (not the internal prism-amm). The path is [tokenIn, tokenOut]:
+// This hook calls Soroswap's `swap_exact_tokens_for_tokens`.
+// The path is [tokenIn, tokenOut]:
 //   - Tranche → USDC: [ptoken, usdc_sac]
 //   - USDC → Tranche: [usdc_sac, ptoken]
 //

@@ -4,9 +4,7 @@
  * Signs the 73-byte `clk_atts` message confirming that a batch of yield has
  * been shielded into Cloak's privacy pool. Mirrors the collateral oracle shape.
  *
- * Cloak is reclassified from "external partner" to "internal feature" (§5 of
- * stellar-migration-plan.md). The on-chain record_cloak_payout handler is kept;
- * this route provides the dev/demo signing path.
+ * This route provides the current dev/demo signing path.
  *
  * Message layout (73 bytes, must match prism-core's record_cloak_payout):
  *   bytes  0..8    b"clk_atts"
@@ -25,16 +23,18 @@ import {
   selectOracleSigner,
 } from '@/app/lib/oracle-security';
 
-const signerBundle = loadManagedOracleSigner({
-  oracleName: 'cloak',
-  primarySeedEnv: 'CLOAK_ORACLE_SEED',
-  legacySeedEnvs: ['CLOAK_ORACLE_SECRET_SEED'],
-  devSeedEnv: 'CLOAK_ORACLE_SEED_DEV',
-  nextSeedEnv: 'CLOAK_ORACLE_SEED_NEXT',
-  activeKeyIdEnv: 'CLOAK_ORACLE_ACTIVE_KEY_ID',
-  primaryKeyIdEnv: 'CLOAK_ORACLE_PRIMARY_KEY_ID',
-  nextKeyIdEnv: 'CLOAK_ORACLE_NEXT_KEY_ID',
-});
+function loadSignerBundle() {
+  return loadManagedOracleSigner({
+    oracleName: 'cloak',
+    primarySeedEnv: 'CLOAK_ORACLE_SEED',
+    legacySeedEnvs: ['CLOAK_ORACLE_SECRET_SEED'],
+    devSeedEnv: 'CLOAK_ORACLE_SEED_DEV',
+    nextSeedEnv: 'CLOAK_ORACLE_SEED_NEXT',
+    activeKeyIdEnv: 'CLOAK_ORACLE_ACTIVE_KEY_ID',
+    primaryKeyIdEnv: 'CLOAK_ORACLE_PRIMARY_KEY_ID',
+    nextKeyIdEnv: 'CLOAK_ORACLE_NEXT_KEY_ID',
+  });
+}
 
 function buildCloakMessage(vaultId: number, batchIdHex: string, result: number): Buffer {
   const buf = Buffer.alloc(73);
@@ -125,6 +125,25 @@ export async function POST(req: NextRequest) {
       { error: 'batch_id must be 64 hex chars (32 bytes sha256)' },
       { status: 400, headers: rateHeaders },
     );
+  }
+
+  const signerBundle = (() => {
+    try {
+      return loadSignerBundle();
+    } catch (error) {
+      return error as Error;
+    }
+  })();
+  if (signerBundle instanceof Error) {
+    await recordOracleOperationalEvent({
+      route: '/api/cloak-oracle/attest',
+      oracle: 'cloak',
+      outcome: 'error',
+      clientKey: rate.clientKey,
+      success: false,
+      detail: { error: signerBundle.message },
+    });
+    return NextResponse.json({ error: 'oracle unavailable' }, { status: 503, headers: rateHeaders });
   }
 
   const signer = (() => {
