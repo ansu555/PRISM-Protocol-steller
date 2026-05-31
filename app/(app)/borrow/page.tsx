@@ -52,29 +52,31 @@ function Steps({ current }: { current: 1 | 2 | 3 | 4 | 5 }) {
     { n: 5, label: 'Repay' },
   ];
   return (
-    <div className="flex items-center gap-0 mb-6">
-      {steps.map((s, i) => (
-        <div key={s.n} className="flex items-center">
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full font-mono text-[10px] font-bold uppercase tracking-widest transition-all ${
-            current === s.n
-              ? 'bg-white text-black'
-              : current > s.n
-              ? 'text-white/50'
-              : 'text-white/20'
-          }`}>
-            {current > s.n
-              ? <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-              : <span className={`h-4 w-4 rounded-full flex items-center justify-center text-[9px] border ${
-                  current === s.n ? 'border-black bg-black text-white' : 'border-white/20 text-white/30'
-                }`}>{s.n}</span>
-            }
-            {s.label}
+    <div className="overflow-x-auto mb-6 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex items-center gap-0 min-w-max">
+        {steps.map((s, i) => (
+          <div key={s.n} className="flex items-center">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full font-mono text-[10px] font-bold uppercase tracking-widest transition-all ${
+              current === s.n
+                ? 'bg-white text-black'
+                : current > s.n
+                ? 'text-white/50'
+                : 'text-white/20'
+            }`}>
+              {current > s.n
+                ? <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                : <span className={`h-4 w-4 rounded-full flex items-center justify-center text-[9px] border ${
+                    current === s.n ? 'border-black bg-black text-white' : 'border-white/20 text-white/30'
+                  }`}>{s.n}</span>
+              }
+              {s.label}
+            </div>
+            {i < steps.length - 1 && (
+              <div className={`w-8 h-px mx-0.5 shrink-0 ${current > s.n ? 'bg-emerald-400/40' : 'bg-white/[0.06]'}`} />
+            )}
           </div>
-          {i < steps.length - 1 && (
-            <div className={`w-8 h-px mx-0.5 ${current > s.n ? 'bg-emerald-400/40' : 'bg-white/[0.06]'}`} />
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -334,7 +336,7 @@ function RepaySection({ address, loanId }: { address: string; loanId: number }) 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ loanId, borrowerAddress: address }),
         }).then(r => r.json()).then(d => {
-          if (d.ok && !d.skipped) toast.success('Collateral released — returning to your EVM wallet');
+          if (d.ok && !d.skipped) toast.success('Repaid ✓ — Admin will return your EVM collateral via Gnosis Safe shortly');
         }).catch(() => {/* silent */});
       }
     } catch (err) {

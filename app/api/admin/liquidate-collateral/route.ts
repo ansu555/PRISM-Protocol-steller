@@ -80,25 +80,24 @@ export async function POST(req: NextRequest) {
       nativeToScVal(severityBps,  { type: 'u32'  }),
     ]);
 
-    // 3. Liquidate on EVM vault — send collateral to PRISM treasury
-    let evmTxHash: string | null = null;
-    let evmError: string | null  = null;
-    try {
-      const lock = await getEvmLock(loanId);
-      if (lock?.state === 'Locked') {
-        evmTxHash = await evmLiquidate(loanId);
-      }
-    } catch (evmErr) {
-      evmError = evmErr instanceof Error ? evmErr.message : String(evmErr);
-      console.error('[liquidate] EVM vault liquidation failed:', evmError);
-    }
+    // 3. EVM liquidation is manual — admin executes via Gnosis Safe.
+    const vaultAddress = process.env.POLYGON_MAINNET_VAULT_ADDRESS ?? process.env.EVM_VAULT_ADDRESS ?? '';
+    const treasury     = process.env.EVM_TREASURY_ADDRESS ?? '';
+    const safeAddress  = process.env.EVM_SAFE_ADDRESS ?? '';
+    const safeUrl = safeAddress
+      ? `https://app.safe.global/apps/open?safe=matic:${safeAddress}&appUrl=https://apps.safe.global/tx-builder`
+      : null;
 
     return NextResponse.json({
       ok: true,
       loanId,
       stellarHash,
-      evmTxHash,
-      evmError,
+      evmManual: {
+        message: 'Stellar liquidation complete. Execute EVM collateral seizure via Gnosis Safe.',
+        vault: vaultAddress,
+        call: `liquidate(${loanId}, ${treasury})`,
+        safeUrl,
+      },
       lossAmount,
       severityBps,
       status: 'Liquidated',

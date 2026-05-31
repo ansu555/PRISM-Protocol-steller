@@ -39,6 +39,42 @@ interface ChainConfig {
 // Chainlink Sepolia price feed addresses (8 decimals each)
 // https://docs.chain.link/data-feeds/price-feeds/addresses?network=ethereum&page=1#sepolia-testnet
 const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
+  // ── Polygon Mainnet ──────────────────────────────────────────────────────────
+  137: {
+    name: 'Polygon',
+    shortName: 'Polygon',
+    vault: '0xd0130A053820F292B1807C246a1074443E491fcb',
+    explorer: 'https://polygonscan.com',
+    tokens: [
+      {
+        symbol: 'MATIC', name: 'Polygon (MATIC)',
+        address: '0x0', decimals: 18, isNative: true,
+        priceFeed: '0xAB594600376Ec9fD91F8e885dADF0CE036862dE0', // MATIC/USD
+      },
+      {
+        symbol: 'USDC', name: 'USD Coin',
+        address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', decimals: 6, isNative: false,
+        priceFeed: null, // Stablecoin — $1
+      },
+      {
+        symbol: 'USDT', name: 'Tether USD',
+        address: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', decimals: 6, isNative: false,
+        priceFeed: null, // Stablecoin — $1
+      },
+      {
+        symbol: 'wETH', name: 'Wrapped Ether',
+        address: '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619', decimals: 18, isNative: false,
+        priceFeed: '0xF9680D99D6C9589e2a93a78A04A279e509205945', // ETH/USD
+      },
+      {
+        symbol: 'wBTC', name: 'Wrapped Bitcoin',
+        address: '0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6', decimals: 8, isNative: false,
+        priceFeed: '0xDE31F8bFBD8c84b5360CFACCa3539B938dd78ae6', // WBTC/USD
+      },
+    ],
+  },
+
+  // ── Ethereum Sepolia (testnet) ───────────────────────────────────────────────
   11155111: {
     name: 'Ethereum Sepolia',
     shortName: 'Sepolia',
@@ -46,25 +82,25 @@ const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     explorer: 'https://sepolia.etherscan.io',
     tokens: [
       {
-        symbol: 'ETH',  name: 'Ethereum',   address: '0x0',
-        decimals: 18, isNative: true,
-        priceFeed: '0x694AA1769357215DE4FAC081bf1f309aDC325306', // ETH/USD
+        symbol: 'ETH',  name: 'Ethereum',
+        address: '0x0', decimals: 18, isNative: true,
+        priceFeed: '0x694AA1769357215DE4FAC081bf1f309aDC325306',
       },
       {
-        symbol: 'USDC', name: 'Mock USDC',  address: '0x12A70376258f53BbAd1d7387bcBA4084df4B4211',
-        decimals: 6,  isNative: false,
-        priceFeed: null, // Stablecoin — hardcoded $1
+        symbol: 'USDC', name: 'Mock USDC',
+        address: '0x12A70376258f53BbAd1d7387bcBA4084df4B4211', decimals: 6, isNative: false,
+        priceFeed: null,
       },
       {
-        symbol: 'wETH', name: 'Mock wETH',  address: '0xC426c75d79D833e9924De6cA26378FDcF49e912C',
-        decimals: 18, isNative: false,
-        priceFeed: '0x694AA1769357215DE4FAC081bf1f309aDC325306', // ETH/USD (wETH ≡ ETH)
+        symbol: 'wETH', name: 'Mock wETH',
+        address: '0xC426c75d79D833e9924De6cA26378FDcF49e912C', decimals: 18, isNative: false,
+        priceFeed: '0x694AA1769357215DE4FAC081bf1f309aDC325306',
       },
     ],
   },
 };
 
-const DEFAULT_CHAIN_ID = 11155111;
+const DEFAULT_CHAIN_ID = 137; // Polygon mainnet
 
 // ─── ABIs (minimal) ───────────────────────────────────────────────────────────
 
@@ -77,6 +113,7 @@ const ERC20_ABI = [
   'function allowance(address owner, address spender) external view returns (uint256)',
   'function approve(address spender, uint256 amount) external returns (bool)',
   'function balanceOf(address account) external view returns (uint256)',
+  'function mint(address to, uint256 amount) external',
 ];
 
 const CHAINLINK_ABI = [
@@ -186,6 +223,7 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
   const [balances, setBalances]           = useState<Record<string, string>>({});
   const [prices, setPrices]               = useState<Record<string, number>>({});
   const [loadingBals, setLoadingBals]     = useState(false);
+  const [mintingToken, setMintingToken]   = useState<string | null>(null);
 
   const chain     = SUPPORTED_CHAINS[chainId];
   const isCorrectChain = !!chain;
@@ -280,15 +318,55 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
 
   // ── Switch network ──────────────────────────────────────────────────────────
 
-  async function switchToSepolia() {
+  async function switchToDefaultChain() {
     if (!window.ethereum) return;
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: `0x${DEFAULT_CHAIN_ID.toString(16)}` }],
       });
-    } catch {
-      toast.error('Switch network in MetaMask and reconnect');
+    } catch (switchErr: unknown) {
+      // Chain not added to MetaMask — add it first (Polygon mainnet)
+      if ((switchErr as { code?: number }).code === 4902) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: '0x89',
+              chainName: 'Polygon',
+              nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+              rpcUrls: ['https://polygon-rpc.com'],
+              blockExplorerUrls: ['https://polygonscan.com'],
+            }],
+          });
+        } catch {
+          toast.error('Add Polygon network to MetaMask manually');
+        }
+      } else {
+        toast.error('Switch to Polygon in MetaMask and reconnect');
+      }
+    }
+  }
+
+  // ── Mint mock tokens ────────────────────────────────────────────────────────
+
+  async function handleMint(token: Token) {
+    if (!signer || !evmAddress) return;
+    setMintingToken(token.symbol);
+    try {
+      const contract = new Contract(token.address, ERC20_ABI, signer);
+      // Mint 1000 units (USDC=6 decimals, wETH=18 decimals)
+      const amount = parseUnits('1000', token.decimals);
+      const tx = await contract.mint(evmAddress, amount) as { wait: () => Promise<unknown> };
+      await tx.wait();
+      toast.success(`Minted 1000 ${token.symbol} to your wallet`);
+      const provider = new BrowserProvider(window.ethereum!);
+      await refreshBalances(provider, evmAddress, chainId);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Mint failed';
+      toast.error(msg.slice(0, 120));
+    } finally {
+      setMintingToken(null);
     }
   }
 
@@ -617,8 +695,8 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
             </div>
             {isCorrectChain
               ? <span className="rounded-full border border-emerald-500/20 bg-emerald-500/[0.08] px-2.5 py-1 font-mono text-[9px] text-emerald-400">{chain.shortName}</span>
-              : <button onClick={switchToSepolia} className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 font-mono text-[9px] text-amber-300 hover:bg-amber-500/20 transition-all">
-                  Switch to Sepolia
+              : <button onClick={switchToDefaultChain} className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 font-mono text-[9px] text-amber-300 hover:bg-amber-500/20 transition-all">
+                  Switch to Polygon
                 </button>
             }
           </div>
@@ -675,30 +753,28 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
                   })}
                 </div>
 
-                {/* Mint helper for mock tokens */}
+                {/* Mint mock tokens */}
                 {chain.tokens.filter(t => !t.isNative).some(t => {
                   const b = parseFloat(balances[t.symbol] ?? '0');
                   return isNaN(b) || b < 1;
                 }) && (
-                  <p className="mt-2 font-mono text-[9px] text-white/25">
-                    No mock tokens?{' '}
-                    <a
-                      href={`${chain.explorer}/address/${chain.tokens.find(t => t.symbol === 'USDC')?.address}#writeContract`}
-                      target="_blank" rel="noreferrer"
-                      className="text-emerald-400/50 hover:text-emerald-400 underline underline-offset-2"
-                    >
-                      Mint USDC
-                    </a>
-                    {' · '}
-                    <a
-                      href={`${chain.explorer}/address/${chain.tokens.find(t => t.symbol === 'wETH')?.address}#writeContract`}
-                      target="_blank" rel="noreferrer"
-                      className="text-emerald-400/50 hover:text-emerald-400 underline underline-offset-2"
-                    >
-                      Mint wETH
-                    </a>
-                    {' '}on Etherscan → Connect wallet → mint(yourAddress, amount)
-                  </p>
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-[9px] text-white/25">No tokens?</span>
+                    {chain.tokens.filter(t => !t.isNative).map(t => (
+                      <button
+                        key={t.symbol}
+                        type="button"
+                        onClick={() => void handleMint(t)}
+                        disabled={mintingToken !== null}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-400/20 bg-emerald-400/5 hover:bg-emerald-400/10 hover:border-emerald-400/40 font-mono text-[9px] text-emerald-400/60 hover:text-emerald-400 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {mintingToken === t.symbol ? (
+                          <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                        ) : null}
+                        Mint 1000 {t.symbol}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
 
@@ -904,13 +980,13 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
           {!isCorrectChain && (
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-4">
               <p className="font-mono text-[10px] text-amber-300 mb-3">
-                Connected to chain #{chainId} — switch to Ethereum Sepolia to lock collateral
+                Connected to chain #{chainId} — switch to Polygon to lock collateral
               </p>
               <button
-                onClick={switchToSepolia}
+                onClick={switchToDefaultChain}
                 className="w-full flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 py-3 font-mono text-[11px] text-amber-300 hover:bg-amber-500/20 transition-all"
               >
-                Switch to Ethereum Sepolia
+                Switch to Polygon
               </button>
             </div>
           )}

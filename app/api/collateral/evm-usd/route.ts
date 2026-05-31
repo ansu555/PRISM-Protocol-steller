@@ -13,21 +13,45 @@ const CHAINLINK_ABI = [
   'function decimals() external view returns (uint8)',
 ];
 
-// Chainlink price feeds on Ethereum Sepolia
+// Chainlink price feeds — keyed by lowercase token address
+// Native token (address(0)) maps to the chain's native/gas token price feed
 const PRICE_FEEDS: Record<string, string> = {
-  // ETH/USD
-  '0x0000000000000000000000000000000000000000': '0x694AA1769357215DE4FAC081bf1f309aDC325306',
-  // MockWETH also uses ETH/USD feed
+  // ── Polygon Mainnet (chain 137) ───────────────────────────────────────────
+  // MATIC/POL native
+  '0x0000000000000000000000000000000000000000': '0xAB594600376Ec9fD91F8e885dADF0CE036862dE0',
+  // wETH on Polygon → ETH/USD
+  '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619': '0xF9680D99D6C9589e2a93a78A04A279e509205945',
+  // wBTC on Polygon → WBTC/USD
+  '0x1bfd67037b42cf73acf2047067bd4f2c47d9bfd6': '0xDE31F8bFBD8c84b5360CFACCa3539B938dd78ae6',
+  // USDC on Polygon — stablecoin
+  '0x3c499c542ceF5E3811e1192ce70d8cC03d5c3359': 'STABLE',
+  // USDT on Polygon — stablecoin
+  '0xc2132d05d31c914a87c6611c10748aeb04b58e8f': 'STABLE',
+  // WMATIC
+  '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270': '0xAB594600376Ec9fD91F8e885dADF0CE036862dE0',
+
+  // ── Ethereum Sepolia (testnet, chain 11155111) ────────────────────────────
+  // ETH/USD Sepolia — also used for wETH
+  // Note: address(0) is overwritten above for Polygon; for Sepolia the RPC URL
+  // determines which feed is queried against which chain.
+  // MockWETH Sepolia → ETH/USD Sepolia
   '0xc426c75d79d833e9924de6ca26378fdcf49e912c': '0x694AA1769357215DE4FAC081bf1f309aDC325306',
-  // MockUSDC — stablecoin, hardcode $1
+  // MockUSDC Sepolia — stablecoin
   '0x12a70376258f53bbad1d7387bcba4084df4b4211': 'STABLE',
 };
 
 // Token decimals
 const TOKEN_DECIMALS: Record<string, number> = {
-  '0x0000000000000000000000000000000000000000': 18,
-  '0xc426c75d79d833e9924de6ca26378fdcf49e912c': 18,
-  '0x12a70376258f53bbad1d7387bcba4084df4b4211': 6,
+  // Polygon
+  '0x0000000000000000000000000000000000000000': 18, // MATIC
+  '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619': 18, // wETH
+  '0x1bfd67037b42cf73acf2047067bd4f2c47d9bfd6': 8,  // wBTC
+  '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359': 6,  // USDC
+  '0xc2132d05d31c914a87c6611c10748aeb04b58e8f': 6,  // USDT
+  '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270': 18, // WMATIC
+  // Sepolia
+  '0xc426c75d79d833e9924de6ca26378fdcf49e912c': 18, // MockWETH
+  '0x12a70376258f53bbad1d7387bcba4084df4b4211': 6,  // MockUSDC
 };
 
 async function getUsdPrice(tokenAddress: string, provider: JsonRpcProvider): Promise<number> {

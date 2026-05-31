@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Vault,
@@ -28,7 +28,13 @@ const NAV_ITEMS = [
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { address, disconnect } = useStellarWallet();
+
+  async function handleDisconnect() {
+    await disconnect();
+    router.push('/dashboard');
+  }
 
   const short = address ? `${address.slice(0, 6)}…${address.slice(-6)}` : null;
 
@@ -78,7 +84,7 @@ export function AdminSidebar() {
             <span className="text-sm">Help</span>
           </Link>
           <button
-            onClick={() => disconnect()}
+            onClick={() => void handleDisconnect()}
             className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-white/30 hover:bg-white/[0.04] hover:text-white/60 transition-all duration-150"
           >
             <LogOut className="h-4 w-4 shrink-0" strokeWidth={1.5} />

@@ -1,0 +1,23 @@
+{
+  "network": "polygon",
+  "chainId": 137,
+  "vault": "0xd0130A053820F292B1807C246a1074443E491fcb",
+  "deployedAt": "2026-05-31",
+  "deployTx": "",
+  "admin": "0xA33880bB0DE8D174548faE417b57681F41A6A320",
+  "tokens": {
+    "matic": "0x0000000000000000000000000000000000000000",
+    "usdc":  "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+    "usdc_e":"0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+    "usdt":  "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+    "weth":  "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
+    "wbtc":  "0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6",
+    "wmatic":"0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+  },
+  "chainlink": {
+    "matic_usd": "0xAB594600376Ec9fD91F8e885dADF0CE036862dE0",
+    "eth_usd":   "0xF9680D99D6C9589e2a93a78A04A279e509205945",
+    "btc_usd":   "0xDE31F8bFBD8c84b5360CFACCa3539B938dd78ae6",
+    "usdc_usd":  "0xfE4A8cc5b5B2366C1B58Bea3858e81843581b2F7"
+  }
+}

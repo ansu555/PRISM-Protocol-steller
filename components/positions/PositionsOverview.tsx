@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowUpRight, ArrowDownRight, Activity, Briefcase, Layers, TrendingUp } from 'lucide-react';
 import { TrancheKind, Q64_ONE } from '@/app/lib/constants';
 import { formatUsdc } from '@/app/lib/format';
@@ -320,6 +321,7 @@ const MS_24H = 24 * 60 * 60_000;
 const SPARK_POINTS = 30;
 
 function PositionCard({ position, history }: { position: any; history: NavHistoryMap }) {
+  const router = useRouter();
   const kindHistory = history[position.kind as TrancheKind] ?? [];
 
   // Real sparkline — last SPARK_POINTS NAV readings, fallback to mock
@@ -430,7 +432,10 @@ function PositionCard({ position, history }: { position: any; history: NavHistor
         <span className="font-mono text-[9px] uppercase tracking-wider text-white/25 font-semibold">
           Shares: {formatUsdc(position.balance, 2)}
         </span>
-        <button className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-white/35 hover:text-white/70 transition-colors group/btn">
+        <button
+          onClick={() => router.push(`/earn/${position.vaultId}`)}
+          className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-white/35 hover:text-white/70 transition-colors group/btn"
+        >
           Manage
           <ArrowUpRight className="h-3 w-3 group-hover/btn:text-[#e54b73] transition-colors" />
         </button>

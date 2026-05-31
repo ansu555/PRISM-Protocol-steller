@@ -12,8 +12,10 @@ import {
   ShieldCheck,
   TrendingUp,
   TriangleAlert,
+  X,
 } from 'lucide-react';
 import { useEffect, useRef, useState, useMemo, type ReactNode } from 'react';
+import { useDeposit } from '@/hooks/useDeposit';
 
 import { TrancheKind, TRANCHE_CONFIG, Q64_ONE } from '@/app/lib/constants';
 import { formatUsdc, shortKey, formatNavQ, parseUsdc } from '@/app/lib/format';
@@ -925,58 +927,173 @@ function CompactSwapCard({
   );
 }
 
+// ─── Provide Liquidity Modal ──────────────────────────────────────
+
+function LiquidityModal({
+  tranche,
+  onClose,
+}: {
+  tranche: TradeData['tranches'][number];
+  onClose: () => void;
+}) {
+  const meta = TRANCHE_META[tranche.kind];
+  const deposit = useDeposit();
+  const [amount, setAmount] = useState('');
+
+  const usdcAmount = (() => {
+    try { return parseUsdc(amount); } catch { return 0n; }
+  })();
+
+  const nav = tranche.navPerShareQ > 0n
+    ? Number((tranche.navPerShareQ * 1_000_000n) / Q64_ONE) / 1_000_000
+    : 1;
+  const estimatedShares = usdcAmount > 0n
+    ? (Number(usdcAmount) / 1e7 / nav).toFixed(6)
+    : '—';
+
+  async function handleDeposit() {
+    if (usdcAmount <= 0n) return;
+    await deposit.mutateAsync({ trancheKind: tranche.kind, usdcAmount });
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-sm rounded-2xl border border-white/[0.06] bg-[#0c0c0f] p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2.5">
+            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: meta.color }} />
+            <div>
+              <p className="font-mono text-xs font-semibold tracking-wider text-white/80">{meta.token}</p>
+              <p className="font-mono text-[9px] text-white/25 uppercase tracking-widest">{meta.label} Tranche</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-white/20 hover:text-white/60 transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="font-mono text-[9px] uppercase tracking-widest text-white/25 mb-1.5 block">
+              USDC Amount
+            </label>
+            <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-black/30 px-4 py-3 focus-within:border-white/[0.12]">
+              <input
+                type="number"
+                min="0"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="flex-1 bg-transparent font-mono text-sm text-white outline-none placeholder:text-white/20"
+              />
+              <span className="font-mono text-[10px] text-white/30 shrink-0">USDC</span>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/[0.03] bg-white/[0.01] px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[9px] text-white/25 uppercase tracking-widest">Current NAV</span>
+              <span className="font-mono text-[10px] text-white/50">{formatNavQ(tranche.navPerShareQ)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[9px] text-white/25 uppercase tracking-widest">Est. Shares</span>
+              <span className="font-mono text-[10px] text-white/50">{estimatedShares} {meta.token}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[9px] text-white/25 uppercase tracking-widest">Pool Liquidity</span>
+              <span className="font-mono text-[10px] text-white/50">${formatUsdc(tranche.ammQuoteBalance, 0)} USDC</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void handleDeposit()}
+            disabled={usdcAmount <= 0n || deposit.isPending}
+            className="w-full py-3 rounded-xl font-mono text-[10px] font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: usdcAmount > 0n && !deposit.isPending ? meta.color : undefined,
+              color: usdcAmount > 0n && !deposit.isPending ? '#000' : undefined,
+              border: usdcAmount <= 0n || deposit.isPending ? '1px solid rgba(255,255,255,0.06)' : undefined,
+            }}
+          >
+            {deposit.isPending ? 'Depositing…' : `Deposit into ${meta.token}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── AMM Pools & Margin Panels ────────────────────────────────────
 
 function PoolsPanel({ data }: { data: TradeData }) {
+  const [activeTranche, setActiveTranche] = useState<TradeData['tranches'][number] | null>(null);
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="font-mono text-[9px] uppercase tracking-widest text-white/25 font-semibold">Tranche AMM Pools</p>
-          <h2 className="mt-1 font-sans text-xl font-semibold tracking-tight text-white">Liquidity Distribution</h2>
+    <>
+      {activeTranche && (
+        <LiquidityModal tranche={activeTranche} onClose={() => setActiveTranche(null)} />
+      )}
+
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-widest text-white/25 font-semibold">Tranche AMM Pools</p>
+            <h2 className="mt-1 font-sans text-xl font-semibold tracking-tight text-white">Liquidity Distribution</h2>
+          </div>
+          <Pill tone="neutral">3 pools</Pill>
         </div>
-        <Pill tone="neutral">3 pools</Pill>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {data.tranches.map((t) => {
-          const meta = TRANCHE_META[t.kind];
-          return (
-            <Card key={t.key} className="p-6 relative group">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: meta.color }} />
-                  <span className="font-mono text-xs font-semibold tracking-wider text-white/80">{meta.token}</span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {data.tranches.map((t) => {
+            const meta = TRANCHE_META[t.kind];
+            return (
+              <Card key={t.key} className="p-6 relative group">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: meta.color }} />
+                    <span className="font-mono text-xs font-semibold tracking-wider text-white/80">{meta.token}</span>
+                  </div>
+                  <Pill tone={t.ammQuoteBalance > 0n ? 'green' : 'neutral'}>
+                    {t.ammQuoteBalance > 0n ? 'Active' : 'Empty'}
+                  </Pill>
                 </div>
-                <Pill tone={t.ammQuoteBalance > 0n ? 'green' : 'neutral'}>
-                  {t.ammQuoteBalance > 0n ? 'Active' : 'Empty'}
-                </Pill>
-              </div>
 
-              <div className="space-y-3.5 mb-5">
-                <div>
-                  <div className="font-mono text-[9px] uppercase tracking-wider text-white/25 font-semibold mb-1">Liquidity</div>
-                  <div className="font-mono text-lg font-medium text-white/80 tabular-nums">
-                    ${formatUsdc(t.ammQuoteBalance, 0)}{' '}
-                    <span className="text-white/25 text-xs font-medium">USDC</span>
+                <div className="space-y-3.5 mb-5">
+                  <div>
+                    <div className="font-mono text-[9px] uppercase tracking-wider text-white/25 font-semibold mb-1">Liquidity</div>
+                    <div className="font-mono text-lg font-medium text-white/80 tabular-nums">
+                      ${formatUsdc(t.ammQuoteBalance, 0)}{' '}
+                      <span className="text-white/25 text-xs font-medium">USDC</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[9px] uppercase tracking-wider text-white/25 font-semibold mb-1">Current NAV</div>
+                    <div className="font-mono text-sm font-medium text-white/60 tabular-nums">
+                      {formatNavQ(t.navPerShareQ)}
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <div className="font-mono text-[9px] uppercase tracking-wider text-white/25 font-semibold mb-1">Current NAV</div>
-                  <div className="font-mono text-sm font-medium text-white/60 tabular-nums">
-                    {formatNavQ(t.navPerShareQ)}
-                  </div>
-                </div>
-              </div>
 
-              <button className="w-full py-2.5 border border-white/[0.03] bg-white/[0.005] hover:bg-white/[0.02] rounded-xl font-mono text-[10px] uppercase tracking-wider text-white/40 hover:text-white/70 transition-all duration-200">
-                Provide Liquidity
-              </button>
-            </Card>
-          );
-        })}
+                <button
+                  type="button"
+                  onClick={() => setActiveTranche(t)}
+                  className="w-full py-2.5 border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.1] rounded-xl font-mono text-[10px] uppercase tracking-wider text-white/60 hover:text-white transition-all duration-200"
+                >
+                  Provide Liquidity
+                </button>
+              </Card>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

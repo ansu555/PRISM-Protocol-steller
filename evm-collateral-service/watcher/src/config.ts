@@ -30,6 +30,21 @@ export const PRISM_API_BASE = optional(
 export function buildChainConfigs(): ChainConfig[] {
   const configs: ChainConfig[] = [];
 
+  // Polygon Mainnet
+  const polygonRpc   = process.env.POLYGON_MAINNET_RPC_URL;
+  const polygonVault = process.env.POLYGON_MAINNET_VAULT_ADDRESS;
+  if (polygonRpc && polygonVault) {
+    configs.push({
+      name:               'polygon',
+      chainId:            137,
+      rpcUrl:             polygonRpc,
+      vaultAddress:       polygonVault as `0x${string}`,
+      confirmations:      20,  // Polygon: 20 confirmations (~40s at 2s/block)
+      attestationChainId: 1,   // chain_id=1 in attestation message = ETH family
+      pollIntervalMs:     5_000,
+    });
+  }
+
   // Ethereum Sepolia (testnet)
   const ethSepoliaRpc = process.env.ETH_SEPOLIA_RPC_URL;
   const ethSepoliaVault = process.env.ETH_SEPOLIA_VAULT_ADDRESS;
@@ -39,7 +54,7 @@ export function buildChainConfigs(): ChainConfig[] {
       chainId:            11155111,
       rpcUrl:             ethSepoliaRpc,
       vaultAddress:       ethSepoliaVault as `0x${string}`,
-      confirmations:      3,   // testnet: 3 confirmations (~36s)
+      confirmations:      3,
       attestationChainId: 1,
       pollIntervalMs:     12_000,
     });
