@@ -18,6 +18,12 @@ export interface ContractSet {
   soroswapFactory: string;
   /** Reflector oracle contract. */
   reflector: string;
+  /** pToken SAC for the Prime tranche. */
+  ptokenPrime: string;
+  /** pToken SAC for the Core tranche. */
+  ptokenCore: string;
+  /** pToken SAC for the Alpha tranche. */
+  ptokenAlpha: string;
   /** Stellar Horizon base URL for this network. */
   horizonUrl: string;
   /** Soroban RPC URL. */
@@ -46,6 +52,15 @@ export const CONTRACTS: Record<'testnet' | 'mainnet', ContractSet> = {
     reflector:
       process.env.NEXT_PUBLIC_REFLECTOR_CONTRACT_ID ??
       'CCYOZJCOPG34LLQQ7N24YXBM7QM2ZKJKR2Z7LSYXQBGKM2KTEOXKBAX',
+    ptokenPrime:
+      process.env.NEXT_PUBLIC_PTOKEN_PRIME_CONTRACT_ID ??
+      'CDFRSCBDTGIWCQSPVQEWHJJ7HVOGBLUTQBIKRYC3D5VQV5UDLBVGYM7H',
+    ptokenCore:
+      process.env.NEXT_PUBLIC_PTOKEN_CORE_CONTRACT_ID ??
+      'CDBDYXZTY5ZEUCIZM7RTDS5GOOA43BT5ARQCGYKQQNOYCBZQAZC5JYBW',
+    ptokenAlpha:
+      process.env.NEXT_PUBLIC_PTOKEN_ALPHA_CONTRACT_ID ??
+      'CB5DNWDNIMG75NSUN7GQXXH775TIEXNEIRWXIX4GDPVRR2YVGD3BGWBO',
     horizonUrl: 'https://horizon-testnet.stellar.org',
     rpcUrl:
       process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ??
@@ -55,19 +70,30 @@ export const CONTRACTS: Record<'testnet' | 'mainnet', ContractSet> = {
 
   mainnet: {
     // Mainnet deployment is gated behind an admin pause flag until audit
-    // completes (Phase 4 exit criterion). These addresses are placeholders
-    // until the contract is deployed — replace with the live contract IDs.
+    // completes (Phase 4 exit criterion). prismCore is still a placeholder
+    // until the contract is deployed — all other addresses are live.
     prismCore:
       process.env.NEXT_PUBLIC_PRISM_CORE_MAINNET_ID ?? '',
-    // Circle's official Stellar Classic USDC asset contract on mainnet.
-    // Source: https://developers.circle.com/stablecoins/usdc-on-stellar
-    usdc: 'CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7EJJUD',
+    // Circle's official Stellar mainnet USDC Stellar Asset Contract.
+    // Derived from the canonical asset USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN
+    // and verified on-chain (stellar contract invoke -- name → "USDC:GA5Z...").
+    usdc: 'CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75',
+    // Soroswap mainnet router + factory (verified via docs.soroswap.finance).
     soroswapRouter:
-      process.env.NEXT_PUBLIC_SOROSWAP_ROUTER_MAINNET_ID ?? '',
+      process.env.NEXT_PUBLIC_SOROSWAP_ROUTER_MAINNET_ID ??
+      'CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH',
     soroswapFactory:
-      process.env.NEXT_PUBLIC_SOROSWAP_FACTORY_MAINNET_ID ?? '',
+      process.env.NEXT_PUBLIC_SOROSWAP_FACTORY_MAINNET_ID ??
+      'CA4HEQTL2WPEUYKYKCDOHCDNIV4QHNJ7EL4J4NQ6VADP7SYHVRYZ7AW2',
+    // Reflector oracle mainnet contract (verified via reflector.network docs).
     reflector:
-      process.env.NEXT_PUBLIC_REFLECTOR_MAINNET_ID ?? '',
+      process.env.NEXT_PUBLIC_REFLECTOR_MAINNET_ID ??
+      'CAFJZQWSED6YAWZU3GWRTOCNPPCGBN32L7QV43XX5LZLFTK6JLN34DLN',
+    // pToken SACs are deployed alongside prism_core on mainnet; fill these in
+    // after running mainnet-deploy.sh (it prints them and writes mainnet.json).
+    ptokenPrime: process.env.NEXT_PUBLIC_PTOKEN_PRIME_MAINNET_ID ?? '',
+    ptokenCore: process.env.NEXT_PUBLIC_PTOKEN_CORE_MAINNET_ID ?? '',
+    ptokenAlpha: process.env.NEXT_PUBLIC_PTOKEN_ALPHA_MAINNET_ID ?? '',
     horizonUrl: 'https://horizon.stellar.org',
     rpcUrl:
       process.env.NEXT_PUBLIC_SOROBAN_RPC_URL_MAINNET ??

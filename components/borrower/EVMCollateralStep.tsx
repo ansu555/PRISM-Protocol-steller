@@ -77,6 +77,7 @@ const ERC20_ABI = [
   'function allowance(address owner, address spender) external view returns (uint256)',
   'function approve(address spender, uint256 amount) external returns (bool)',
   'function balanceOf(address account) external view returns (uint256)',
+  'function mint(address to, uint256 amount) external',
 ];
 
 const CHAINLINK_ABI = [
@@ -186,6 +187,7 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
   const [balances, setBalances]           = useState<Record<string, string>>({});
   const [prices, setPrices]               = useState<Record<string, number>>({});
   const [loadingBals, setLoadingBals]     = useState(false);
+  const [mintingToken, setMintingToken]   = useState<string | null>(null);
 
   const chain     = SUPPORTED_CHAINS[chainId];
   const isCorrectChain = !!chain;
@@ -289,6 +291,28 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
       });
     } catch {
       toast.error('Switch network in MetaMask and reconnect');
+    }
+  }
+
+  // ── Mint mock tokens ────────────────────────────────────────────────────────
+
+  async function handleMint(token: Token) {
+    if (!signer || !evmAddress) return;
+    setMintingToken(token.symbol);
+    try {
+      const contract = new Contract(token.address, ERC20_ABI, signer);
+      // Mint 1000 units (USDC=6 decimals, wETH=18 decimals)
+      const amount = parseUnits('1000', token.decimals);
+      const tx = await contract.mint(evmAddress, amount) as { wait: () => Promise<unknown> };
+      await tx.wait();
+      toast.success(`Minted 1000 ${token.symbol} to your wallet`);
+      const provider = new BrowserProvider(window.ethereum!);
+      await refreshBalances(provider, evmAddress, chainId);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Mint failed';
+      toast.error(msg.slice(0, 120));
+    } finally {
+      setMintingToken(null);
     }
   }
 
@@ -675,30 +699,28 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
                   })}
                 </div>
 
-                {/* Mint helper for mock tokens */}
+                {/* Mint mock tokens */}
                 {chain.tokens.filter(t => !t.isNative).some(t => {
                   const b = parseFloat(balances[t.symbol] ?? '0');
                   return isNaN(b) || b < 1;
                 }) && (
-                  <p className="mt-2 font-mono text-[9px] text-white/25">
-                    No mock tokens?{' '}
-                    <a
-                      href={`${chain.explorer}/address/${chain.tokens.find(t => t.symbol === 'USDC')?.address}#writeContract`}
-                      target="_blank" rel="noreferrer"
-                      className="text-emerald-400/50 hover:text-emerald-400 underline underline-offset-2"
-                    >
-                      Mint USDC
-                    </a>
-                    {' · '}
-                    <a
-                      href={`${chain.explorer}/address/${chain.tokens.find(t => t.symbol === 'wETH')?.address}#writeContract`}
-                      target="_blank" rel="noreferrer"
-                      className="text-emerald-400/50 hover:text-emerald-400 underline underline-offset-2"
-                    >
-                      Mint wETH
-                    </a>
-                    {' '}on Etherscan → Connect wallet → mint(yourAddress, amount)
-                  </p>
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-[9px] text-white/25">No tokens?</span>
+                    {chain.tokens.filter(t => !t.isNative).map(t => (
+                      <button
+                        key={t.symbol}
+                        type="button"
+                        onClick={() => void handleMint(t)}
+                        disabled={mintingToken !== null}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-400/20 bg-emerald-400/5 hover:bg-emerald-400/10 hover:border-emerald-400/40 font-mono text-[9px] text-emerald-400/60 hover:text-emerald-400 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {mintingToken === t.symbol ? (
+                          <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                        ) : null}
+                        Mint 1000 {t.symbol}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
 

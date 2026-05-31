@@ -4,16 +4,15 @@
 // account IDs (GXX...). The legacy `PublicKey` import is gone — these
 // values are plain strings now. Use `import { Address } from '@stellar/stellar-sdk'`
 // when you need to wrap one for Soroban invocation.
+//
+// Network-switching: all contract IDs and URLs are derived from ACTIVE_CONTRACTS
+// (addresses.ts), which reads NEXT_PUBLIC_STELLAR_NETWORK to pick testnet vs mainnet.
+// Individual NEXT_PUBLIC_* env vars still override per-key if set.
 
-// Deployed Soroban contract IDs (Soroban testnet, May 2026).
-// Override with NEXT_PUBLIC_* env vars if you redeploy.
-// NOTE: Redeployed 2026-05-25 with a test USDC (TUSDC) that the deployer can
-// mint freely — Circle's real testnet USDC requires browser-only faucet
-// interaction and we want a fully scriptable demo. Issuer of TUSDC is the
-// deployer (GDSI…HUXO).
+import { ACTIVE_CONTRACTS, ACTIVE_NETWORK } from './addresses';
+
 export const PRISM_CORE_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_PRISM_CORE_CONTRACT_ID ??
-  'CCULBBT4PA64GWXSKT4G7HOYQ4RXRNYY2JP5MZ2G73VKRFAJ6CHB3RZK';
+  process.env.NEXT_PUBLIC_PRISM_CORE_CONTRACT_ID ?? ACTIVE_CONTRACTS.prismCore;
 
 // Legacy internal AMM — kept as a shim so old imports don't break.
 // Phase 4 deletes this. New swap paths go through SOROSWAP_ROUTER_ID.
@@ -22,31 +21,18 @@ export const PRISM_AMM_CONTRACT_ID =
   'CAH22DWPILDNYWXBNY7NTUY75FU2ZMJ63ALL2AJ4TPEHOYFYVEJ3YLPY';
 
 // ── Soroswap (Phase 2) ───────────────────────────────────────────────────────
-// Soroswap is the Uniswap-V2 CPMM on Stellar. We use it for pTranche/USDC pools.
-// Source: https://github.com/soroswap/core (public/testnet.contracts.json)
 export const SOROSWAP_ROUTER_ID =
-  process.env.NEXT_PUBLIC_SOROSWAP_ROUTER_ID ??
-  'CCJUD55AG6W5HAI5LRVNKAE5WDP5XGZBUDS5WNTIVDU7O264UZZE7BRD';
+  process.env.NEXT_PUBLIC_SOROSWAP_ROUTER_ID ?? ACTIVE_CONTRACTS.soroswapRouter;
 
 export const SOROSWAP_FACTORY_ID =
-  process.env.NEXT_PUBLIC_SOROSWAP_FACTORY_ID ??
-  'CDP3HMUH6SMS3S7NPGNDJLULCOXXEPSHY4JKUKMBNQMATHDHWXRRJTBY';
+  process.env.NEXT_PUBLIC_SOROSWAP_FACTORY_ID ?? ACTIVE_CONTRACTS.soroswapFactory;
 
 // ── Reflector oracle (Phase 2) ───────────────────────────────────────────────
-// Reflector is the decentralized price oracle on Stellar Soroban (SEP-40).
-// Set NEXT_PUBLIC_REFLECTOR_CONTRACT_ID to the testnet instance when running
-// against testnet (Reflector testnet is permissioned — request access at
-// https://reflector.network). Mainnet address is the public Reflector Pulse feed.
 export const REFLECTOR_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_REFLECTOR_CONTRACT_ID ??
-  'CCYOZJCOPG34LLQQ7N24YXBM7QM2ZKJKR2Z7LSYXQBGKM2KTEOXKBAX';
+  process.env.NEXT_PUBLIC_REFLECTOR_CONTRACT_ID ?? ACTIVE_CONTRACTS.reflector;
 
-// Test USDC (TUSDC:GDSI…HUXO) — deployer is issuer, can mint freely. Replace
-// with Circle's real testnet USDC SAC (CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA)
-// when going to a public-facing demo.
 export const USDC_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_USDC_CONTRACT_ID ??
-  'CDJND4DUKT4CJELQCFLNYQM345WECQ6JQORCKVXAT3HYPBOY4YLZZNAH';
+  process.env.NEXT_PUBLIC_USDC_CONTRACT_ID ?? ACTIVE_CONTRACTS.usdc;
 
 // Classic-asset reference for the SAC above, needed when users add the
 // trustline through Freighter ("Add asset" → manual entry).
@@ -69,16 +55,13 @@ export const Q64_ONE = 1n << 64n;
 
 // Soroban RPC endpoint. Stellar's public testnet RPC.
 export const SOROBAN_RPC_URL =
-  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? 'https://soroban-testnet.stellar.org';
+  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? ACTIVE_CONTRACTS.rpcUrl;
 
-// Stellar testnet network passphrase. Used for transaction signing.
 export const NETWORK_PASSPHRASE =
-  process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE ??
-  'Test SDF Network ; September 2015';
+  process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE ?? ACTIVE_CONTRACTS.passphrase;
 
-// Horizon endpoint (for account / asset queries that aren't Soroban contract calls).
 export const HORIZON_URL =
-  process.env.NEXT_PUBLIC_HORIZON_URL ?? 'https://horizon-testnet.stellar.org';
+  process.env.NEXT_PUBLIC_HORIZON_URL ?? ACTIVE_CONTRACTS.horizonUrl;
 
 // Legacy program-id aliases. Kept so old `import { PRISM_CORE_PROGRAM_ID }`
 // lines don't break — they now resolve to the same Stellar contract string.
@@ -135,30 +118,35 @@ export const POOL_NAMES: Record<number, string> = {
 };
 
 // pToken contract IDs (one per tranche, deployed alongside prism-core).
-// Override with NEXT_PUBLIC_PTOKEN_*_CONTRACT_ID env vars if redeployed.
+// Network-aware via ACTIVE_CONTRACTS: testnet uses the known SACs; mainnet
+// reads NEXT_PUBLIC_PTOKEN_*_MAINNET_ID (populated after mainnet-deploy.sh).
 export const PTOKEN_PRIME_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_PTOKEN_PRIME_CONTRACT_ID ??
-  'CDFRSCBDTGIWCQSPVQEWHJJ7HVOGBLUTQBIKRYC3D5VQV5UDLBVGYM7H';
+  process.env.NEXT_PUBLIC_PTOKEN_PRIME_CONTRACT_ID ?? ACTIVE_CONTRACTS.ptokenPrime;
 
 export const PTOKEN_CORE_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_PTOKEN_CORE_CONTRACT_ID ??
-  'CDBDYXZTY5ZEUCIZM7RTDS5GOOA43BT5ARQCGYKQQNOYCBZQAZC5JYBW';
+  process.env.NEXT_PUBLIC_PTOKEN_CORE_CONTRACT_ID ?? ACTIVE_CONTRACTS.ptokenCore;
 
 export const PTOKEN_ALPHA_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_PTOKEN_ALPHA_CONTRACT_ID ??
-  'CB5DNWDNIMG75NSUN7GQXXH775TIEXNEIRWXIX4GDPVRR2YVGD3BGWBO';
+  process.env.NEXT_PUBLIC_PTOKEN_ALPHA_CONTRACT_ID ?? ACTIVE_CONTRACTS.ptokenAlpha;
 
 // Ed25519 pubkey of the Encrypt oracle (32-byte hex, no Stellar StrKey wrapping).
-// Used for local/demo UI defaults; production should always set
-// NEXT_PUBLIC_ENCRYPT_ORACLE_PUBKEY_HEX explicitly.
+// SECURITY: the demo defaults below correspond to publicly-known seeds and must
+// NEVER be used on mainnet — anyone with the seed could forge attestations. On
+// mainnet the default is empty so the on-chain allowlist stays empty until a
+// real production key is added via oracle-allowlist.sh; set
+// NEXT_PUBLIC_ENCRYPT_ORACLE_PUBKEY_HEX to that key explicitly.
+const DEMO_ENCRYPT_ORACLE_PUBKEY_HEX =
+  '3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29';
+const DEMO_CLOAK_ORACLE_PUBKEY_HEX =
+  '8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c';
+
 export const ENCRYPT_ORACLE_PUBKEY_HEX =
   process.env.NEXT_PUBLIC_ENCRYPT_ORACLE_PUBKEY_HEX ??
-  '3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29';
+  (ACTIVE_NETWORK === 'mainnet' ? '' : DEMO_ENCRYPT_ORACLE_PUBKEY_HEX);
 
-// Cloak oracle pubkey (local/demo default shown; override in production).
 export const CLOAK_ORACLE_PUBKEY_HEX =
   process.env.NEXT_PUBLIC_CLOAK_ORACLE_PUBKEY_HEX ??
-  '8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c';
+  (ACTIVE_NETWORK === 'mainnet' ? '' : DEMO_CLOAK_ORACLE_PUBKEY_HEX);
 
 // Legacy aliases. Stored as 32-byte hex strings now (no PublicKey wrapping).
 export const ENCRYPT_ORACLE_PUBKEY = ENCRYPT_ORACLE_PUBKEY_HEX;

@@ -1,0 +1,21 @@
+{
+  "network": "mainnet",
+  "prism_core": "CD2TXQSRGH2XHUWH3VIDGLQGVT6KXMBJPT6QR2RBBCGFVFVTRTD2E5SU",
+  "wasm_hash": "0c11feab7a8d073a155ed03dc875239e39f9d08554c3720824282759a5262428",
+  "usdc_sac": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+  "ptoken_prime": "CBI2NXIZQ33L3K5RMQW53OGV52HDHZU2AUISCUFXDYTDR345VKPHAQEP",
+  "ptoken_core": "CA4LS2SMQV4N5E2XIUDAHIN72TZFXUT3FI5Y4NIFGAEXJO5N6VDNMKQC",
+  "ptoken_alpha": "CBIDAXY35YIMXSCFPRMCVB33W4YG5YQE2G2ZXKAP6ZT52VH2QZLRVT44",
+  "default_yield_rate_bps": 850,
+  "tranches": {
+    "prime": { "kind": 0, "target_apy_bps": 500 },
+    "core": { "kind": 1, "target_apy_bps": 1000 },
+    "alpha": { "kind": 2, "target_apy_bps": 2500 }
+  },
+  "deployed_at": "2026-05-31T00:00:00Z",
+  "wasm_size_bytes": 47274,
+  "admin_public_key": "GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO",
+  "deployer_key": "GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO",
+  "oracle_allowlist": "EMPTY — add production key via oracle-allowlist.sh before any oracle-gated flow",
+  "vault_id": 0
+}
