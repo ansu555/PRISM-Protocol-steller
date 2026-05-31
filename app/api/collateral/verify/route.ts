@@ -50,6 +50,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, hash, loanId, status: 'Attached' });
   } catch (err) {
     const msg = parseStellarError(err);
+    // AlreadyVerified (#61) = already Attached — treat as success
+    if (msg.includes('#61') || msg.includes('AlreadyVerified')) {
+      return NextResponse.json({ ok: true, loanId, status: 'AlreadyAttached', skipped: true });
+    }
+    // CollateralNotAttached (#60) = borrower hasn't called attach_collateral yet via Freighter.
+    // The watcher will retry; the borrower UI will prompt them to sign.
+    if (msg.includes('#60') || msg.includes('CollateralNotAttached')) {
+      return NextResponse.json({ error: 'Collateral not registered yet — borrower must sign attach_collateral with Freighter first', needsAttach: true }, { status: 400 });
+    }
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
