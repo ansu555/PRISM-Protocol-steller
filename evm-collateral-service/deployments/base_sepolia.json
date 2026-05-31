@@ -1,0 +1,14 @@
+{
+  "network": "eth_sepolia",
+  "chainId": 11155111,
+  "vault": "0xd0130A053820F292B1807C246a1074443E491fcb",
+  "deployedAt": "2026-05-31",
+  "deployTx": "",
+  "admin": "0xCd811e343B71Ab6D24Ebea2fe8150aa42Fe9786A",
+  "tokens": {
+    "usdc": "0x12A70376258f53BbAd1d7387bcBA4084df4B4211",
+    "usdt": "",
+    "weth": "0xC426c75d79D833e9924De6cA26378FDcF49e912C",
+    "wbtc": ""
+  }
+}

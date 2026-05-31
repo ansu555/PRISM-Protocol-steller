@@ -1,0 +1,14 @@
+{
+  "network": "base",
+  "chainId": 8453,
+  "vault": "",
+  "deployedAt": "",
+  "deployTx": "",
+  "admin": "",
+  "tokens": {
+    "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "usdt": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+    "weth": "0x4200000000000000000000000000000000000006",
+    "wbtc": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf"
+  }
+}
