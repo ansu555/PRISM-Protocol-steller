@@ -69,14 +69,11 @@ export const CONTRACTS: Record<'testnet' | 'mainnet', ContractSet> = {
   },
 
   mainnet: {
-    // Mainnet deployment is gated behind an admin pause flag until audit
-    // completes (Phase 4 exit criterion). prismCore is still a placeholder
-    // until the contract is deployed — all other addresses are live.
+    // Deployed 2026-05-31. All contract IDs are live on Stellar mainnet.
     prismCore:
-      process.env.NEXT_PUBLIC_PRISM_CORE_MAINNET_ID ?? '',
+      process.env.NEXT_PUBLIC_PRISM_CORE_MAINNET_ID ??
+      'CD2TXQSRGH2XHUWH3VIDGLQGVT6KXMBJPT6QR2RBBCGFVFVTRTD2E5SU',
     // Circle's official Stellar mainnet USDC Stellar Asset Contract.
-    // Derived from the canonical asset USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN
-    // and verified on-chain (stellar contract invoke -- name → "USDC:GA5Z...").
     usdc: 'CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75',
     // Soroswap mainnet router + factory (verified via docs.soroswap.finance).
     soroswapRouter:
@@ -89,15 +86,20 @@ export const CONTRACTS: Record<'testnet' | 'mainnet', ContractSet> = {
     reflector:
       process.env.NEXT_PUBLIC_REFLECTOR_MAINNET_ID ??
       'CAFJZQWSED6YAWZU3GWRTOCNPPCGBN32L7QV43XX5LZLFTK6JLN34DLN',
-    // pToken SACs are deployed alongside prism_core on mainnet; fill these in
-    // after running mainnet-deploy.sh (it prints them and writes mainnet.json).
-    ptokenPrime: process.env.NEXT_PUBLIC_PTOKEN_PRIME_MAINNET_ID ?? '',
-    ptokenCore: process.env.NEXT_PUBLIC_PTOKEN_CORE_MAINNET_ID ?? '',
-    ptokenAlpha: process.env.NEXT_PUBLIC_PTOKEN_ALPHA_MAINNET_ID ?? '',
+    // pToken SACs deployed 2026-05-31 alongside prism_core.
+    ptokenPrime:
+      process.env.NEXT_PUBLIC_PTOKEN_PRIME_MAINNET_ID ??
+      'CBI2NXIZQ33L3K5RMQW53OGV52HDHZU2AUISCUFXDYTDR345VKPHAQEP',
+    ptokenCore:
+      process.env.NEXT_PUBLIC_PTOKEN_CORE_MAINNET_ID ??
+      'CA4LS2SMQV4N5E2XIUDAHIN72TZFXUT3FI5Y4NIFGAEXJO5N6VDNMKQC',
+    ptokenAlpha:
+      process.env.NEXT_PUBLIC_PTOKEN_ALPHA_MAINNET_ID ??
+      'CBIDAXY35YIMXSCFPRMCVB33W4YG5YQE2G2ZXKAP6ZT52VH2QZLRVT44',
     horizonUrl: 'https://horizon.stellar.org',
     rpcUrl:
       process.env.NEXT_PUBLIC_SOROBAN_RPC_URL_MAINNET ??
-      'https://soroban.stellar.org',
+      'https://mainnet.sorobanrpc.com',
     passphrase: 'Public Global Stellar Network ; September 2015',
   },
 };
