@@ -2,7 +2,7 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "PRISM Protocol Docs",
-  "description": "Programmable Risk & Income Structured Markets on Solana",
+  "description": "Programmable Risk & Income Structured Markets on Stellar",
   "logo": {
     "light": "/images/prism.png",
     "dark": "/images/prism.png",

@@ -1,302 +1,125 @@
 ---
-title: SDK
-description: Install the PRISM Protocol SDK and import contract IDLs, deployed addresses, PDA helpers, and TypeScript types.
+title: SDK & Bindings
+description: Install the Stellar SDK, generate typed PRISM Core contract bindings, and import deployed addresses, the TrancheKind enum, i128 amounts, and error codes.
 ---
 
-# SDK
+# SDK & Bindings
 
-The PRISM Protocol SDK packages everything you need to integrate the credit engine and AMM into your application: Anchor IDLs, deployed program addresses, PDA derivation helpers, math constants, error types, and TypeScript types generated from the on-chain programs.
+PRISM Core is a [Soroban](https://developers.stellar.org/docs/build/smart-contracts) smart contract on Stellar. You integrate it from TypeScript with two pieces:
 
-If you have ever wired an Anchor program by hand — copying an IDL into your repo, hard-coding program IDs, redefining PDA seeds in three places — the SDK eliminates that surface. It is the same module set the official PRISM frontend uses, packaged for reuse.
+1. **`@stellar/stellar-sdk`** — the official Stellar SDK. It builds, simulates, signs, and submits Soroban transactions and decodes contract return values.
+2. **Generated contract bindings** (optional) — a typed client the Stellar CLI produces directly from the deployed contract, so every function is fully typed and can never drift from the on-chain binary.
 
-## What You Get
-
-| Capability | Without the SDK | With the SDK |
-| --- | --- | --- |
-| Program IDs | Copy from `Anchor.toml` and hope they don't drift | Imported constants, network-aware |
-| IDL JSON | Manually copy after every `anchor build` | Bundled and version-pinned to the deployed binary |
-| PDA seeds | Re-implement byte layouts in TypeScript | 13 typed helpers covering every PDA in the protocol |
-| Math constants | Re-derive `Q64_ONE`, `BPS_DENOMINATOR`, etc. | Imported and consistent with on-chain code |
-| Error decoding | Look up Anchor error codes by hand | Typed `PrismError` enum |
-| Account types | Hand-write or rely on raw IDL types | Generated TypeScript interfaces |
+A Soroban contract publishes its interface spec on-chain, and the Stellar CLI reads that spec directly. You can use the generated bindings or call the official SDK primitives yourself.
 
 ## Install
 
 <CodeGroup>
-```bash bun
-bun add prismprotocol-sdk @coral-xyz/anchor @solana/web3.js @solana/spl-token
-```
-
 ```bash npm
-npm install prismprotocol-sdk @coral-xyz/anchor @solana/web3.js @solana/spl-token
+npm install @stellar/stellar-sdk
 ```
 
 ```bash pnpm
-pnpm add prismprotocol-sdk @coral-xyz/anchor @solana/web3.js @solana/spl-token
+pnpm add @stellar/stellar-sdk
 ```
 
-```bash yarn
-yarn add prismprotocol-sdk @coral-xyz/anchor @solana/web3.js @solana/spl-token
+```bash bun
+bun add @stellar/stellar-sdk
 ```
 </CodeGroup>
 
-PRISM is built on Anchor 0.30.1 and Solana Web3.js 1.x. The SDK declares these as peer dependencies so your app pins one shared version across all Solana modules.
+PRISM is built and tested against `@stellar/stellar-sdk` v15.
 
-### Compatibility
+## Generate typed bindings
 
-| Runtime | Status |
-| --- | --- |
-| Node 20+ | ✅ Server scripts, indexers, oracles, setup tooling |
-| Browser (modern) | ✅ Wallet-adapter integrations, Next.js, Vite |
-| React Native | ⚠️ Works for read paths; signing requires a wallet adapter that supports your platform |
-| Cloudflare Workers / Edge | ⚠️ Works for read paths; some Anchor utilities pull `Buffer` polyfills |
+The [Stellar CLI](https://developers.stellar.org/docs/tools/cli) reads the deployed contract spec and emits a typed TypeScript client:
 
-The SDK is published as ES modules with TypeScript type definitions. CommonJS consumers should use a bundler that handles dual packages (Next.js, Vite, esbuild, tsup all work out of the box).
-
-## What's Included
-
-### Program Identifiers
-
-```typescript
-import {
-  PRISM_CORE_PROGRAM_ID,    // PublicKey — credit engine
-  PRISM_AMM_PROGRAM_ID,     // PublicKey — secondary market AMM
-} from 'prismprotocol-sdk';
+```bash
+stellar contract bindings typescript \
+  --network testnet \
+  --id CCULBBT4PA64GWXSKT4G7HOYQ4RXRNYY2JP5MZ2G73VKRFAJ6CHB3RZK \
+  --output-dir ./src/bindings/prism-core
 ```
 
-These resolve to the deployed devnet addresses and override automatically when you set `NEXT_PUBLIC_PRISM_CORE_PROGRAM_ID` / `NEXT_PUBLIC_PRISM_AMM_PROGRAM_ID` environment variables.
+Regenerate whenever the contract is redeployed. The generated client wraps every public function with correct argument and return types.
 
-### IDL Bundles
+## Deployed addresses
 
-```typescript
-import {
-  prismCoreIdl,             // Full Anchor IDL for prism_core
-  prismAmmIdl,              // Full Anchor IDL for prism_amm
-} from 'prismprotocol-sdk';
+Import contract IDs from a single module instead of hard-coding them inline:
+
+```ts
+// addresses.ts
+export const PRISM_CORE   = 'CCULBBT4PA64GWXSKT4G7HOYQ4RXRNYY2JP5MZ2G73VKRFAJ6CHB3RZK';
+export const USDC_SAC     = 'CDJND4DUKT4CJELQCFLNYQM345WECQ6JQORCKVXAT3HYPBOY4YLZZNAH';
+export const PTOKEN_PRIME = 'CDFRSCBDTGIWCQSPVQEWHJJ7HVOGBLUTQBIKRYC3D5VQV5UDLBVGYM7H';
+export const PTOKEN_CORE  = 'CDBDYXZTY5ZEUCIZM7RTDS5GOOA43BT5ARQCGYKQQNOYCBZQAZC5JYBW';
+export const PTOKEN_ALPHA = 'CB5DNWDNIMG75NSUN7GQXXH775TIEXNEIRWXIX4GDPVRR2YVGD3BGWBO';
 ```
 
-Pass these directly to `new Program(idl, provider)` to instantiate a typed Anchor program client. The IDLs are kept in lockstep with the deployed programs.
+See [Addresses](/developer/addresses) for the full registry, including Soroswap and the Reflector oracle.
 
-### Tokens
+## The TrancheKind enum
 
-```typescript
-import {
-  USDC_MINT,                // PublicKey of devnet USDC (Circle faucet mint)
-  USDC_DECIMALS,            // 6
-  USDC_BASE_UNITS,          // 1_000_000n (one USDC in micro-USD)
-} from 'prismprotocol-sdk';
-```
+Every tranche-scoped call takes a `kind` (a `u32` index). It maps to the on-chain `TrancheKind` enum:
 
-### Tranche Enum
-
-```typescript
-import { TrancheKind } from 'prismprotocol-sdk';
-
-TrancheKind.Prime  // 0 — paid first, absorbs losses last
-TrancheKind.Core   // 1 — intermediate
-TrancheKind.Alpha  // 2 — paid last, first-loss
-```
-
-The numeric value doubles as the seed byte for `getTranchePda` and the discriminant on the `Tranche.kind` field.
-
-### Math Constants
-
-```typescript
-import {
-  Q64_ONE,                  // 1n << 64n — the Q64.64 representation of 1.0
-  USDC_BASE_UNITS,          // 1_000_000n
-  BPS_DENOMINATOR,          // 10_000
-  MIN_LIQUIDITY,            // 1_000n — locked LP shares on first add_liquidity
-  DEFAULT_FEE_BPS,          // 30 — Uniswap V2-style 0.3% AMM fee
-  MAX_FEE_BPS,              // 1_000 — protocol cap at 10%
-  SECONDS_PER_YEAR,         // 31_536_000
-} from 'prismprotocol-sdk';
-```
-
-All constants mirror the on-chain Rust values exactly so off-chain pre-flight calculations match the on-chain handler down to the last micro-USDC.
-
-### PDA Helpers
-
-Fifteen helpers cover every program-derived address PRISM uses:
-
-```typescript
-import {
-  getConfigPda,                // ["config2"]
-  getVaultPda,                 // ["vault", id]
-  getTranchePda,               // ["tranche", vault, kind]
-  getTrancheMintPda,           // ["mint", vault, kind]
-  getVaultReservePda,          // ["reserve", vault]
-  getLossBucketPda,            // ["loss_bucket", vault]
-  getLoanPda,                  // ["loan", vault, loan_id]
-  getCreditEventPda,           // ["credit_event", vault, seq]
-  getIkaCollateralPda,         // ["ika_collateral_v2", loan]
-  getEncryptHealthPda,         // ["encrypt_health", loan]
-  getCloakPayoutPda,           // ["cloak_payout", vault]
-  getPoolPda,                  // ["amm", tranche_mint]
-  getPoolTrancheReservePda,    // ["amm_tranche", tranche_mint]
-  getPoolQuoteReservePda,      // ["amm_quote", tranche_mint]
-  getLpMintPda,                // ["amm_lp", tranche_mint]
-} from 'prismprotocol-sdk';
-```
-
-Every helper returns `[PublicKey, number]` — the address and the canonical bump. The bump is precomputed and stable; you can cache it.
-
-### Program Factory
-
-The convenience factory wires a Solana connection and a `Keypair` signer into a ready-to-use pair of Anchor programs:
-
-```typescript
-import { buildPrograms } from 'prismprotocol-sdk';
-
-const { core, amm, provider } = buildPrograms(connection, signer);
-```
-
-For browser apps that use a wallet adapter, build the provider yourself with `useAnchorWallet()` from `@solana/wallet-adapter-react` instead.
-
-## TypeScript Types
-
-The SDK exports types generated from both IDLs so you can write strongly typed account fetches and instruction calls:
-
-```typescript
-import type { PrismCore, PrismAmm } from 'prismprotocol-sdk';
-import type { Program } from '@coral-xyz/anchor';
-
-const core: Program<PrismCore> = /* ... */;
-
-// account.tranche.fetch returns a fully typed Tranche struct
-const tranche = await core.account.tranche.fetch(primeTranchePda);
-console.log(tranche.totalAssets);     // BN
-console.log(tranche.navPerShareQ);    // BN (u128)
-console.log(tranche.kind);            // { prime: {} } | { core: {} } | { alpha: {} }
-```
-
-Anchor encodes Rust enums as TypeScript discriminated unions of single-key objects. Helper unwrap utilities are exported:
-
-```typescript
-import { stateName } from 'prismprotocol-sdk';
-
-stateName(tranche.kind);       // "prime"
-stateName(vault.state);        // "active" | "defaulted" | "resolved"
-```
-
-## Errors
-
-`prism_core` defines 29 typed errors and `prism_amm` defines 5. The SDK exports them as enums with both the variant name and the Anchor error code:
-
-```typescript
-import { PrismCoreError, PrismAmmError } from 'prismprotocol-sdk';
-
-PrismCoreError.VaultPaused                      // 6001
-PrismCoreError.TrancheWipedNoDepositsAllowed    // 6012
-PrismCoreError.OracleSignatureInvalid           // 6015
-PrismAmmError.SlippageExceeded                  // 6001
-```
-
-### Decoding Errors
-
-Anchor wraps program errors in a structured object. Use the SDK's `decodeAnchorError` helper to surface a typed enum value plus a human-readable message:
-
-```typescript
-import { decodeAnchorError } from 'prismprotocol-sdk';
-
-try {
-  await core.methods.deposit(kind, amount).accounts({ /* ... */ }).rpc();
-} catch (raw) {
-  const decoded = decodeAnchorError(raw);
-  if (decoded?.kind === 'core' && decoded.error === 'TrancheWipedNoDepositsAllowed') {
-    // direct user to a different tranche
-  } else {
-    throw raw;
-  }
+```ts
+export enum TrancheKind {
+  Prime = 0, // 5% target  · paid first  · loss-protected
+  Core  = 1, // 8% target  · intermediate
+  Alpha = 2, // residual yield · first-loss absorber
 }
 ```
 
-## Tree-Shaking
+## Amounts are `i128`
 
-The SDK is designed for tree-shaking. Only the helpers you import end up in your bundle:
+USDC has **7 decimals** on Stellar. Every amount crosses the contract boundary as an `i128` — always use `BigInt`, never a JavaScript `number`:
 
-```typescript
-// ✅ Only ~5 KB of PDA helpers + types in your bundle
-import { getVaultPda, getTranchePda, TrancheKind } from 'prismprotocol-sdk';
+```ts
+import { nativeToScVal } from '@stellar/stellar-sdk';
 
-// ⚠️ Pulls the full IDL JSON (~80 KB) — fine for app code, avoid in shared libs
-import { prismCoreIdl } from 'prismprotocol-sdk';
+const oneUsdc = 10_000_000n;                       // 1 USDC = 1e7 stroops
+const amount  = nativeToScVal(oneUsdc, { type: 'i128' });
 ```
 
-The IDLs are intentionally separate entry points so a "read PDAs only" usage stays small.
+A tranche's NAV per share is stored on the `Tranche` struct as `nav_per_share_q`, a Q64.64 fixed-point `i128` where `1.0 == 2^64`. Read it with `get_tranche` and divide by `2n ** 64n` for a human-readable ratio — there is no separate `get_nav` call.
 
-## Quick Look
+## Error codes
 
-```typescript
-import {
-  PRISM_CORE_PROGRAM_ID,
-  TrancheKind,
-  USDC_MINT,
-  Q64_ONE,
-  buildPrograms,
-  getConfigPda,
-  getVaultPda,
-  getTranchePda,
-  getVaultReservePda,
-} from 'prismprotocol-sdk';
-import { Connection } from '@solana/web3.js';
-import { Keypair } from '@solana/web3.js';
+`prism_core` raises a typed `PrismError`. The numeric codes are stable across the contract ABI:
 
-const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
-const signer = Keypair.generate();
+| Code | Variant | Meaning |
+| --- | --- | --- |
+| 1 | `VaultNotActive` | Vault is not in the `Active` state |
+| 2 | `VaultPaused` | Protocol is paused; user operation blocked |
+| 3 | `InvalidTrancheKind` | `kind` is not 0, 1, or 2 |
+| 4 | `LoanInWrongState` | Loan operation invalid for its current state |
+| 5 | `InsufficientLiquidity` | Not enough reserve to satisfy the request |
+| 6 | `SlippageExceeded` | Output below the supplied minimum |
+| 7 | `Unauthorized` | Caller is not the admin / required signer |
+| 10 | `ArithmeticOverflow` | Checked arithmetic overflowed |
+| 11 | `EmptyTrancheNav` | NAV undefined (no supply) |
+| 12 | `InvalidSeverity` | `severity_bps` or `event_type` out of range |
+| 13 | `LossExceedsTotalAssets` | Loss larger than total vault assets |
+| 14 | `TrancheWipedNoDepositsAllowed` | Deposit blocked into a wiped tranche (NAV 0, supply > 0) |
+| 20 | `BorrowerMismatch` | Signer is not the loan's borrower |
+| 30–33 | `Encrypt*` | Encrypt FHE attestation errors |
+| 34 | `OracleNotAllowlisted` | Signing key is not in the oracle allowlist |
+| 35 | `OracleAllowlistFull` | Allowlist already holds 8 keys |
+| 36 | `OracleAlreadyAllowlisted` | Key already present |
+| 40–43 | `Cloak*` | Cloak batch-payout attestation errors |
+| 50 | `AlreadyInitialized` | `init_*` called twice |
+| 51 | `NotInitialized` | Contract / vault / tranche used before setup |
+| 60–65 | `Collateral*` | Collateral attestation lifecycle errors |
 
-const { core } = buildPrograms(connection, signer);
+When a transaction fails, the Soroban RPC error carries the contract error code — map it back to the variant above to surface a precise message in your UI.
 
-const [config]      = getConfigPda();
-const [vault]       = getVaultPda(0);
-const [primeT]      = getTranchePda(vault, TrancheKind.Prime);
-const [reserve]     = getVaultReservePda(vault);
-
-const tranche = await core.account.tranche.fetchNullable(primeT);
-const navUsdc = tranche
-  ? Number((tranche.navPerShareQ.toBigInt() * 1_000_000n) / Q64_ONE) / 1_000_000
-  : 0;
-
-console.log({
-  config: config.toBase58(),
-  vault: vault.toBase58(),
-  primePda: primeT.toBase58(),
-  primeNAV: navUsdc,
-});
-```
-
-## Versioning
-
-The SDK is versioned alongside the deployed Anchor programs. The mapping is:
-
-| Change | SDK version bump |
-| --- | --- |
-| Program redeploy with new ID | Major (`0.x` → `1.x`) |
-| New instruction or account field | Minor (`1.0` → `1.1`) |
-| Bug fix in a helper, doc fix | Patch (`1.0.0` → `1.0.1`) |
-| Breaking change to IDL layout | Major |
-
-<Info>
-PRISM is currently a hackathon-stage devnet build. Pin the SDK to an exact version in `package.json` (no `^` or `~`) until mainnet ships and a stable release line is published.
-</Info>
-
-### Migration
-
-When the SDK transitions from devnet to mainnet, the migration guide will live at `docs/migration/<from>-to-<to>.md`. Breaking changes always come with a codemod or a search/replace mapping.
-
-## Next Steps
+## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Connect to Devnet" icon="plug" href="/developer/connect">
-    Wire the SDK to a Solana RPC and load both programs.
+  <Card title="Connect a client" icon="plug" href="/developer/connect">
+    Wire the SDK to Soroban RPC and Freighter.
   </Card>
-  <Card title="Invest in a Tranche" icon="vault" href="/developer/invest">
-    Deposit USDC and receive Prime, Core, or Alpha tranche tokens.
-  </Card>
-  <Card title="Deployed Addresses" icon="map-pin" href="/developer/addresses">
-    Program IDs, PDAs, and the devnet USDC mint.
-  </Card>
-  <Card title="Test Suite" icon="flask" href="/developer/test-suite">
-    Run the Anchor suite locally against `solana-test-validator`.
+  <Card title="Deposit example" icon="code" href="/developer/invest">
+    Deposit USDC into a tranche end-to-end.
   </Card>
 </CardGroup>

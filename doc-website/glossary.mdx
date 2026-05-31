@@ -6,7 +6,7 @@ title: Glossary
 
 ## AMM
 
-Automated market maker. PRISM uses constant-product AMMs to trade tranche tokens against USDC.
+Automated market maker. PRISM uses Soroswap constant-product pools to trade tranche tokens against USDC.
 
 ## Constant-Product
 
@@ -14,7 +14,7 @@ The AMM pricing rule `x * y = k`, where `x` and `y` are reserves of the two toke
 
 ## Credit Event
 
-An event that reduces vault assets and triggers the loss cascade. Examples include borrower default, partial loss, and recovery.
+An event that records a vault impairment and applies the loss cascade. The direct admin path accepts default and partial-loss events; oracle-backed handlers can also prove a default or collateral liquidation.
 
 ## Default Cascade
 
@@ -22,7 +22,7 @@ The reverse-priority loss application that absorbs realized losses Alpha → Cor
 
 ## Alpha Tranche
 
-The highest-risk tranche. Alpha targets 15% yield and absorbs losses first.
+The highest-risk tranche. Alpha receives yield remaining after Prime and Core fill their configured targets, and it absorbs losses first.
 
 ## Fixed-Point (Q64.64)
 
@@ -34,7 +34,7 @@ An account that deposits both sides of an AMM pool (a tranche token and USDC) an
 
 ## Loss Bucket
 
-A program-controlled token account that holds USDC moved out of the vault reserve when a credit event is realized. Maintains the reserve invariant by absorbing the cash that corresponds to the realized loss.
+An internal accounting balance maintained by `prism_core`. When a credit event reduces tranche assets, the contract increments this balance by the realized loss while keeping the corresponding USDC in the contract.
 
 ## Core Tranche
 
@@ -48,21 +48,21 @@ Net asset value per share.
 NAV = total_assets / total_supply
 ```
 
-## PDA
+## Contract Authority
 
-Program-derived address. A deterministic account address generated from program-defined seeds and signed only by the owning program. PRISM uses PDAs to hold authority over vault reserves, tranche mints, AMM pools, and LP mints.
+On Soroban, the `prism_core` contract address holds and moves the vault USDC reserve and mints and burns tranche tokens. Privileged flows require configured admin authentication, but reserve transfers remain enforced by contract code.
 
 ## pALPHA
 
-SPL token representing a claim on the Alpha tranche.
+Soroban token representing a claim on the Alpha tranche.
 
 ## pCORE
 
-SPL token representing a claim on the Core tranche.
+Soroban token representing a claim on the Core tranche.
 
 ## pPRIME
 
-SPL token representing a claim on the Prime tranche.
+Soroban token representing a claim on the Prime tranche.
 
 ## PRISM
 
@@ -70,17 +70,17 @@ SPL token representing a claim on the Prime tranche.
 
 ## Reserve (Vault Reserve)
 
-The USDC token account held by a vault. Stores all deposited USDC and source funds for withdrawals.
+The USDC balance held by `prism_core`. It stores deposited USDC, incoming yield, and the amounts represented by internal loss accounting, and it sources funds for withdrawals.
 
 ## Reserve Invariant
 
-The accounting rule that the vault USDC reserve must equal the sum of tranche assets at all times.
+The accounting rule that the contract USDC balance must equal tranche assets plus the internal loss-accounting balance.
 
 ```text
-reserve = prime_assets + core_assets + alpha_assets
+contract_usdc_balance = prime_assets + core_assets + alpha_assets + loss_bucket_balance
 ```
 
-Maintained by transferring loss USDC to the loss bucket whenever a credit event reduces tranche assets.
+Maintained by incrementing `loss_bucket_balance` whenever a credit event reduces tranche assets.
 
 ## Prime Tranche
 
@@ -96,7 +96,7 @@ The hierarchy that determines which tranche absorbs losses first. Alpha is most 
 
 ## Tranche
 
-A risk-segmented slice of a credit vault. Each tranche has its own NAV, target yield, loss position, and SPL token.
+A risk-segmented slice of a credit vault. Each tranche has its own NAV, target yield, loss position, and tranche token.
 
 ## Vault
 
@@ -104,4 +104,4 @@ A single PRISM credit pool. Contains a USDC reserve, three tranches, optional lo
 
 ## Waterfall
 
-The deterministic payment order used to distribute incoming yield. Prime receives its 5% target first, then Core receives 8%, then Alpha receives 15%.
+The deterministic payment order used to distribute incoming yield. Prime fills its configured target first, Core fills its configured target second, and Alpha receives the remaining yield.

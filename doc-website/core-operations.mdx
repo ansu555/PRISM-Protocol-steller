@@ -22,16 +22,16 @@ For the first deposit into a tranche, shares are minted 1:1 with deposited USDC.
 
 ## Yield Accrual
 
-Authorized accounts transfer USDC into the vault, triggering distribution across tranches.
+The protocol admin accrues yield from an authenticated payer account, triggering distribution across tranches.
 
 Yield flow:
 
-1. Authorized yield source calls the accrual instruction.
+1. Admin calls `accrue_yield` with an authenticated payer.
 2. USDC enters the vault reserve.
 3. Protocol computes each tranche's waterfall entitlement.
 4. Prime receives target yield first.
 5. Core receives target yield second.
-6. Alpha receives yield up to its 15% target.
+6. Alpha receives the remaining yield.
 7. NAV updates for every affected tranche.
 
 ## Credit Events
@@ -40,13 +40,13 @@ A credit event reduces total assets in the system according to predefined loss p
 
 Credit event flow:
 
-1. Oracle or authorized admin submits a loss amount.
+1. Admin submits a credit event, or an allowlisted oracle attestation proves a default or collateral liquidation.
 2. Protocol records the credit event.
 3. Loss is applied to Alpha first.
 4. Remaining loss is applied to Core.
 5. Any remaining loss is applied to Prime.
-6. USDC moves from vault reserve to the loss sink.
-7. NAV updates to reflect the realized loss.
+6. The internal loss-accounting balance increases by the realized loss.
+7. NAV updates to reflect the realized loss while USDC remains held by `prism_core`.
 
 ## Withdrawal
 
@@ -64,7 +64,7 @@ If NAV has fallen due to losses, withdrawal value falls with it.
 
 ## Trading
 
-Users may trade tranche tokens on AMM pools.
+Users may trade tranche tokens through Soroswap pools.
 
 Trading flow:
 

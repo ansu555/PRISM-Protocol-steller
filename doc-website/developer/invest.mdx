@@ -1,334 +1,149 @@
 ---
-title: Invest in a Tranche
-description: Deposit USDC into a PRISM tranche (Prime, Core, or Alpha) and receive tranche tokens at the current NAV. Includes withdraw, AMM exit, and strategy presets.
+title: Deposit into a Tranche
+description: A complete example — establish a USDC trustline, deposit into a PRISM tranche, read your position at NAV, and withdraw, with typed error handling.
 ---
 
-# Invest in a Tranche
+# Deposit into a Tranche
 
-Each PRISM vault is partitioned into three tranches with different risk profiles. Investors choose a tranche, deposit USDC, and receive tranche tokens (`pPRIME`, `pCORE`, or `pALPHA`) at the current NAV. Yield accrues by lifting NAV; credit losses absorb in reverse priority by lowering the junior tranche's NAV first.
+This walkthrough deposits USDC into the **Core** tranche of vault `0`, reads the resulting position, and withdraws. It uses the `server`, `contract`, and `signer` from [Connect a Client](/developer/connect).
 
-## Tranches at a Glance
+## 1. Hold USDC
 
-| Tranche | Token | Target APY | Loss order | Capital profile |
-| --- | --- | --- | --- | --- |
-| Prime | `pPRIME` | 5% | Absorbs last | Conservative — paid first, protected by junior capital |
-| Core | `pCORE` | 8% | Absorbs second | Balanced — meaningful yield with a buffer below |
-| Alpha | `pALPHA` | 15% | Absorbs first | Levered — first-loss capital, highest yield potential |
+PRISM settles in USDC. On Stellar, an account must hold a **trustline** to an asset before it can receive it. The frontend does this for the user; from a script you add it once:
 
-Choose by risk tolerance, not nominal yield. A 15% APY target on Alpha only realizes if the underlying credit performs; if it doesn't, Alpha takes the entire loss before any other tranche is touched.
+```ts
+import { Operation, Asset, TransactionBuilder, BASE_FEE, Networks } from '@stellar/stellar-sdk';
 
-## The Reserve Invariant
+// Testnet PRISM uses a mintable test USDC (code PTUSDC) so demos are fully scriptable.
+const usdc = new Asset('PTUSDC', 'GCZFPAJEJHMQPZ4BQUWUEBV7KJQ7GEKDF4FAWYUW4NOIRSWXCMDEOESW');
 
-Before writing any code, internalize the one invariant that drives every deposit and withdrawal:
-
-```text
-vault_usdc_reserve == prime.total_assets + core.total_assets + alpha.total_assets
+const account = await server.getAccount(signer.publicKey());
+const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: Networks.TESTNET })
+  .addOperation(Operation.changeTrust({ asset: usdc }))
+  .setTimeout(30)
+  .build();
+tx.sign(signer);
+await server.sendTransaction(tx);
 ```
 
-Deposits push USDC into the reserve and credit the chosen tranche. Withdrawals pull USDC out and decrement that tranche. Yield events increase one or more tranche balances. Loss events move USDC out of the reserve into a loss bucket account so the invariant always holds.
+## 2. Deposit
 
-This means every deposit you make grows exactly one tranche's `total_assets`, and your tranche tokens represent a proportional claim on that tranche's slice of the reserve.
+`deposit` pulls USDC from the caller, mints tranche tokens at the current NAV, and updates vault accounting in one transaction. It returns the number of shares minted. The on-chain signature is:
 
-## Pre-flight Checks
-
-Before invoking `deposit`, verify four conditions client-side. The on-chain handler enforces all of them — your transaction reverts with a typed `PrismError` if any fails — but failing fast on the client gives a better UX:
-
-| Requirement | How to verify |
-| --- | --- |
-| Vault state is `Active` | `vault.state` enum equals `{ active: {} }` |
-| Protocol not paused | `config.paused === false` |
-| Tranche not wiped | `tranche.navPerShareQ > 0n` (or `tranche.totalSupply === 0n` for first deposit) |
-| User has enough USDC | `userUsdcAta.amount >= amount` |
-
-```typescript
-import { getConfigPda, getTranchePda, getVaultPda, TrancheKind } from 'prismprotocol-sdk';
-
-const [config] = getConfigPda();
-const [vault] = getVaultPda(0);
-const [tranchePda] = getTranchePda(vault, TrancheKind.Prime);
-
-const [configAcc, vaultAcc, trancheAcc] = await Promise.all([
-  core.account.globalConfig.fetch(config),
-  core.account.vault.fetch(vault),
-  core.account.tranche.fetch(tranchePda),
-]);
-
-if (configAcc.paused) throw new Error('Protocol is paused');
-if (!('active' in vaultAcc.state)) throw new Error('Vault is not Active');
-
-const supply = BigInt(trancheAcc.totalSupply.toString());
-const navQ = BigInt(trancheAcc.navPerShareQ.toString());
-if (supply > 0n && navQ === 0n) {
-  throw new Error('Tranche has been wiped — deposits blocked');
-}
+```rust
+deposit(user: Address, vault_id: u32, kind: u32, amount: i128) -> i128
 ```
 
-## Full Deposit Example
-
-```typescript
-import { BN } from '@coral-xyz/anchor';
+```ts
 import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddress,
-} from '@solana/spl-token';
-import { SystemProgram } from '@solana/web3.js';
-import {
-  TrancheKind,
-  USDC_MINT,
-  buildPrograms,
-  getConfigPda,
-  getTrancheMintPda,
-  getTranchePda,
-  getVaultPda,
-  getVaultReservePda,
-} from 'prismprotocol-sdk';
+  TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative,
+} from '@stellar/stellar-sdk';
 
-const VAULT_ID = 0;
-const KIND = TrancheKind.Prime;
-const AMOUNT = new BN(1_000 * 1_000_000); // 1,000 USDC, 6 decimals
+const TrancheKind = { Prime: 0, Core: 1, Alpha: 2 } as const;
 
-const { core } = buildPrograms(connection, signer);
+async function deposit(vaultId: number, kind: number, amountUsdc: bigint) {
+  const account = await server.getAccount(signer.publicKey());
 
-const [config]        = getConfigPda();
-const [vault]         = getVaultPda(VAULT_ID);
-const [tranche]       = getTranchePda(vault, KIND);
-const [trancheMint]   = getTrancheMintPda(vault, KIND);
-const [vaultReserve]  = getVaultReservePda(vault);
-
-const userUsdcAta    = await getAssociatedTokenAddress(USDC_MINT, signer.publicKey);
-const userTrancheAta = await getAssociatedTokenAddress(trancheMint, signer.publicKey);
-
-const sig = await core.methods
-  .deposit(KIND, AMOUNT)
-  .accounts({
-    user: signer.publicKey,
-    config,
-    vault,
-    tranche,
-    trancheMint,
-    userUsdcAta,
-    vaultUsdcReserve: vaultReserve,
-    userTrancheAta,
-    tokenProgram: TOKEN_PROGRAM_ID,
-    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-    systemProgram: SystemProgram.programId,
+  const tx = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: Networks.TESTNET,
   })
-  .signers([signer])
-  .rpc({ commitment: 'confirmed' });
+    .addOperation(
+      contract.call(
+        'deposit',
+        new Address(signer.publicKey()).toScVal(),     // user (signs + authorizes)
+        nativeToScVal(vaultId, { type: 'u32' }),       // vault_id
+        nativeToScVal(kind, { type: 'u32' }),          // kind (TrancheKind)
+        nativeToScVal(amountUsdc, { type: 'i128' }),   // amount (7 decimals)
+      ),
+    )
+    .setTimeout(30)
+    .build();
 
-console.log('deposit signature:', sig);
+  const prepared = await server.prepareTransaction(tx);
+  prepared.sign(signer);
+  return server.sendTransaction(prepared);
+}
+
+// Deposit 1,000 USDC into Core (1_000 * 1e7)
+await deposit(0, TrancheKind.Core, 10_000_000_000n);
 ```
-
-The `init_if_needed` constraint on the `userTrancheAta` account means a brand-new user — one who has never held this tranche — does not need a separate ATA-creation transaction. The deposit creates the ATA in the same instruction.
-
-## How Shares Are Computed
-
-PRISM uses NAV-per-share accounting in Q64.64 fixed-point math. On deposit:
-
-```text
-shares_minted = first deposit?      → usdc_amount             (1:1 at NAV = 1.0)
-                otherwise            → usdc_amount × Q64_ONE / nav_per_share_q
-```
-
-The handler atomically:
-
-1. Validates pre-flight conditions (vault active, not paused, tranche not wiped).
-2. Computes `shares_minted` using the formula above.
-3. Transfers `usdc_amount` from your USDC ATA to the vault reserve.
-4. Mints `shares_minted` of the tranche token to your tranche ATA.
-5. Updates `tranche.total_assets` and `tranche.total_supply`.
-6. Recomputes `tranche.nav_per_share_q` from the updated assets and supply.
-7. Updates `tranche.last_nav_update_ts` to the current Solana clock.
 
 <Note>
-NAV is unchanged after a deposit — the numerator and denominator increase proportionally. Yield events are what move NAV up; credit events are what move it down.
+  `user.require_auth()` runs inside the contract, so the `user` address must sign the transaction. With Freighter, the connected wallet is both the source account and the authorizing address.
 </Note>
 
-### Computing Expected Shares Off-Chain
+## 3. Read your position
 
-Use this when you want to show the user how many tranche tokens they will receive *before* signing:
+Tranche tokens are standard Soroban tokens. Read your `pCORE` balance from the tranche token contract, and read NAV from the `Tranche` struct via `get_tranche`:
 
-```typescript
-import { Q64_ONE } from 'prismprotocol-sdk';
-
-function expectedShares(usdcMicro: bigint, navQ: bigint, totalSupply: bigint): bigint {
-  if (totalSupply === 0n) return usdcMicro;       // first deposit: 1:1
-  if (navQ === 0n) throw new Error('Tranche wiped — deposits blocked');
-  return (usdcMicro * Q64_ONE) / navQ;
-}
-
-const sharesOut = expectedShares(
-  1_000_000_000n,                                  // 1,000 USDC
-  BigInt(tranche.navPerShareQ.toString()),
-  BigInt(tranche.totalSupply.toString()),
+```ts
+// NAV per share is Tranche.nav_per_share_q — a Q64.64 fixed-point i128.
+const tranche = await readContract(PRISM_CORE, 'get_tranche',
+  nativeToScVal(0, { type: 'u32' }),
+  nativeToScVal(TrancheKind.Core, { type: 'u32' }),
 );
 
-console.log(`You will receive ${sharesOut} ${TrancheKind[KIND]} micro-shares`);
+const nav = Number(tranche.nav_per_share_q) / 2 ** 64;  // human-readable ratio
+const shares = await readTokenBalance(PTOKEN_CORE, signer.publicKey());
+const positionUsdc = (Number(shares) / 1e7) * nav;
 ```
 
-The math is identical to the on-chain handler, so the displayed quantity matches the minted quantity exactly.
+Your redemption value is always `shares × NAV`, regardless of what you paid on the secondary market.
 
-### A Worked Example
+## 4. Withdraw
 
-| Step | Tranche assets | Supply | NAV | User pPRIME |
-| --- | --- | --- | --- | --- |
-| Pool empty | 0 | 0 | undefined | 0 |
-| User A deposits 1,000 USDC | 1,000 | 1,000 | 1.0 | 1,000 |
-| User B deposits 1,000 USDC | 2,000 | 2,000 | 1.0 | 1,000 |
-| Yield of 200 USDC accrues to Prime | 2,200 | 2,000 | 1.10 | 1,000 (still) |
-| User C deposits 1,000 USDC at NAV 1.10 | 3,200 | 2,909.09... | 1.10 | 909.09 |
+`withdraw` burns tranche tokens and returns USDC at the current NAV (the payout amount is the return value):
 
-User A and B's tokens are now worth more (NAV 1.10), but no new tokens were minted to them. User C entered at the higher NAV and got proportionally fewer tokens. NAV stays at 1.10 after C's deposit.
-
-## Withdraw Flow
-
-The mirror operation burns tranche tokens and pays out at current NAV:
-
-```typescript
-const sharesAmount = new BN(1_000 * 1_000_000); // 1,000 micro-shares
-
-await core.methods
-  .withdraw(KIND, sharesAmount)
-  .accounts({
-    user: signer.publicKey,
-    config,
-    vault,
-    tranche,
-    trancheMint,
-    vaultUsdcReserve: vaultReserve,
-    userTrancheAta,
-    userUsdcAta,
-    tokenProgram: TOKEN_PROGRAM_ID,
-  })
-  .signers([signer])
-  .rpc({ commitment: 'confirmed' });
+```rust
+withdraw(user: Address, vault_id: u32, kind: u32, shares: i128) -> i128
 ```
 
-Payout = `shares × nav_per_share_q / Q64_ONE`. After a credit event, NAV may be lower than at deposit — withdraw still settles at *current* NAV. After Alpha is wiped, an Alpha withdrawal returns 0 USDC; the burn still succeeds.
-
-### Computing Expected Payout
-
-```typescript
-function expectedPayout(shares: bigint, navQ: bigint): bigint {
-  return (shares * navQ) >> 64n;
-}
-
-const usdcOut = expectedPayout(
-  1_000_000_000n,                                  // 1,000 micro-shares
-  BigInt(tranche.navPerShareQ.toString()),
-);
-
-console.log(`You will receive ${Number(usdcOut) / 1_000_000} USDC`);
-```
-
-### Insufficient Reserve
-
-If the vault reserve does not have enough USDC to cover your withdrawal — for example, after capital has been disbursed to a borrower and not yet repaid — the transaction reverts with `InsufficientLiquidity`. Two recovery paths:
-
-1. **Wait and retry.** The reserve grows with every yield event and repayment.
-2. **Exit through the AMM.** Sell tranche tokens for USDC at market price (which may be at a discount or premium to NAV).
-
-The PRISM frontend surfaces this fork automatically — when withdraw fails, an "AMM Exit" button appears.
-
-## Strategy Presets (Multi-Tranche Deposit)
-
-Combine three deposits into a single transaction for one-click portfolio allocation:
-
-```typescript
-import { Transaction } from '@solana/web3.js';
-
-const PRESETS = {
-  conservative: { prime: 70, core: 20, alpha: 10 },
-  balanced:     { prime: 50, core: 30, alpha: 20 },
-  aggressive:   { prime: 20, core: 30, alpha: 50 },
-} as const;
-
-async function applyPreset(
-  preset: keyof typeof PRESETS,
-  totalUsdcMicro: BN,
-) {
-  const allocation = PRESETS[preset];
-  const total = totalUsdcMicro;
-
-  const ixs = await Promise.all(
-    [TrancheKind.Prime, TrancheKind.Core, TrancheKind.Alpha].map(async (kind) => {
-      const pct = kind === TrancheKind.Prime ? allocation.prime
-                : kind === TrancheKind.Core  ? allocation.core
-                :                              allocation.alpha;
-      const amount = total.muln(pct).divn(100);
-      const [trancheMint] = getTrancheMintPda(vault, kind);
-      const [tranchePda] = getTranchePda(vault, kind);
-      const userTrancheAta = await getAssociatedTokenAddress(trancheMint, signer.publicKey);
-
-      return core.methods
-        .deposit(kind, amount)
-        .accounts({
-          user: signer.publicKey,
-          config,
-          vault,
-          tranche: tranchePda,
-          trancheMint,
-          userUsdcAta,
-          vaultUsdcReserve: vaultReserve,
-          userTrancheAta,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        })
-        .instruction();
-    }),
-  );
-
-  const tx = new Transaction().add(...ixs);
-  return await provider.sendAndConfirm(tx);
-}
-
-await applyPreset('balanced', new BN(10_000 * 1_000_000));   // 10K USDC across 3 tranches
-```
-
-Three deposit instructions fit comfortably under Solana's 1232-byte transaction limit. If you ever need more (e.g., depositing across multiple vaults in one tx), use Versioned Transactions with Address Lookup Tables.
-
-## Common Errors
-
-The on-chain handler raises typed errors. Use the SDK's `decodeAnchorError` helper to surface them in your UI:
-
-| Error | Meaning | What to do |
-| --- | --- | --- |
-| `VaultPaused` | Protocol is in emergency pause | Wait for admin to unpause |
-| `VaultNotActive` | Vault is `Defaulted` or `Resolved` | Cannot deposit — read-only |
-| `TrancheWipedNoDepositsAllowed` | NAV is 0 with non-zero supply | Deposit into a different tranche or wait for recovery |
-| `InsufficientLiquidity` (withdraw) | Reserve doesn't cover the withdrawal | Wait or use AMM exit |
-| Token error: `0x1` | User doesn't have enough USDC | Check `userUsdcAta.amount` |
-| Custom: `BorrowerMismatch` | Wrong signer for `accrue_yield` | Use the borrower account stored on the loan |
-
-```typescript
-import { decodeAnchorError } from 'prismprotocol-sdk';
-
-try {
-  await core.methods.deposit(KIND, AMOUNT).accounts({ /* ... */ }).rpc();
-} catch (raw) {
-  const decoded = decodeAnchorError(raw);
-  switch (decoded?.error) {
-    case 'VaultPaused':
-      toast.warn('Protocol paused — try again later');
-      break;
-    case 'TrancheWipedNoDepositsAllowed':
-      toast.error('This tranche was wiped by a credit event. Pick another tranche.');
-      break;
-    default:
-      throw raw;
-  }
+```ts
+async function withdraw(vaultId: number, kind: number, shares: bigint) {
+  const account = await server.getAccount(signer.publicKey());
+  const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: Networks.TESTNET })
+    .addOperation(contract.call('withdraw',
+      new Address(signer.publicKey()).toScVal(),   // user
+      nativeToScVal(vaultId, { type: 'u32' }),     // vault_id
+      nativeToScVal(kind, { type: 'u32' }),        // kind
+      nativeToScVal(shares, { type: 'i128' }),     // shares to burn
+    ))
+    .setTimeout(30)
+    .build();
+  const prepared = await server.prepareTransaction(tx);
+  prepared.sign(signer);
+  return server.sendTransaction(prepared);
 }
 ```
 
-## What's Next
+Withdrawal is allowed while the vault is `Active` or `Defaulted`, so LPs can exit a written-down tranche. Redeeming a wiped tranche (NAV 0) burns the shares and pays 0 — that is intentional.
+
+## Error handling
+
+Failed simulations and submissions carry the `prism_core` error code. Map it to a message before showing it to a user:
+
+```ts
+const PRISM_ERRORS: Record<number, string> = {
+  1:  'This vault is not active.',
+  2:  'Protocol is paused — deposits and withdrawals are temporarily disabled.',
+  14: 'This tranche has been wiped; deposits are blocked while worthless shares remain outstanding.',
+};
+
+function explain(code: number) {
+  return PRISM_ERRORS[code] ?? `Contract error ${code}`;
+}
+```
+
+See the full table in [SDK & Bindings](/developer/sdk#error-codes).
+
+## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Deployed Addresses" icon="map-pin" href="/developer/addresses">
-    Reference for every program ID, PDA seed, and mint.
+  <Card title="Addresses" icon="book" href="/developer/addresses">
+    Contract IDs and every function signature.
   </Card>
-  <Card title="Test Suite" icon="flask" href="/developer/test-suite">
-    Run end-to-end deposit / yield / withdraw tests locally.
+  <Card title="Test suite" icon="flask" href="/developer/test-suite">
+    Run the on-chain invariant tests locally.
   </Card>
 </CardGroup>
