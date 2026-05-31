@@ -37,7 +37,19 @@ export function AppNavbar() {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const [networkMenuOpen, setNetworkMenuOpen] = useState(false);
-  const [currentNetwork, setCurrentNetwork] = useState<'testnet' | 'mainnet'>('testnet');
+  const [currentNetwork, setCurrentNetwork] = useState<'testnet' | 'mainnet'>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('prism_network');
+      if (stored === 'mainnet' || stored === 'testnet') return stored;
+    }
+    return (process.env.NEXT_PUBLIC_STELLAR_NETWORK as 'testnet' | 'mainnet') ?? 'testnet';
+  });
+
+  function switchNetwork(net: 'testnet' | 'mainnet') {
+    if (net === currentNetwork) return;
+    window.localStorage.setItem('prism_network', net);
+    window.location.reload();
+  }
   const networkDropdownRef = useRef<HTMLDivElement>(null);
   const networkButtonRef = useRef<HTMLDivElement>(null);
 
@@ -218,7 +230,7 @@ export function AppNavbar() {
                 <button
                   type="button"
                   onClick={() => {
-                    setCurrentNetwork('testnet');
+                    switchNetwork('testnet');
                     setNetworkMenuOpen(false);
                   }}
                   className={cn(
@@ -235,17 +247,27 @@ export function AppNavbar() {
                   )}
                 </button>
 
-                <div
-                  className="flex w-full items-center justify-between px-4 py-3 text-left font-mono text-xs text-white/20 cursor-not-allowed select-none border-t border-white/[0.03]"
+                <button
+                  onClick={() => {
+                    switchNetwork('mainnet');
+                    setNetworkMenuOpen(false);
+                  }}
+                  className={cn(
+                    'flex w-full items-center justify-between px-4 py-3 text-left font-mono text-xs transition-colors hover:bg-white/[0.02] border-t border-white/[0.03]',
+                    currentNetwork === 'mainnet' ? 'text-white font-bold' : 'text-white/60'
+                  )}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/10" />
+                    <span className={cn(
+                      'h-1.5 w-1.5 rounded-full',
+                      currentNetwork === 'mainnet' ? 'bg-emerald-400' : 'bg-white/30'
+                    )} />
                     Mainnet
                   </div>
-                  <span className="text-[9px] bg-white/[0.03] text-white/30 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider font-mono">
-                    Soon
-                  </span>
-                </div>
+                  {currentNetwork === 'mainnet' && (
+                    <span className="text-[10px] text-emerald-400 font-mono">ACTIVE</span>
+                  )}
+                </button>
               </div>
             )}
           </div>

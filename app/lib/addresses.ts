@@ -104,9 +104,16 @@ export const CONTRACTS: Record<'testnet' | 'mainnet', ContractSet> = {
   },
 };
 
-/** Which network to use. Defaults to testnet in all non-production environments. */
-export const ACTIVE_NETWORK: 'testnet' | 'mainnet' =
-  (process.env.NEXT_PUBLIC_STELLAR_NETWORK as 'testnet' | 'mainnet') ?? 'testnet';
+/** Which network to use. localStorage key overrides the env var at runtime. */
+function resolveNetwork(): 'testnet' | 'mainnet' {
+  if (typeof window !== 'undefined') {
+    const stored = window.localStorage.getItem('prism_network');
+    if (stored === 'mainnet' || stored === 'testnet') return stored;
+  }
+  return (process.env.NEXT_PUBLIC_STELLAR_NETWORK as 'testnet' | 'mainnet') ?? 'testnet';
+}
+
+export const ACTIVE_NETWORK: 'testnet' | 'mainnet' = resolveNetwork();
 
 /** Shorthand: the currently active contract set. */
 export const ACTIVE_CONTRACTS: ContractSet = CONTRACTS[ACTIVE_NETWORK];
