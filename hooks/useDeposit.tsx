@@ -3,14 +3,13 @@
 // Deposit USDC into a tranche by invoking `deposit` on prism-core.
 //
 // Soroban flow:
-//   1. Build the contract-call tx via app/lib/stellar's ContractClient.invoke
-//   2. The user signs via the connected Stellar wallet (Freighter etc.)
-//   3. Result is the new pToken share count
-//
-// Hook shape kept stable so dashboard components don't change.
+//   1. Auto-establish pToken trustline if missing (changeTrust → Horizon)
+//   2. Build the deposit contract-call tx and simulate via Soroban RPC
+//   3. The user signs via the connected Stellar wallet (Freighter etc.)
+//   4. Submit + poll for confirmation
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { TransactionBuilder } from '@stellar/stellar-sdk';
+import { Asset, Operation, TransactionBuilder } from '@stellar/stellar-sdk';
 import { toast } from 'sonner';
 
 import { NETWORK_PASSPHRASE, TrancheKind } from '@/app/lib/constants';
@@ -27,14 +26,14 @@ import { useStellarWallet } from '@/components/providers/stellar-wallet-provider
 
 const TRANCHE_LABELS = ['Prime', 'Core', 'Alpha'];
 
-// The pToken SACs on mainnet were issued by this account. Stellar forbids the
-// issuer of a classic asset from holding that asset, so any `mint` call with
-// this address as recipient will fail with "operation invalid on issuer".
-// Users must connect a different wallet to deposit on mainnet.
-const PTOKEN_ISSUER_MAINNET = 'GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO';
+// Issuer of the underlying classic Stellar asset wrapped by each pToken SAC.
+// On each network this is the deployer account that ran `stellar contract asset deploy`.
+const PTOKEN_ISSUER: Record<'testnet' | 'mainnet', string> = {
+  mainnet: 'GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO',
+  testnet: 'GCZFPAJEJHMQPZ4BQUWUEBV7KJQ7GEKDF4FAWYUW4NOIRSWXCMDEOESW',
+};
 
-// Classic asset codes for each tranche's pToken (issuer = PTOKEN_ISSUER_MAINNET on mainnet).
-// Wallets must hold a trustline for this asset before prism_core can mint into them.
+// Classic asset codes for each tranche's pToken.
 const PTOKEN_ASSET_CODE: Record<TrancheKind, string> = {
   [TrancheKind.Prime]: 'PPRIME',
   [TrancheKind.Core]: 'PCORE',
@@ -58,35 +57,52 @@ export function useDeposit() {
         throw new Error('Connect a Stellar wallet first');
       }
 
-      // The pToken issuer account cannot receive minted tokens — Stellar rejects
-      // it with "operation invalid on issuer". Catch this before submitting.
-      if (ACTIVE_NETWORK === 'mainnet' && wallet.address === PTOKEN_ISSUER_MAINNET) {
+      const issuer = PTOKEN_ISSUER[ACTIVE_NETWORK];
+
+      // The pToken issuer cannot hold its own issued asset — Stellar rejects
+      // mint with "operation invalid on issuer".
+      if (wallet.address === issuer) {
         throw new Error(
           'This wallet is the pToken issuer and cannot hold pTokens. ' +
           'Connect a different Stellar wallet to deposit.',
         );
       }
 
+      const horizon = getHorizonServer();
       const core = getCoreClient();
       const server = getRpcServer();
-      const source = await getHorizonServer().loadAccount(wallet.address);
 
-      // Stellar requires a trustline before any asset can be received. Check
-      // before submitting so we get a clear error instead of a cryptic on-chain failure.
-      if (ACTIVE_NETWORK === 'mainnet') {
-        const assetCode = PTOKEN_ASSET_CODE[trancheKind];
-        const hasTrustline = source.balances.some(
-          (b) =>
-            b.asset_type !== 'native' &&
-            (b as { asset_code: string; asset_issuer: string }).asset_code === assetCode &&
-            (b as { asset_code: string; asset_issuer: string }).asset_issuer === PTOKEN_ISSUER_MAINNET,
-        );
-        if (!hasTrustline) {
-          throw new Error(
-            `Your wallet has no trustline for ${assetCode}. ` +
-            `In Freighter: Add Asset → enter code "${assetCode}" and issuer "${PTOKEN_ISSUER_MAINNET}".`,
-          );
-        }
+      let source = await horizon.loadAccount(wallet.address);
+
+      // Auto-establish the pToken trustline if the wallet doesn't have one yet.
+      // Stellar requires a trustline before any asset can be minted to an account.
+      // We submit a changeTrust tx first (one extra Freighter prompt, first deposit only).
+      const assetCode = PTOKEN_ASSET_CODE[trancheKind];
+      const hasTrustline = source.balances.some(
+        (b) =>
+          b.asset_type !== 'native' &&
+          (b as { asset_code: string; asset_issuer: string }).asset_code === assetCode &&
+          (b as { asset_code: string; asset_issuer: string }).asset_issuer === issuer,
+      );
+
+      if (!hasTrustline) {
+        toast.info(`Adding ${assetCode} trustline to your wallet…`);
+
+        const pTokenAsset = new Asset(assetCode, issuer);
+        const trustTx = new TransactionBuilder(source, {
+          fee: '1000',
+          networkPassphrase: NETWORK_PASSPHRASE,
+        })
+          .addOperation(Operation.changeTrust({ asset: pTokenAsset }))
+          .setTimeout(60)
+          .build();
+
+        const signedTrustXdr = await wallet.signTransaction(trustTx.toXDR());
+        const signedTrustTx = TransactionBuilder.fromXDR(signedTrustXdr, NETWORK_PASSPHRASE);
+        await horizon.submitTransaction(signedTrustTx as never);
+
+        // Reload account — sequence number advanced after the trustline tx.
+        source = await horizon.loadAccount(wallet.address);
       }
 
       // Build a tx invoking `deposit(user, vault_id, kind, amount)`.
