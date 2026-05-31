@@ -10,19 +10,10 @@
 // Hook shape kept stable so dashboard components don't change.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Address,
-  Networks,
-  Operation,
-  TransactionBuilder,
-} from '@stellar/stellar-sdk';
+import { TransactionBuilder } from '@stellar/stellar-sdk';
 import { toast } from 'sonner';
 
-import {
-  NETWORK_PASSPHRASE,
-  PRISM_CORE_CONTRACT_ID,
-  TrancheKind,
-} from '@/app/lib/constants';
+import { NETWORK_PASSPHRASE, TrancheKind } from '@/app/lib/constants';
 import {
   addr,
   getCoreClient,
@@ -35,6 +26,12 @@ import { useSelectedVaultId } from '@/hooks/useSelectedVault';
 import { useStellarWallet } from '@/components/providers/stellar-wallet-provider';
 
 const TRANCHE_LABELS = ['Prime', 'Core', 'Alpha'];
+
+// The pToken SACs on mainnet were issued by this account. Stellar forbids the
+// issuer of a classic asset from holding that asset, so any `mint` call with
+// this address as recipient will fail with "operation invalid on issuer".
+// Users must connect a different wallet to deposit on mainnet.
+const PTOKEN_ISSUER_MAINNET = 'GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO';
 
 export function useDeposit() {
   const wallet = useStellarWallet();
@@ -51,6 +48,15 @@ export function useDeposit() {
     }) => {
       if (!wallet.address) {
         throw new Error('Connect a Stellar wallet first');
+      }
+
+      // The pToken issuer account cannot receive minted tokens — Stellar rejects
+      // it with "operation invalid on issuer". Catch this before submitting.
+      if (ACTIVE_NETWORK === 'mainnet' && wallet.address === PTOKEN_ISSUER_MAINNET) {
+        throw new Error(
+          'This wallet is the pToken issuer and cannot hold pTokens. ' +
+          'Connect a different Stellar wallet to deposit.',
+        );
       }
 
       const core = getCoreClient();
