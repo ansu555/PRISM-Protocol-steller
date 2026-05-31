@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { CheckCircle2, Clock, FileText, Loader2, ShieldCheck, TrendingUp, XCircle, Zap } from 'lucide-react';
+import { CheckCircle2, Clock, FileText, Loader2, ShieldCheck, Trash2, TrendingUp, XCircle, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -23,8 +23,9 @@ export default function LoansAdminPage() {
   const wallet = useStellarWallet();
   const { vaultId, addLog } = useAdminVault();
   const vaultState = useVaultState(vaultId);
-  const { applications, approve, reject } = useLoanApplications();
+  const { applications, approve, reject, clearAll } = useLoanApplications();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
 
   const pending = applications.filter((app) => app.status === 'pending');
   const approved = applications.filter((app) => app.status === 'approved');
@@ -33,12 +34,40 @@ export default function LoansAdminPage() {
   async function approveApplication(app: LoanApplication) {
     setBusyId(app.id);
     try {
-      const loanId = app.loanId ?? (Math.floor(Date.now() / 1000) >>> 0);
-      approve(app.id, loanId, DEFAULT_APR_BPS);
-      addLog(`Loan application ${app.id.slice(0, 8)} approved for Stellar loan #${loanId}.`);
-      toast.success('Application approved');
+      const principalMicro = BigInt(Math.round(app.requestedUSDC * 10_000_000));
+      const res = await fetch('/api/simulation/admin-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'init_loan',
+          borrower: app.borrowerPubkey,
+          principal: principalMicro.toString(),
+          aprBps: DEFAULT_APR_BPS,
+          maturityDays: app.maturityDays,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error ?? 'init_loan failed');
+      await approve(app.id, data.loanId, DEFAULT_APR_BPS);
+      addLog(`Loan #${data.loanId} originated on Stellar for ${app.borrowerPubkey.slice(0, 8)}…`);
+      toast.success(`Loan #${data.loanId} originated on Stellar`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Approval failed');
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function handleClearAll() {
+    if (!confirm('Delete all loan applications? This cannot be undone.')) return;
+    setClearing(true);
+    try {
+      await clearAll('all');
+      toast.success('All loan applications cleared');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Clear failed');
+    } finally {
+      setClearing(false);
     }
   }
 
@@ -76,8 +105,20 @@ export default function LoansAdminPage() {
               Borrower queue · Collateral attestations · Vault #{vaultId}
             </p>
           </div>
-          <div className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/35">
-            {wallet.address ? `${wallet.address.slice(0, 4)}...${wallet.address.slice(-4)}` : 'Admin wallet disconnected'}
+          <div className="flex items-center gap-3">
+            {applications.length > 0 && (
+              <button
+                onClick={handleClearAll}
+                disabled={clearing}
+                className="flex items-center gap-1.5 rounded-full border border-rose-500/20 bg-rose-500/[0.06] px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-rose-300 hover:bg-rose-500/[0.12] disabled:opacity-40 transition-all"
+              >
+                {clearing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                Clear All
+              </button>
+            )}
+            <div className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/35">
+              {wallet.address ? `${wallet.address.slice(0, 4)}...${wallet.address.slice(-4)}` : 'Admin wallet disconnected'}
+            </div>
           </div>
         </header>
 

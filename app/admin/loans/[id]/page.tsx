@@ -2,11 +2,13 @@
 
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, ArrowUpRight, CheckCircle2, FileText, Loader2, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, CheckCircle2, FileText, Loader2, Send, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { formatUsdc } from '@/app/lib/format';
 import { useLoanApplications } from '@/hooks/useLoanApplications';
+import { useCollateralRecord } from '@/hooks/useCollateralFlow';
+import { useLoans } from '@/hooks/useLoans';
 import { useVaultState } from '@/hooks/useVaultState';
 
 const DEFAULT_APR_BPS = 800;
@@ -17,6 +19,10 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
   const { applications, approve, reject } = useLoanApplications();
   const app = applications.find((candidate) => candidate.id === id);
   const vaultState = useVaultState(app?.vaultId ?? 0);
+  const { data: collateral } = useCollateralRecord(app?.loanId);
+  const { data: onChainLoans = [] } = useLoans();
+  const onChainLoan = app?.loanId != null ? onChainLoans.find(l => l.id === app.loanId) : undefined;
+  const isDisbursed = ['Active', 'Repaying', 'Repaid', 'Defaulted'].includes(onChainLoan?.state ?? '');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -40,10 +46,28 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
   async function handleApprove() {
     setBusy(true);
     try {
-      const loanId = app!.loanId ?? (Math.floor(Date.now() / 1000) >>> 0);
-      approve(id, loanId, DEFAULT_APR_BPS);
-      toast.success('Loan approved for Stellar origination');
+      // 1. Call init_loan on prism-core to get a real sequential loan ID.
+      const principalMicro = BigInt(Math.round(app!.requestedUSDC * 10_000_000));
+      const res = await fetch('/api/simulation/admin-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'init_loan',
+          borrower: app!.borrowerPubkey,
+          principal: principalMicro.toString(),
+          aprBps: DEFAULT_APR_BPS,
+          maturityDays: app!.maturityDays,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error ?? 'init_loan failed');
+
+      // 2. Persist the on-chain loan ID into the DB record.
+      await approve(id, data.loanId, DEFAULT_APR_BPS);
+      toast.success(`Loan #${data.loanId} originated on Stellar · tx ${data.hash?.slice(0, 8)}…`);
       router.push('/admin/loans');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Approval failed');
     } finally {
       setBusy(false);
     }
@@ -55,6 +79,44 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
       reject(id);
       toast.success('Loan application rejected');
       router.push('/admin/loans');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDisburse() {
+    if (app?.loanId == null) { toast.error('No on-chain loan ID — approve the application first'); return; }
+
+    // Pre-flight: ensure vault has enough reserve
+    const principal = BigInt(Math.round(app.requestedUSDC * 10_000_000));
+    if (reserve < principal) {
+      const shortfall = Number(principal - reserve) / 10_000_000;
+      toast.error(
+        `Vault reserve is $${(Number(reserve) / 10_000_000).toFixed(2)} — need $${app.requestedUSDC.toFixed(2)}. ` +
+        `Deposit at least $${shortfall.toFixed(2)} more TUSDC into a tranche first.`
+      );
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const res = await fetch('/api/simulation/admin-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'disburse_loan', loanId: app.loanId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error ?? 'disburse_loan failed');
+      toast.success(`Loan #${app.loanId} disbursed · tx ${data.hash?.slice(0, 8)}…`);
+      void vaultState.refetch();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // #10 in disburse context = SAC insufficient balance, not PRISM ArithmeticOverflow
+      if (msg.includes('#10') || msg.includes('Arithmetic overflow')) {
+        toast.error('Vault has insufficient USDC balance to disburse this loan. Deposit more TUSDC into the tranches.');
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setBusy(false);
     }
@@ -79,8 +141,12 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
         <div>
           <div className="flex flex-wrap items-center gap-4">
             <h1 className="font-display text-4xl tracking-tight text-white">Credit Instrument Review</h1>
-            <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-white/40">
-              {app.status}
+            <span className={`rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-widest ${
+              isDisbursed
+                ? 'border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-300'
+                : 'border-white/[0.08] bg-white/[0.03] text-white/40'
+            }`}>
+              {isDisbursed ? (onChainLoan?.state ?? 'Active') : app.status}
             </span>
           </div>
           <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.25em] text-white/20">
@@ -98,9 +164,49 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
               </button>
             </>
           ) : app.status === 'approved' ? (
-            <button onClick={recordLiquidation} disabled={busy} className="rounded-2xl border border-rose-500/20 bg-rose-500/[0.08] px-6 py-3 font-mono text-[11px] uppercase tracking-widest text-rose-200 disabled:opacity-40">
-              {busy ? <Loader2 className="mr-2 inline h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 inline h-4 w-4" />} Record Liquidation
-            </button>
+            <>
+              {isDisbursed ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.08] px-6 py-3 font-mono text-[11px] text-emerald-300">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Disbursed · Loan {onChainLoan?.state}
+                  </div>
+                  <button onClick={recordLiquidation} disabled={busy} className="rounded-2xl border border-rose-500/20 bg-rose-500/[0.08] px-6 py-3 font-mono text-[11px] uppercase tracking-widest text-rose-200 disabled:opacity-40">
+                    {busy ? <Loader2 className="mr-2 inline h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 inline h-4 w-4" />} Liquidate
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {(() => {
+                    const principal = BigInt(Math.round(app.requestedUSDC * 10_000_000));
+                    const collateralReady = collateral?.status === 'Attached';
+                    const reserveOk = reserve >= principal;
+                    const canDisburse = collateralReady && reserveOk;
+                    const label = !collateralReady
+                      ? `Collateral: ${collateral?.status ?? 'Not locked'}`
+                      : !reserveOk
+                      ? `Reserve too low ($${(Number(reserve)/10_000_000).toFixed(0)} of $${app.requestedUSDC})`
+                      : 'Disburse Loan';
+                    return (
+                      <button
+                        onClick={handleDisburse}
+                        disabled={busy || !canDisburse}
+                        title={!canDisburse ? label : ''}
+                        className={`rounded-2xl px-6 py-3 font-mono text-[11px] font-bold uppercase tracking-widest disabled:opacity-40 ${
+                          canDisburse ? 'bg-emerald-400 text-black' : 'border border-amber-500/30 bg-amber-500/10 text-amber-300'
+                        }`}
+                      >
+                        {busy ? <Loader2 className="mr-2 inline h-4 w-4 animate-spin" /> : <Send className="mr-2 inline h-4 w-4" />}
+                        {label}
+                      </button>
+                    );
+                  })()}
+                  <button onClick={recordLiquidation} disabled={busy} className="rounded-2xl border border-rose-500/20 bg-rose-500/[0.08] px-6 py-3 font-mono text-[11px] uppercase tracking-widest text-rose-200 disabled:opacity-40">
+                    {busy ? <Loader2 className="mr-2 inline h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 inline h-4 w-4" />} Liquidate
+                  </button>
+                </>
+              )}
+            </>
           ) : null}
         </div>
       </header>

@@ -1,3 +1,4 @@
+import { parseStellarError } from '@/app/lib/errors';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   Account,
@@ -38,7 +39,7 @@ const PTOKEN_BY_KIND: Record<number, string> = {
 
 // NotInitialized = PrismError #51 — tranche hasn't been set up yet.
 function isNotInitialized(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
+  const msg = parseStellarError(err);
   return msg.includes('#51') || msg.includes('NotInitialized');
 }
 
@@ -225,7 +226,7 @@ export async function POST(_req: NextRequest) {
         steps.push(`${name}: skipped — tranche not initialized (run Initialize Vault first)`);
         continue;
       }
-      const message = err instanceof Error ? err.message : String(err);
+      const message = parseStellarError(err);
       return NextResponse.json({ error: `${name}: ${message}`, steps }, { status: 500 });
     }
   }

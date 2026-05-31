@@ -45,6 +45,7 @@ interface ContextValue {
   submit: (app: Omit<LoanApplication, 'id' | 'status' | 'submittedAt'>) => Promise<void>;
   approve: (id: string, loanId: number, aprBps: number) => Promise<void>;
   reject: (id: string) => Promise<void>;
+  clearAll: (status?: 'pending' | 'approved' | 'rejected' | 'all') => Promise<void>;
   getByBorrower: (pubkey: string) => LoanApplication | undefined;
 }
 
@@ -101,6 +102,16 @@ export function LoanApplicationProvider({ children }: { children: ReactNode }) {
     onSuccess: invalidate,
   });
 
+  const clearAllMut = useMutation({
+    mutationFn: async (status: 'pending' | 'approved' | 'rejected' | 'all' = 'all') => {
+      const res = await fetch(`/api/loan-applications?vaultId=${vaultId}&status=${status}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error(await res.text());
+    },
+    onSuccess: invalidate,
+  });
+
   const submit = useCallback(
     (app: Omit<LoanApplication, 'id' | 'status' | 'submittedAt'>) => submitMut.mutateAsync(app),
     [submitMut],
@@ -116,6 +127,12 @@ export function LoanApplicationProvider({ children }: { children: ReactNode }) {
     [rejectMut],
   );
 
+  const clearAll = useCallback(
+    (status: 'pending' | 'approved' | 'rejected' | 'all' = 'all') =>
+      clearAllMut.mutateAsync(status),
+    [clearAllMut],
+  );
+
   const getByBorrower = useCallback(
     (pubkey: string) =>
       [...applications].reverse().find((a) => a.borrowerPubkey === pubkey && a.status !== 'rejected'),
@@ -123,7 +140,7 @@ export function LoanApplicationProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <Ctx.Provider value={{ applications, isLoading, submit, approve, reject, getByBorrower }}>
+    <Ctx.Provider value={{ applications, isLoading, submit, approve, reject, clearAll, getByBorrower }}>
       {children}
     </Ctx.Provider>
   );

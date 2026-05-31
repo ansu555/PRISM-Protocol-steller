@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AppNavbar } from "@/components/app-shell/app-navbar";
+import { TrustlineBanner } from "@/components/app-shell/TrustlineBanner";
 import { AppProviders } from "@/components/providers/app-providers";
 
 export default function AppShellLayout({ children }: { children: ReactNode }) {
@@ -36,6 +37,9 @@ export default function AppShellLayout({ children }: { children: ReactNode }) {
         <div className="relative flex flex-1 flex-col min-w-0 h-full z-10">
           {/* Top Navbar */}
           <AppNavbar />
+
+          {/* Trustline prompt — shown when connected wallet is missing asset opt-ins */}
+          <TrustlineBanner />
 
           {/* Main Page Area */}
           <main className="relative flex-1 min-h-0 flex flex-col overflow-hidden">

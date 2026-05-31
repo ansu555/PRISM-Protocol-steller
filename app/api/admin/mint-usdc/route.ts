@@ -1,3 +1,4 @@
+import { parseStellarError } from '@/app/lib/errors';
 // Mint test USDC (TUSDC) to a given Stellar address.
 // Uses the deployer's ADMIN_SECRET_SEED to call `mint(to, amount)` on the TUSDC SAC.
 // Only valid on testnet — the SAC admin is the TUSDC issuer (deployer).
@@ -61,7 +62,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, hash, to, amount: amount.toString() });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const raw = err instanceof Error ? err.message : String(err);
+    // SAC error #13 = trustline missing (different from PRISM #13 = loss exceeds assets)
+    if (raw.includes('#13') || /trustline/i.test(raw)) {
+      return NextResponse.json({
+        error: `Trustline missing — ${to} must add a trustline for PTUSDC before receiving it. Use the "Add Trustlines" button in Protocol Setup or connect that wallet and approve the banner prompt.`,
+      }, { status: 400 });
+    }
+    return NextResponse.json({ error: parseStellarError(err) }, { status: 500 });
   }
 }

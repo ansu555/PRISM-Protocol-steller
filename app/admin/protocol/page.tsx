@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Database,
+  KeyRound,
   Landmark,
   Loader2,
   RefreshCw,
@@ -12,6 +13,7 @@ import {
   Shield,
   Terminal,
   Wallet,
+  Coins,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -19,10 +21,13 @@ import { ACTIVE_CONTRACTS, CONTRACTS } from '@/app/lib/addresses';
 import { formatUsdc, shortKey } from '@/app/lib/format';
 import {
   HORIZON_URL,
+  NETWORK_PASSPHRASE,
   USDC_ASSET_CODE,
   USDC_ASSET_ISSUER,
 } from '@/app/lib/constants';
+import { getRpcServer } from '@/app/lib/stellar';
 import { useAdminVault } from '@/components/admin/AdminVaultContext';
+import { useStellarWallet } from '@/components/providers/stellar-wallet-provider';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIdentity } from '@/hooks/useIdentity';
 import { useVaultState } from '@/hooks/useVaultState';
@@ -41,9 +46,10 @@ export default function ProtocolPage() {
   const vaultState = useVaultState(vaultId);
   const identity = useIdentity();
 
-  const [initStep,   setInitStep]   = useState<StepState>(INIT_STEP);
-  const [fundStep,   setFundStep]   = useState<StepState>(INIT_STEP);
-  const [poolsStep,  setPoolsStep]  = useState<StepState>(INIT_STEP);
+  const [initStep,    setInitStep]    = useState<StepState>(INIT_STEP);
+  const [fundStep,    setFundStep]    = useState<StepState>(INIT_STEP);
+  const [poolsStep,   setPoolsStep]   = useState<StepState>(INIT_STEP);
+  const [oracleStep,  setOracleStep]  = useState<StepState>(INIT_STEP);
 
   // Step 1: mark as done as soon as vaultState confirms config + vault exist on-chain.
   useEffect(() => {
@@ -79,7 +85,7 @@ export default function ProtocolPage() {
       .catch(() => {});
   }, [identity.identities.senior.keypair]);
 
-  const busy = initStep.status === 'pending' || fundStep.status === 'pending' || poolsStep.status === 'pending';
+  const busy = initStep.status === 'pending' || fundStep.status === 'pending' || poolsStep.status === 'pending' || oracleStep.status === 'pending';
 
   async function runInitialize() {
     setInitStep({ status: 'pending', message: 'Initializing vault on-chain…' });
@@ -138,6 +144,32 @@ export default function ProtocolPage() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setFundStep({ status: 'error', message: msg });
+      toast.error(msg);
+    }
+  }
+
+  async function runAddCollateralOracle() {
+    setOracleStep({ status: 'pending', message: 'Adding collateral oracle pubkey to on-chain allowlist…' });
+    try {
+      const res  = await fetch('/api/simulation/admin-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_collateral_oracle' }),
+      });
+      const json = await res.json();
+      // OracleAlreadyAllowlisted (#36) is fine — treat as success
+      if (!res.ok && !String(json.error).includes('#36') && !String(json.error).includes('OracleAlreadyAllowlisted')) {
+        throw new Error(json.error ?? 'add_collateral_oracle failed');
+      }
+      const msg = String(json.error ?? '').includes('#36')
+        ? 'Collateral oracle already in allowlist.'
+        : `Collateral oracle added — pubkey ${String(json.oraclePubkeyHex ?? '').slice(0, 12)}…`;
+      setOracleStep({ status: 'success', message: msg });
+      addLog(`Oracle allowlist: ${msg}`);
+      toast.success('Collateral oracle registered on-chain');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setOracleStep({ status: 'error', message: msg });
       toast.error(msg);
     }
   }
@@ -249,8 +281,21 @@ export default function ProtocolPage() {
               onRun={runSeedPools}
               buttonLabel="Seed AMM Pools"
             />
+            <SetupStep
+              number={4}
+              icon={<KeyRound className="h-4 w-4" />}
+              title="Register Collateral Oracle"
+              description="Derives the PRISM collateral oracle Ed25519 pubkey from COLLATERAL_ORACLE_SEED and adds it to the on-chain allowlist. Required before any borrower can lock collateral."
+              state={oracleStep}
+              busy={busy}
+              onRun={runAddCollateralOracle}
+              buttonLabel="Add Oracle to Allowlist"
+            />
           </div>
         </section>
+
+        {/* Mint TUSDC */}
+        <MintTusdc />
 
         {/* Contract registry */}
         <section className="rounded-[2.5rem] border border-white/[0.08] bg-white/[0.02] p-8">
@@ -279,6 +324,160 @@ export default function ProtocolPage() {
 
       </div>
     </div>
+  );
+}
+
+// ── Mint TUSDC ────────────────────────────────────────────────────────────────
+
+function MintTusdc() {
+  const wallet = useStellarWallet();
+  const [to, setTo]         = useState('');
+  const [amount, setAmount] = useState('10000');
+  const [minting, setMinting]     = useState(false);
+  const [addingTrust, setAddingTrust] = useState(false);
+
+  async function handleAddTrustline() {
+    if (!wallet.connected || !wallet.address) {
+      toast.error('Connect your Freighter wallet first');
+      return;
+    }
+    setAddingTrust(true);
+    try {
+      const { Asset, TransactionBuilder: TB, Operation, Account: StellarAccount } = await import('@stellar/stellar-sdk');
+
+      const horizonRes = await fetch(`${HORIZON_URL}/accounts/${wallet.address}`);
+      if (!horizonRes.ok) throw new Error('Account not found on Horizon — fund it with Friendbot first');
+      const accountData = await horizonRes.json();
+      const account = new StellarAccount(wallet.address, accountData.sequence);
+
+      // Check which trustlines are already present
+      const existingCodes = new Set(
+        (accountData.balances ?? []).map((b: { asset_code?: string }) => b.asset_code).filter(Boolean)
+      );
+
+      const allAssets = [
+        new Asset(USDC_ASSET_CODE, USDC_ASSET_ISSUER),   // PTUSDC
+        new Asset('PPRIME',  USDC_ASSET_ISSUER),
+        new Asset('PCORE',   USDC_ASSET_ISSUER),
+        new Asset('PALPHA',  USDC_ASSET_ISSUER),
+      ];
+      const missing = allAssets.filter(a => !existingCodes.has(a.code));
+
+      if (missing.length === 0) {
+        toast.success('All trustlines already set up!');
+        return;
+      }
+
+      const builder = new TB(account, { fee: '100', networkPassphrase: NETWORK_PASSPHRASE });
+      for (const asset of missing) builder.addOperation(Operation.changeTrust({ asset }));
+      const tx = builder.setTimeout(30).build();
+
+      const signedXdr = await wallet.signTransaction(tx.toXDR());
+      const { TransactionBuilder: TB2 } = await import('@stellar/stellar-sdk');
+      const signed = TB2.fromXDR(signedXdr, NETWORK_PASSPHRASE);
+
+      const submitRes = await fetch(`${HORIZON_URL}/transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ tx: signed.toXDR() }),
+      });
+      const submitData = await submitRes.json();
+      if (!submitRes.ok) {
+        throw new Error(submitData.extras?.result_codes?.operations?.[0] ?? submitData.title ?? 'Trustline failed');
+      }
+      toast.success(`Trustlines added: ${missing.map(a => a.code).join(', ')}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Trustline failed');
+    } finally {
+      setAddingTrust(false);
+    }
+  }
+
+  async function handleMint(e: React.FormEvent) {
+    e.preventDefault();
+    if (!to.trim()) return;
+    setMinting(true);
+    try {
+      const amountMicro = BigInt(Math.round(parseFloat(amount) * 10_000_000));
+      const res  = await fetch('/api/admin/mint-usdc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: to.trim(), amount: amountMicro.toString() }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error ?? 'Mint failed');
+      toast.success(`Minted ${amount} TUSDC to ${to.trim().slice(0, 8)}… · tx ${json.hash?.slice(0, 8)}…`);
+      setTo('');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Mint failed');
+    } finally {
+      setMinting(false);
+    }
+  }
+
+  return (
+    <section className="rounded-[2rem] border border-white/[0.08] bg-white/[0.02] p-8 space-y-6">
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <Coins className="h-4 w-4 text-white/30" />
+          <h2 className="font-mono text-[11px] uppercase tracking-[0.24em] text-white/35">Mint TUSDC</h2>
+        </div>
+        <p className="text-xs text-white/35">
+          Step 1: add a trustline (wallet must opt-in). Step 2: mint tokens to the address.
+        </p>
+      </div>
+
+      {/* Step 1 — Add trustline via Freighter */}
+      <div className="rounded-xl border border-white/[0.06] bg-black/20 p-4 flex items-center justify-between gap-4">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-white/40">Step 1 — Add Trustline</p>
+          <p className="text-xs text-white/30 mt-0.5">
+            {wallet.address ? `Connected: ${wallet.address.slice(0, 8)}…` : 'Connect Freighter wallet above'}
+          </p>
+        </div>
+        <button
+          onClick={handleAddTrustline}
+          disabled={addingTrust || !wallet.connected}
+          className="flex items-center gap-2 rounded-xl border border-white/[0.08] px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-white/60 hover:text-white hover:border-white/20 disabled:opacity-40 transition-all whitespace-nowrap"
+        >
+          {addingTrust ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wallet className="h-3.5 w-3.5" />}
+          Add Trustline via Freighter
+        </button>
+      </div>
+
+      {/* Step 2 — Mint */}
+      <form onSubmit={handleMint} className="space-y-3">
+        <p className="font-mono text-[10px] uppercase tracking-widest text-white/40">Step 2 — Mint Tokens</p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            placeholder="G… destination address"
+            value={to}
+            onChange={e => setTo(e.target.value)}
+            className="flex-1 rounded-xl border border-white/[0.06] bg-black/20 px-4 py-2.5 font-mono text-sm text-white placeholder:text-white/20 focus:border-white/20 focus:outline-none"
+            required
+          />
+          <input
+            type="number"
+            placeholder="Amount"
+            value={amount}
+            onChange={e => setAmount(e.target.value)}
+            min="1"
+            step="any"
+            className="w-32 rounded-xl border border-white/[0.06] bg-black/20 px-4 py-2.5 font-mono text-sm text-white placeholder:text-white/20 focus:border-white/20 focus:outline-none"
+            required
+          />
+          <button
+            type="submit"
+            disabled={minting}
+            className="flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 font-mono text-[11px] font-bold uppercase tracking-widest text-black hover:bg-white/90 disabled:opacity-40 transition-all"
+          >
+            {minting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Coins className="h-3.5 w-3.5" />}
+            Mint
+          </button>
+        </div>
+      </form>
+    </section>
   );
 }
 

@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { listApplications, insertApplication } from '@/lib/loanApplicationStore';
+import { listApplications, insertApplication, deleteApplicationsByStatus } from '@/lib/loanApplicationStore';
 import { VAULT_ID } from '@/app/lib/constants';
 
 export async function GET(req: NextRequest) {
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   const id = String(body.id ?? crypto.randomUUID());
   const borrowerPubkey = String(body.borrowerPubkey ?? '');
-  const requestedUsdc = Number(body.requestedUsdc ?? 0);
+  const requestedUsdc = Number(body.requestedUsdc ?? body.requestedUSDC ?? 0);
   const maturityDays = Number(body.maturityDays ?? 90);
   const purpose = String(body.purpose ?? '');
   const vaultId = Number(body.vaultId ?? VAULT_ID);
@@ -35,6 +35,18 @@ export async function POST(req: NextRequest) {
   try {
     await insertApplication({ id, borrowerPubkey, requestedUsdc, maturityDays, purpose, vaultId, submittedAt });
     return NextResponse.json({ ok: true, id });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const url = new URL(req.url);
+  const vaultId = Number(url.searchParams.get('vaultId') ?? VAULT_ID);
+  const status = (url.searchParams.get('status') ?? 'all') as 'pending' | 'approved' | 'rejected' | 'all';
+  try {
+    const deleted = await deleteApplicationsByStatus(vaultId, status);
+    return NextResponse.json({ ok: true, deleted });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }

@@ -3,10 +3,12 @@
 // ActionPanel calls this instead of invoking the contract client-side with the
 // wrong random keypair that useIdentity generates for the admin role.
 
+import { createPrivateKey, createPublicKey } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { Keypair } from '@stellar/stellar-sdk';
 
 import { getCoreClient, keypairSigner, addr, nativeToScVal } from '@/app/lib/stellar';
+import { parseStellarError } from '@/app/lib/errors';
 import {
   VAULT_ID,
   DEFAULT_DEMO_YIELD_AMOUNT,
@@ -17,8 +19,25 @@ export type AdminAction =
   | 'accrue_yield'
   | 'trigger_credit_event'
   | 'disburse_loan'
+  | 'init_loan'
+  | 'add_collateral_oracle'
   | 'pause'
   | 'unpause';
+
+const PKCS8_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
+
+function deriveOraclePubkeyHex(seedHex: string): string {
+  const seed = Buffer.from(seedHex, 'hex');
+  const privateKey = createPrivateKey({
+    key: Buffer.concat([PKCS8_PREFIX, seed]),
+    format: 'der',
+    type: 'pkcs8',
+  });
+  return createPublicKey(privateKey)
+    .export({ type: 'spki', format: 'der' })
+    .slice(-32)
+    .toString('hex');
+}
 
 export async function POST(req: NextRequest) {
   const seed = process.env.ADMIN_SECRET_SEED;
@@ -36,6 +55,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({})) as {
     action: AdminAction;
     loanId?: number;
+    borrower?: string;
+    principal?: string;
+    aprBps?: number;
+    maturityDays?: number;
     yieldAmount?: string;
     lossAmount?: string;
     severity?: number;
@@ -51,7 +74,7 @@ export async function POST(req: NextRequest) {
   const adminAddr = adminKeypair.publicKey();
 
   try {
-    let hash: string;
+    let hash = '';
 
     if (action === 'accrue_yield') {
       const amount = BigInt(body.yieldAmount ?? String(DEFAULT_DEMO_YIELD_AMOUNT));
@@ -81,6 +104,54 @@ export async function POST(req: NextRequest) {
       ]);
       hash = result.hash;
 
+    } else if (action === 'init_loan') {
+      const borrower = body.borrower;
+      if (!borrower) throw new Error('borrower address required for init_loan');
+
+      const principal = BigInt(body.principal ?? '0');
+      if (principal <= 0n) throw new Error('principal must be > 0');
+
+      const aprBps = body.aprBps ?? 800;
+      const maturityDays = body.maturityDays ?? 90;
+      const maturityTs = BigInt(Math.floor(Date.now() / 1000) + maturityDays * 86400);
+
+      // Find the next unused sequential loan ID (probe 0..29)
+      let nextLoanId = 0;
+      for (let id = 0; id < 30; id++) {
+        const existing = await core
+          .read<Record<string, unknown> | null>('get_loan', [nativeToScVal(id, { type: 'u32' })])
+          .catch(() => null);
+        if (!existing) { nextLoanId = id; break; }
+        if (id === 29) throw new Error('Too many loans — could not find a free loan ID');
+      }
+
+      const result = await core.invoke(signer, 'init_loan', [
+        nativeToScVal(VAULT_ID,     { type: 'u32' }),
+        nativeToScVal(nextLoanId,   { type: 'u32' }),
+        addr(borrower),
+        nativeToScVal(principal,    { type: 'i128' }),
+        nativeToScVal(aprBps,       { type: 'u32' }),
+        nativeToScVal(maturityTs,   { type: 'u64' }),
+      ]);
+      hash = result.hash;
+      // Return the loan_id so the caller can persist it
+      return NextResponse.json({ ok: true, action, hash, adminAddress: adminAddr, loanId: nextLoanId });
+
+    } else if (action === 'add_collateral_oracle') {
+      const oracleSeed =
+        process.env.COLLATERAL_ORACLE_SEED ??
+        process.env.COLLATERAL_ORACLE_SEED_DEV ??
+        process.env.IKA_TEST_ORACLE_SECRET_SEED;
+      if (!oracleSeed) throw new Error('COLLATERAL_ORACLE_SEED not set in environment');
+      const pubkeyHex = deriveOraclePubkeyHex(oracleSeed.trim());
+      const pubkeyBytes = Buffer.from(pubkeyHex, 'hex');
+
+      const result = await core.invoke(signer, 'add_oracle_to_allowlist', [
+        nativeToScVal(pubkeyBytes, { type: 'bytes' }),
+      ]);
+      hash = result.hash;
+      return NextResponse.json({ ok: true, action, hash, adminAddress: adminAddr, oraclePubkeyHex: pubkeyHex });
+
     } else if (action === 'pause') {
       const result = await core.invoke(signer, 'pause', []);
       hash = result.hash;
@@ -95,7 +166,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, action, hash, adminAddress: adminAddr });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: parseStellarError(err) }, { status: 500 });
   }
 }
