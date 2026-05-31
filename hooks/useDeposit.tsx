@@ -89,17 +89,48 @@ export function useDeposit() {
         toast.info(`Adding ${assetCode} trustline to your wallet…`);
 
         const pTokenAsset = new Asset(assetCode, issuer);
+
+        // Reload account right before building to get the freshest sequence number.
+        source = await horizon.loadAccount(wallet.address);
+
         const trustTx = new TransactionBuilder(source, {
-          fee: '1000',
+          fee: '10000',
           networkPassphrase: NETWORK_PASSPHRASE,
         })
           .addOperation(Operation.changeTrust({ asset: pTokenAsset }))
-          .setTimeout(60)
+          .setTimeout(180)
           .build();
 
         const signedTrustXdr = await wallet.signTransaction(trustTx.toXDR());
-        const signedTrustTx = TransactionBuilder.fromXDR(signedTrustXdr, NETWORK_PASSPHRASE);
-        await horizon.submitTransaction(signedTrustTx as never);
+
+        // Submit directly via Horizon REST — avoids SDK type-wrapping issues
+        // and lets us extract the full result_codes on failure.
+        const horizonUrl = horizon.serverURL.toString().replace(/\/$/, '');
+        const horizonResp = await fetch(`${horizonUrl}/transactions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ tx: signedTrustXdr }),
+        });
+
+        if (!horizonResp.ok) {
+          const body = await horizonResp.json().catch(() => ({})) as {
+            extras?: { result_codes?: { transaction?: string; operations?: string[] } };
+            title?: string;
+          };
+          const codes = body?.extras?.result_codes;
+          const opCode = codes?.operations?.[0];
+          const txCode = codes?.transaction;
+          if (opCode === 'op_low_reserve') {
+            throw new Error(
+              'Not enough XLM to add a trustline. Your wallet needs at least 0.5 XLM ' +
+              'extra reserve to hold a new asset. Top up your XLM and try again.',
+            );
+          }
+          throw new Error(
+            `Trustline setup failed (${opCode ?? txCode ?? horizonResp.status}). ` +
+            'Please try again or add the trustline manually in Freighter.',
+          );
+        }
 
         // Reload account — sequence number advanced after the trustline tx.
         source = await horizon.loadAccount(wallet.address);
