@@ -10,7 +10,7 @@ PRISM Core is a [Soroban](https://developers.stellar.org/docs/build/smart-contra
 1. **`@stellar/stellar-sdk`** — the official Stellar SDK. It builds, simulates, signs, and submits Soroban transactions and decodes contract return values.
 2. **Generated contract bindings** (optional) — a typed client the Stellar CLI produces directly from the deployed contract, so every function is fully typed and can never drift from the on-chain binary.
 
-A Soroban contract publishes its interface spec on-chain, and the Stellar CLI reads that spec directly. You can use the generated bindings or call the official SDK primitives yourself.
+There is no separate SDK package to install. A Soroban contract publishes its interface spec on-chain, and the Stellar CLI reads that spec directly to generate a typed client.
 
 ## Install
 
@@ -32,7 +32,7 @@ PRISM is built and tested against `@stellar/stellar-sdk` v15.
 
 ## Generate typed bindings
 
-The [Stellar CLI](https://developers.stellar.org/docs/tools/cli) reads the deployed contract spec and emits a typed TypeScript client:
+The [Stellar CLI](https://developers.stellar.org/docs/tools/cli) reads the deployed contract spec and emits a typed TypeScript client — no hand-written types, no copy step:
 
 ```bash
 stellar contract bindings typescript \
@@ -66,7 +66,7 @@ Every tranche-scoped call takes a `kind` (a `u32` index). It maps to the on-chai
 export enum TrancheKind {
   Prime = 0, // 5% target  · paid first  · loss-protected
   Core  = 1, // 8% target  · intermediate
-  Alpha = 2, // residual yield · first-loss absorber
+  Alpha = 2, // 15% target · first-loss absorber
 }
 ```
 

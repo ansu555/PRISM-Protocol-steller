@@ -43,16 +43,18 @@ const contract = new Contract('CCULBBT4PA64GWXSKT4G7HOYQ4RXRNYY2JP5MZ2G73VKRFAJ6
     const signer = Keypair.fromSecret(process.env.SECRET_SEED!);
     ```
 
-    **Browser apps** — sign with [Freighter](https://www.freighter.app/) via its browser API. You never handle the user's secret; the wallet signs the prepared transaction:
+    **Browser apps** — sign with [Freighter](https://www.freighter.app/) via the Stellar Wallets Kit. You never handle the user's secret; the wallet signs the prepared transaction:
 
     ```ts
-    import { requestAccess, signTransaction } from '@stellar/freighter-api';
+    import {
+      StellarWalletsKit, WalletNetwork, FREIGHTER_ID,
+    } from '@creit.tech/stellar-wallets-kit';
 
-    const { address } = await requestAccess();
-    const { signedTxXdr } = await signTransaction(prepared.toXDR(), {
-      address,
-      networkPassphrase: Networks.TESTNET,
+    const kit = new StellarWalletsKit({
+      network: WalletNetwork.TESTNET,
+      selectedWalletId: FREIGHTER_ID,
     });
+    const { address } = await kit.getAddress();
     ```
   </Step>
 
@@ -91,7 +93,7 @@ const contract = new Contract('CCULBBT4PA64GWXSKT4G7HOYQ4RXRNYY2JP5MZ2G73VKRFAJ6
     ```ts
     async function sendTx(tx) {
       const prepared = await server.prepareTransaction(tx); // adds the Soroban footprint + resource fee
-      prepared.sign(signer);                                 // browser apps send prepared.toXDR() to Freighter
+      prepared.sign(signer);                                 // or: await kit.signTransaction(prepared.toXDR())
 
       const sent = await server.sendTransaction(prepared);
       let res = await server.getTransaction(sent.hash);
