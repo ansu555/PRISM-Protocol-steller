@@ -53,15 +53,15 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
     });
     setKitReady(true);
 
-    // Restore a previously connected wallet if browser remembered it.
-    const remembered = window.localStorage.getItem('prism:walletId');
+    // Restore a previously connected wallet from localStorage.
+    const rememberedId = window.localStorage.getItem('prism:walletId') ?? FREIGHTER_ID;
     const rememberedAddress = window.localStorage.getItem('prism:walletAddress');
-    if (remembered && rememberedAddress) {
+    if (rememberedAddress) {
       try {
-        StellarWalletsKit.setWallet(remembered);
+        StellarWalletsKit.setWallet(rememberedId);
         setAddress(rememberedAddress);
       } catch {
-        // If the remembered wallet isn't recognised anymore, just drop it.
+        // Wallet module no longer available — clear stale cache.
         window.localStorage.removeItem('prism:walletId');
         window.localStorage.removeItem('prism:walletAddress');
       }
@@ -76,12 +76,10 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
       // selected address. No onWalletSelected callback anymore.
       const { address: addr } = await StellarWalletsKit.authModal();
       setAddress(addr);
-      // Persist which wallet module the user picked so we can restore on reload.
+      // Persist wallet module + address so we can restore on reload.
       const mod = StellarWalletsKit.selectedModule;
-      const walletId = (mod as unknown as { id?: string } | undefined)?.id;
-      if (walletId) {
-        window.localStorage.setItem('prism:walletId', walletId);
-      }
+      const walletId = (mod as unknown as { id?: string } | undefined)?.id ?? FREIGHTER_ID;
+      window.localStorage.setItem('prism:walletId', walletId);
       window.localStorage.setItem('prism:walletAddress', addr);
     } catch (err) {
       // User-closed-modal is a normal flow, don't log scary errors for it.
