@@ -107,3 +107,16 @@ export async function patchApplication(id: string, patch: PatchApplicationInput)
     WHERE id = ${id}
   `;
 }
+
+export async function deleteApplicationsByStatus(
+  vaultId: number,
+  status: 'pending' | 'approved' | 'rejected' | 'all',
+): Promise<number> {
+  const sql = getSql();
+  await ensureTable(sql);
+  const rows =
+    status === 'all'
+      ? await sql`DELETE FROM loan_applications WHERE vault_id = ${vaultId} RETURNING id`
+      : await sql`DELETE FROM loan_applications WHERE vault_id = ${vaultId} AND status = ${status} RETURNING id`;
+  return rows.length;
+}

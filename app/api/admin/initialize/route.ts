@@ -1,3 +1,4 @@
+import { parseStellarError } from '@/app/lib/errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { Keypair, xdr } from '@stellar/stellar-sdk';
 
@@ -23,7 +24,7 @@ import {
 // init_* function is called on state that already exists. We treat it as a
 // successful skip so the route is fully idempotent.
 function isAlreadyInitialized(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
+  const msg = parseStellarError(err);
   return msg.includes('#50') || msg.includes('AlreadyInitialized');
 }
 
@@ -146,7 +147,7 @@ export async function POST(req: NextRequest) {
       adminAddress: adminKeypair.publicKey(),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = parseStellarError(err);
     return NextResponse.json({ error: message, steps, skipped }, { status: 500 });
   }
 }

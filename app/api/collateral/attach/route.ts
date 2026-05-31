@@ -1,3 +1,4 @@
+import { parseStellarError } from '@/app/lib/errors';
 // attach_collateral — registers the collateral oracle pubkey for a loan on-chain.
 // Called by the borrower before the oracle verifies the lock.
 // Signs with ADMIN_SECRET_SEED because attach requires borrower.require_auth()
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, hash, loanId, status: 'Pending' });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = parseStellarError(err);
     // AlreadyInitialized or CollateralAlreadyVerified means it was already attached — treat as ok
     if (msg.includes('#50') || msg.includes('AlreadyInitialized') ||
         msg.includes('#61') || msg.includes('CollateralAlreadyVerified')) {

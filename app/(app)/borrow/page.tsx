@@ -390,7 +390,19 @@ function RepaySection({ address, loanId }: { address: string; loanId: number }) 
   const [amount, setAmount] = useState('');
 
   const loan = loans.find(l => l.id === loanId);
-  const outstanding = loan ? loan.principal - loan.totalRepaid : 0n;
+
+  // Accrued simple interest: principal × (apr_bps / 10000) × (elapsed_seconds / seconds_per_year)
+  // Uses seconds (not days) so interest shows immediately after disbursement.
+  const accruedInterest = (() => {
+    if (!loan || loan.totalRepaid >= loan.principal) return 0n;
+    const nowSec = BigInt(Math.floor(Date.now() / 1000));
+    const elapsedSec = nowSec > loan.originationTs ? nowSec - loan.originationTs : 0n;
+    const SECONDS_PER_YEAR = 365n * 86400n;
+    return (loan.principal * BigInt(loan.aprBps) * elapsedSec) / (10_000n * SECONDS_PER_YEAR);
+  })();
+
+  const principalOutstanding = loan ? (loan.principal > loan.totalRepaid ? loan.principal - loan.totalRepaid : 0n) : 0n;
+  const totalDue = principalOutstanding + accruedInterest;
 
   async function handleRepay(e: React.FormEvent) {
     e.preventDefault();
@@ -407,28 +419,33 @@ function RepaySection({ address, loanId }: { address: string; loanId: number }) 
 
   return (
     <div className="space-y-4">
-      {/* Loan summary */}
       {loan && (
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
-          <p className="font-mono text-[10px] text-emerald-400/60 uppercase tracking-widest mb-3">Active Loan #{loanId}</p>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <p className="font-mono text-[9px] text-white/25 uppercase">Principal</p>
-              <p className="font-mono text-sm text-white/70">${formatUsdc(loan.principal, 2)}</p>
-            </div>
-            <div>
-              <p className="font-mono text-[9px] text-white/25 uppercase">Repaid</p>
-              <p className="font-mono text-sm text-emerald-400">${formatUsdc(loan.totalRepaid, 2)}</p>
-            </div>
-            <div>
-              <p className="font-mono text-[9px] text-white/25 uppercase">Outstanding</p>
-              <p className="font-mono text-sm text-white">${formatUsdc(outstanding, 2)}</p>
-            </div>
+        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5 space-y-4">
+          <p className="font-mono text-[10px] text-emerald-400/60 uppercase tracking-widest">Active Loan #{loanId} · {loan.aprBps / 100}% APR</p>
+
+          {/* Breakdown */}
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: 'Principal',        value: `$${formatUsdc(loan.principal, 2)}`,         dim: false },
+              { label: 'Repaid',           value: `$${formatUsdc(loan.totalRepaid, 2)}`,        dim: false, green: true },
+              { label: 'Principal left',   value: `$${formatUsdc(principalOutstanding, 2)}`,   dim: false },
+              { label: 'Accrued interest', value: `$${formatUsdc(accruedInterest, 2)}`,         dim: true  },
+            ].map(({ label, value, dim, green }) => (
+              <div key={label} className="rounded-lg bg-black/20 px-3 py-2.5">
+                <p className="font-mono text-[9px] text-white/25 uppercase">{label}</p>
+                <p className={`font-mono text-sm mt-0.5 ${green ? 'text-emerald-400' : dim ? 'text-amber-400/80' : 'text-white/70'}`}>{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Total due */}
+          <div className="flex items-center justify-between border-t border-white/[0.06] pt-3">
+            <p className="font-mono text-[10px] text-white/40 uppercase tracking-widest">Total due (principal + interest)</p>
+            <p className="font-mono text-base font-bold text-white">${formatUsdc(totalDue, 2)}</p>
           </div>
         </div>
       )}
 
-      {/* Repay form */}
       <form onSubmit={handleRepay} className="space-y-4">
         <div>
           <label className="block font-mono text-[10px] uppercase tracking-widest text-white/40 mb-2">
@@ -437,20 +454,16 @@ function RepaySection({ address, loanId }: { address: string; loanId: number }) 
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 font-mono text-white/30 text-sm">$</span>
             <input
-              type="number"
-              min="0.0000001"
-              step="any"
-              placeholder="0.00"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
+              type="number" min="0.0000001" step="any" placeholder="0.00"
+              value={amount} onChange={e => setAmount(e.target.value)}
               className="w-full rounded-xl border border-white/[0.06] bg-[#0f0f0f] pl-8 pr-4 py-3 font-mono text-white placeholder:text-white/20 focus:border-white/20 focus:outline-none"
               required
             />
           </div>
-          {outstanding > 0n && (
-            <button type="button" onClick={() => setAmount(formatUsdc(outstanding, 2))}
+          {totalDue > 0n && (
+            <button type="button" onClick={() => setAmount(formatUsdc(totalDue, 2))}
               className="mt-2 font-mono text-[9px] text-[#e54b73] hover:underline">
-              Repay full outstanding (${formatUsdc(outstanding, 2)})
+              Repay full amount with interest (${formatUsdc(totalDue, 2)})
             </button>
           )}
         </div>
@@ -460,6 +473,10 @@ function RepaySection({ address, loanId }: { address: string; loanId: number }) 
           {repay.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</> : <>Repay <ArrowRight className="h-4 w-4" /></>}
         </button>
       </form>
+
+      <p className="font-mono text-[9px] text-white/20 text-center">
+        Interest is simple APR calculated from origination. The contract closes the loan once principal is fully repaid.
+      </p>
     </div>
   );
 }

@@ -27,6 +27,8 @@ import {
   type xdr,
 } from '@stellar/stellar-sdk';
 
+import { parseStellarError } from './errors';
+
 import {
   NETWORK_PASSPHRASE,
   PRISM_AMM_CONTRACT_ID,
@@ -127,7 +129,7 @@ export class ContractClient {
 
     const sim = await server.simulateTransaction(tx);
     if (rpc.Api.isSimulationError(sim)) {
-      throw new Error(`Soroban read failed (${method}): ${sim.error}`);
+      throw new Error(parseStellarError(`Soroban read failed (${method}): ${sim.error}`));
     }
     if (!('result' in sim) || !sim.result) {
       return undefined as T;
@@ -163,7 +165,7 @@ export class ContractClient {
 
     const sendResult = await server.sendTransaction(tx);
     if (sendResult.status === 'ERROR') {
-      throw new Error(`Soroban invoke failed (${method}): ${JSON.stringify(sendResult.errorResult)}`);
+      throw new Error(parseStellarError(JSON.stringify(sendResult.errorResult)));
     }
 
     // Poll until the tx settles.
@@ -171,9 +173,7 @@ export class ContractClient {
     if (finalStatus.status !== 'SUCCESS') {
       const resultXdr =
         'resultXdr' in finalStatus ? finalStatus.resultXdr?.toXDR('base64') ?? '' : '';
-      throw new Error(
-        `Soroban invoke ${method} settled with status ${finalStatus.status}: ${resultXdr}`,
-      );
+      throw new Error(parseStellarError(resultXdr || `Transaction failed with status: ${finalStatus.status}`));
     }
 
     let result: T = undefined as T;

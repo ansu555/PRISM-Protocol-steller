@@ -1,3 +1,4 @@
+import { parseStellarError } from '@/app/lib/errors';
 // verify_collateral — submits the oracle attestation to advance collateral
 // from Pending → Attached. After this, disburse_loan is unblocked.
 
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, hash, loanId, status: 'Attached' });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = parseStellarError(err);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

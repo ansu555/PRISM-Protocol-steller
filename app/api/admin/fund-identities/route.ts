@@ -1,3 +1,4 @@
+import { parseStellarError } from '@/app/lib/errors';
 // Fund simulation wallets — server-side so there are no CORS/timing issues.
 //
 // For each wallet: (1) Stellar friendbot for XLM, (2) changeTrust for PTUSDC,
@@ -183,7 +184,7 @@ export async function POST(req: NextRequest) {
 
       results.push({ label, hash, actions });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = parseStellarError(err);
       return NextResponse.json({ error: `${label}: ${message}`, steps: actions }, { status: 500 });
     }
   }

@@ -18,6 +18,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { getCoreClient, nativeToScVal, freighterSigner, addr } from '@/app/lib/stellar';
+import { parseStellarError } from '@/app/lib/errors';
 import { getCollateralAttestation } from '@/app/lib/collateral';
 import { useStellarWallet } from '@/components/providers/stellar-wallet-provider';
 import { VAULT_ID } from '@/app/lib/constants';
@@ -170,7 +171,7 @@ export function useIkaCollateralFlow(loanId: number): IkaCollateralFlowState {
       setDWallet(created);
       toast.success(`${chain} dWallet created — send funds to the deposit address.`);
     } catch (err) {
-      toast.error(`IKA dWallet creation failed: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(`IKA dWallet creation failed: ${parseStellarError(err)}`);
       throw err;
     } finally {
       setIsCreating(false);
@@ -236,7 +237,7 @@ export function useIkaCollateralFlow(loanId: number): IkaCollateralFlowState {
       qc.invalidateQueries({ queryKey: ['collateral-record', loanId] });
       qc.invalidateQueries({ queryKey: ['on-chain-loans'] });
     } catch (err) {
-      toast.error(`IKA attestation failed: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(`IKA attestation failed: ${parseStellarError(err)}`);
       throw err;
     } finally {
       setIsAttesting(false);
