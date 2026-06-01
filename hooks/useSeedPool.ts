@@ -8,18 +8,33 @@
 //   3. Call prism-core::seed_pool_liquidity → approves router + calls add_liquidity
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { TransactionBuilder } from '@stellar/stellar-sdk';
+import { Asset, Operation, TransactionBuilder } from '@stellar/stellar-sdk';
 import { toast } from 'sonner';
 
 import { TrancheKind, NETWORK_PASSPHRASE } from '@/app/lib/constants';
 import {
   addr,
   getCoreClient,
+  getHorizonServer,
   nativeToScVal,
   ContractClient,
   type StellarSigner,
 } from '@/app/lib/stellar';
-import { ACTIVE_CONTRACTS } from '@/app/lib/addresses';
+import { ACTIVE_CONTRACTS, ACTIVE_NETWORK } from '@/app/lib/addresses';
+
+const BASE_RESERVE_XLM = 0.5;
+const FEE_BUFFER_XLM = 0.02;
+
+const PTOKEN_ISSUER: Record<'testnet' | 'mainnet', string> = {
+  mainnet: 'GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO',
+  testnet: 'GCZFPAJEJHMQPZ4BQUWUEBV7KJQ7GEKDF4FAWYUW4NOIRSWXCMDEOESW',
+};
+
+const PTOKEN_ASSET_CODE: Record<TrancheKind, string> = {
+  [TrancheKind.Prime]: 'PPRIME',
+  [TrancheKind.Core]:  'PCORE',
+  [TrancheKind.Alpha]: 'PALPHA',
+};
 import { useStellarWallet } from '@/components/providers/stellar-wallet-context';
 import { useSelectedVaultId } from '@/hooks/useSelectedVault';
 
@@ -51,6 +66,79 @@ export function useSeedPool() {
       const ptokenClient = new ContractClient(ptokenId);
       const usdcClient   = new ContractClient(contracts.usdc);
       const coreClient   = getCoreClient();
+
+      // ── Trustline pre-flight ───────────────────────────────────────────────
+      // The admin wallet must have a trustline for the pToken before it can
+      // hold or transfer it. Auto-establish it if missing (one extra Freighter
+      // prompt on first seed only).
+      const horizon   = getHorizonServer();
+      const issuer    = PTOKEN_ISSUER[ACTIVE_NETWORK];
+      const assetCode = PTOKEN_ASSET_CODE[trancheKind];
+
+      let source = await horizon.loadAccount(wallet.address);
+
+      const hasTrustline = source.balances.some(
+        (b) =>
+          b.asset_type !== 'native' &&
+          (b as { asset_code: string; asset_issuer: string }).asset_code === assetCode &&
+          (b as { asset_code: string; asset_issuer: string }).asset_issuer === issuer,
+      );
+
+      if (!hasTrustline) {
+        const nativeEntry = source.balances.find(
+          (b) => b.asset_type === 'native',
+        ) as { balance: string; selling_liabilities?: string } | undefined;
+        const nativeBalance      = Number(nativeEntry?.balance ?? '0');
+        const sellingLiabilities = Number(nativeEntry?.selling_liabilities ?? '0');
+        const requiredXlm =
+          (2 + source.subentry_count + 1) * BASE_RESERVE_XLM +
+          sellingLiabilities +
+          FEE_BUFFER_XLM;
+
+        if (nativeBalance < requiredXlm) {
+          const shortfall = (requiredXlm - nativeBalance).toFixed(2);
+          throw new Error(
+            `Not enough XLM to add the ${assetCode} trustline. Need ~${shortfall} more XLM.`,
+          );
+        }
+
+        toast.info(`Adding ${assetCode} trustline to admin wallet…`);
+
+        source = await horizon.loadAccount(wallet.address);
+        const trustTx = new TransactionBuilder(source, {
+          fee: '10000',
+          networkPassphrase: NETWORK_PASSPHRASE,
+        })
+          .addOperation(Operation.changeTrust({ asset: new Asset(assetCode, issuer) }))
+          .setTimeout(180)
+          .build();
+
+        const signedTrustXdr = await wallet.signTransaction(trustTx.toXDR());
+        const horizonUrl = horizon.serverURL.toString().replace(/\/$/, '');
+        const horizonResp = await fetch(`${horizonUrl}/transactions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ tx: signedTrustXdr }),
+        });
+
+        if (!horizonResp.ok) {
+          const body = await horizonResp.json().catch(() => ({})) as {
+            extras?: { result_codes?: { transaction?: string; operations?: string[] } };
+          };
+          const opCode = body?.extras?.result_codes?.operations?.[0];
+          const txCode = body?.extras?.result_codes?.transaction;
+          if (opCode === 'op_low_reserve') {
+            throw new Error(
+              'Not enough XLM to add a trustline. Top up your XLM and try again.',
+            );
+          }
+          throw new Error(
+            `Trustline setup failed (${opCode ?? txCode ?? horizonResp.status}).`,
+          );
+        }
+
+        source = await horizon.loadAccount(wallet.address);
+      }
 
       // Wrap the Freighter wallet as a StellarSigner.
       const signer: StellarSigner = {
