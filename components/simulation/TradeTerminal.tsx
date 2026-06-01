@@ -20,7 +20,7 @@ import { useDeposit } from '@/hooks/useDeposit';
 import { useSeedPool } from '@/hooks/useSeedPool';
 
 import { TrancheKind, TRANCHE_CONFIG, Q64_ONE } from '@/app/lib/constants';
-import { formatUsdc, shortKey, formatNavQ, parseUsdc } from '@/app/lib/format';
+import { formatUsdc, formatCompactUsdc, shortKey, formatNavQ, parseUsdc } from '@/app/lib/format';
 import { useVaultState } from '@/hooks/useVaultState';
 import { useNavHistory, type NavDataPoint } from '@/hooks/useNavHistory';
 import { useMarketPrices } from '@/hooks/useMarketPrices';
@@ -760,7 +760,7 @@ function CompactSwapCard({
 
           <div className="flex flex-col items-end gap-1.5">
             <span className="font-mono text-[10px] text-white/30 tracking-tight">
-              Balance: {formatUsdc(sellBalance, 2)}
+              Balance: {formatCompactUsdc(sellBalance)}
             </span>
             <input
               type="number"
@@ -809,7 +809,7 @@ function CompactSwapCard({
 
             <div className="flex flex-col items-end gap-1.5">
               <span className="font-mono text-[10px] text-white/30 tracking-tight">
-                Balance: {formatUsdc(buyBalance, 2)}
+                Balance: {formatCompactUsdc(buyBalance)}
               </span>
               <div className="font-mono text-2xl text-white/50 text-right tabular-nums w-32 font-bold select-all truncate">
                 {amountOut > 0n ? formatUsdc(amountOut, 4) : '0'}

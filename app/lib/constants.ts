@@ -5,14 +5,19 @@
 // values are plain strings now. Use `import { Address } from '@stellar/stellar-sdk'`
 // when you need to wrap one for Soroban invocation.
 //
-// Network-switching: all contract IDs and URLs are derived from ACTIVE_CONTRACTS
-// (addresses.ts), which reads NEXT_PUBLIC_STELLAR_NETWORK to pick testnet vs mainnet.
-// Individual NEXT_PUBLIC_* env vars still override per-key if set.
+// Network-switching: all contract IDs are derived from ACTIVE_CONTRACTS
+// (addresses.ts), which reads NEXT_PUBLIC_STELLAR_NETWORK to pick testnet vs
+// mainnet AND honors per-network env overrides (non-suffixed vars on testnet,
+// *_MAINNET_ID vars on mainnet). We deliberately do NOT layer a second,
+// network-agnostic `process.env.NEXT_PUBLIC_<X> ?? ...` override on top of these:
+// a stale non-suffixed testnet var would otherwise win on mainnet and point the
+// app at testnet contracts over the mainnet RPC. Infra endpoints (RPC, Horizon,
+// passphrase) keep their per-key overrides below since those are legitimately
+// deployment-specific.
 
 import { ACTIVE_CONTRACTS, ACTIVE_NETWORK } from './addresses';
 
-export const PRISM_CORE_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_PRISM_CORE_CONTRACT_ID ?? ACTIVE_CONTRACTS.prismCore;
+export const PRISM_CORE_CONTRACT_ID = ACTIVE_CONTRACTS.prismCore;
 
 // Legacy internal AMM — kept as a shim so old imports don't break.
 // Phase 4 deletes this. New swap paths go through SOROSWAP_ROUTER_ID.
@@ -21,26 +26,25 @@ export const PRISM_AMM_CONTRACT_ID =
   'CAH22DWPILDNYWXBNY7NTUY75FU2ZMJ63ALL2AJ4TPEHOYFYVEJ3YLPY';
 
 // ── Soroswap (Phase 2) ───────────────────────────────────────────────────────
-export const SOROSWAP_ROUTER_ID =
-  process.env.NEXT_PUBLIC_SOROSWAP_ROUTER_ID ?? ACTIVE_CONTRACTS.soroswapRouter;
+export const SOROSWAP_ROUTER_ID = ACTIVE_CONTRACTS.soroswapRouter;
 
-export const SOROSWAP_FACTORY_ID =
-  process.env.NEXT_PUBLIC_SOROSWAP_FACTORY_ID ?? ACTIVE_CONTRACTS.soroswapFactory;
+export const SOROSWAP_FACTORY_ID = ACTIVE_CONTRACTS.soroswapFactory;
 
 // ── Reflector oracle (Phase 2) ───────────────────────────────────────────────
-export const REFLECTOR_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_REFLECTOR_CONTRACT_ID ?? ACTIVE_CONTRACTS.reflector;
+export const REFLECTOR_CONTRACT_ID = ACTIVE_CONTRACTS.reflector;
 
-export const USDC_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_USDC_CONTRACT_ID ?? ACTIVE_CONTRACTS.usdc;
+export const USDC_CONTRACT_ID = ACTIVE_CONTRACTS.usdc;
 
 // Classic-asset reference for the SAC above, needed when users add the
 // trustline through Freighter ("Add asset" → manual entry).
 export const USDC_ASSET_CODE =
-  process.env.NEXT_PUBLIC_USDC_ASSET_CODE ?? 'PTUSDC';
+  process.env.NEXT_PUBLIC_USDC_ASSET_CODE ??
+  (ACTIVE_NETWORK === 'mainnet' ? 'USDC' : 'PTUSDC');
 export const USDC_ASSET_ISSUER =
   process.env.NEXT_PUBLIC_USDC_ASSET_ISSUER ??
-  'GCZFPAJEJHMQPZ4BQUWUEBV7KJQ7GEKDF4FAWYUW4NOIRSWXCMDEOESW';
+  (ACTIVE_NETWORK === 'mainnet'
+    ? 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' // Circle USDC
+    : 'GCZFPAJEJHMQPZ4BQUWUEBV7KJQ7GEKDF4FAWYUW4NOIRSWXCMDEOESW'); // testnet PTUSDC
 
 // Legacy alias kept so old `import { USDC_MINT }` lines don't break.
 // New code should import `USDC_CONTRACT_ID` directly.
@@ -120,14 +124,11 @@ export const POOL_NAMES: Record<number, string> = {
 // pToken contract IDs (one per tranche, deployed alongside prism-core).
 // Network-aware via ACTIVE_CONTRACTS: testnet uses the known SACs; mainnet
 // reads NEXT_PUBLIC_PTOKEN_*_MAINNET_ID (populated after mainnet-deploy.sh).
-export const PTOKEN_PRIME_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_PTOKEN_PRIME_CONTRACT_ID ?? ACTIVE_CONTRACTS.ptokenPrime;
+export const PTOKEN_PRIME_CONTRACT_ID = ACTIVE_CONTRACTS.ptokenPrime;
 
-export const PTOKEN_CORE_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_PTOKEN_CORE_CONTRACT_ID ?? ACTIVE_CONTRACTS.ptokenCore;
+export const PTOKEN_CORE_CONTRACT_ID = ACTIVE_CONTRACTS.ptokenCore;
 
-export const PTOKEN_ALPHA_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_PTOKEN_ALPHA_CONTRACT_ID ?? ACTIVE_CONTRACTS.ptokenAlpha;
+export const PTOKEN_ALPHA_CONTRACT_ID = ACTIVE_CONTRACTS.ptokenAlpha;
 
 // Ed25519 pubkey of the Encrypt oracle (32-byte hex, no Stellar StrKey wrapping).
 // SECURITY: the demo defaults below correspond to publicly-known seeds and must
