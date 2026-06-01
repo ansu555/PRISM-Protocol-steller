@@ -68,7 +68,7 @@ function EVMCollateralCard({ loanId, borrowerPubkey }: { loanId: number; borrowe
       <div className="flex items-center gap-2">
         <Layers className="h-4 w-4 text-white/30" />
         <h3 className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/35">EVM Collateral</h3>
-        <span className="ml-auto font-mono text-[9px] text-white/20">Ethereum Sepolia</span>
+        <span className="ml-auto font-mono text-[9px] text-white/20">Ethereum</span>
       </div>
 
       {isLoading ? (
