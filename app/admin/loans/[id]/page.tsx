@@ -34,8 +34,13 @@ function useEvmLock(loanId: number | undefined) {
     refetchInterval: 10_000,
     queryFn: async () => {
       const res = await fetch(`/api/collateral/evm-lock?loanId=${loanId}`);
-      const d = await res.json() as { ok: boolean; lock: EVMLock | null };
-      return d.lock ?? null;
+      // The API stringifies bigint fields (amount, lockedAt) for JSON — coerce back.
+      const d = await res.json() as {
+        ok: boolean;
+        lock: (Omit<EVMLock, 'amount' | 'lockedAt'> & { amount: string; lockedAt: string }) | null;
+      };
+      if (!d.lock) return null;
+      return { ...d.lock, amount: BigInt(d.lock.amount), lockedAt: BigInt(d.lock.lockedAt) } as EVMLock;
     },
   });
 }

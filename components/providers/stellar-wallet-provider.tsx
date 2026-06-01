@@ -54,16 +54,42 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
     setKitReady(true);
 
     // Restore a previously connected wallet from localStorage.
+    //
+    // We don't blindly trust the cached address: Freighter tracks the
+    // "connected/allowed" permission per-domain inside the extension, and that
+    // state is NOT in localStorage. If we only set the cached address, Freighter
+    // shows a "not currently connected to Freighter" warning at sign time.
+    // So we re-run getAddress() — which calls requestAccess() under the hood —
+    // to re-establish the per-domain allow and confirm the address still matches.
+    // requestAccess() is idempotent: it only prompts on first connect per domain,
+    // otherwise it resolves silently.
     const rememberedId = window.localStorage.getItem('prism:walletId') ?? FREIGHTER_ID;
     const rememberedAddress = window.localStorage.getItem('prism:walletAddress');
     if (rememberedAddress) {
-      try {
-        StellarWalletsKit.setWallet(rememberedId);
-        setAddress(rememberedAddress);
-      } catch {
-        // Wallet module no longer available — clear stale cache.
+      const clearCache = () => {
         window.localStorage.removeItem('prism:walletId');
         window.localStorage.removeItem('prism:walletAddress');
+      };
+      try {
+        StellarWalletsKit.setWallet(rememberedId);
+        // Optimistically restore so the UI shows connected immediately, then
+        // re-verify against the extension in the background.
+        setAddress(rememberedAddress);
+        StellarWalletsKit.getAddress()
+          .then(({ address: verified }) => {
+            // Re-sync to the live address (handles account switches in Freighter).
+            setAddress(verified);
+            window.localStorage.setItem('prism:walletAddress', verified);
+          })
+          .catch(() => {
+            // Permission revoked / wallet locked / account removed — drop the
+            // stale session so the user reconnects via the connect button.
+            setAddress(null);
+            clearCache();
+          });
+      } catch {
+        // Wallet module no longer available — clear stale cache.
+        clearCache();
       }
     }
   }, []);

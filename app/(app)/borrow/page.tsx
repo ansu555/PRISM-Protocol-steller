@@ -12,6 +12,7 @@ import { useVaultState } from '@/hooks/useVaultState';
 import { getBalances } from '@/app/lib/horizon';
 import { EVMCollateralStep } from '@/components/borrower/EVMCollateralStep';
 import { VAULT_ID } from '@/app/lib/constants';
+import { ACTIVE_NETWORK } from '@/app/lib/addresses';
 import {
   Activity,
   ArrowRight,
@@ -432,6 +433,7 @@ function BorrowPageInner() {
     : 0;
 
   const isComplete = onChainLoan?.state === 'Repaid' || onChainLoan?.state === 'Defaulted';
+  const networkLabel = ACTIVE_NETWORK === 'mainnet' ? 'Mainnet' : 'Testnet';
 
   const step: 1 | 2 | 3 | 4 | 5 = (() => {
     if (!app || isComplete) return 1;
@@ -481,13 +483,13 @@ function BorrowPageInner() {
             <p className="font-mono text-[9px] text-white/25 uppercase tracking-widest">PRISM Protocol · Credit Facility</p>
             <h1 className="mt-0.5 font-sans text-2xl font-semibold tracking-tight text-white">Borrow</h1>
             <p className="mt-1 font-mono text-[10px] text-white/30">
-              {address.slice(0, 8)}…{address.slice(-6)} · Stellar Mainnet
+              {address.slice(0, 8)}…{address.slice(-6)} · Stellar {networkLabel}
             </p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.03] bg-white/[0.01]">
               <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-mono text-[9px] text-white/30">Live · Mainnet</span>
+              <span className="font-mono text-[9px] text-white/30">Live · {networkLabel}</span>
             </div>
             {app && !isComplete && (
               <div className={`px-3 py-1.5 rounded-full border font-mono text-[9px] ${

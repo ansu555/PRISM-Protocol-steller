@@ -12,7 +12,11 @@ export async function GET(req: NextRequest) {
   }
   try {
     const lock = await getEvmLock(loanId);
-    return NextResponse.json({ ok: true, lock });
+    // bigint fields (amount, lockedAt) aren't JSON-serializable — stringify them.
+    const serialized = lock
+      ? { ...lock, amount: lock.amount.toString(), lockedAt: lock.lockedAt.toString() }
+      : null;
+    return NextResponse.json({ ok: true, lock: serialized });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'EVM fetch failed' }, { status: 500 });
   }
