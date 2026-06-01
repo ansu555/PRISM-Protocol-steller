@@ -988,7 +988,7 @@ function SeedPoolModal({
             <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: meta.color }} />
             <div>
               <p className="font-mono text-xs font-semibold tracking-wider text-white/80">Seed {meta.token} Pool</p>
-              <p className="font-mono text-[9px] text-white/25 uppercase tracking-widest">Admin · 3-step flow</p>
+              <p className="font-mono text-[9px] text-white/25 uppercase tracking-widest">Admin · 1 signature</p>
             </div>
           </div>
           <button type="button" onClick={onClose} className="text-white/20 hover:text-white/60 transition-colors">
@@ -999,7 +999,7 @@ function SeedPoolModal({
         <div className="space-y-3">
           <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.05] px-4 py-3">
             <p className="font-mono text-[9px] text-amber-400/80 uppercase tracking-widest leading-relaxed">
-              This sends your tokens to the contract (2 txs), then seeds the Soroswap pool (1 tx). 3 Freighter prompts total.
+              One Freighter prompt. Adds liquidity straight to the Soroswap pool from your wallet — USDC from your balance, {meta.token} minted by the issuer. The LP tokens come back to you.
             </p>
           </div>
 
@@ -1025,9 +1025,9 @@ function SeedPoolModal({
 
           <div className="rounded-xl border border-white/[0.03] bg-white/[0.01] px-4 py-3 space-y-1.5">
             {[
-              ['Step 1', `Send ${ptokenAmt || '0'} ${meta.token} → contract`],
-              ['Step 2', `Send ${usdcAmt || '0'} USDC → contract`],
-              ['Step 3', 'seed_pool_liquidity → Soroswap'],
+              ['Adds', `${ptokenAmt || '0'} ${meta.token} + ${usdcAmt || '0'} USDC → pool`],
+              ['Creates', 'the pair if it does not exist yet'],
+              ['Mints', 'LP tokens to your admin wallet'],
             ].map(([step, desc]) => (
               <div key={step} className="flex items-center gap-2">
                 <span className="font-mono text-[9px] text-white/25 uppercase tracking-widest w-10 shrink-0">{step}</span>

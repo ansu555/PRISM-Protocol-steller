@@ -1,42 +1,31 @@
 'use client';
 
-// Seed a Soroswap AMM pool for one tranche.
+// Seed a Soroswap AMM pool for one tranche — admin-direct.
 //
-// Flow (3 sequential signed txs):
-//   1. Transfer pTokens from admin wallet → prism-core contract
-//   2. Transfer USDC from admin wallet → prism-core contract
-//   3. Call prism-core::seed_pool_liquidity → approves router + calls add_liquidity
+// We add liquidity straight from the admin wallet rather than routing through
+// prism-core's `seed_pool_liquidity`. That handler approves the router and calls
+// add_liquidity as the contract, but this router pulls tokens with a plain
+// `transfer(from = prism_core, …)`; since prism-core is not the direct caller of
+// that transfer, its auth is not automatic and the call fails with
+// Error(Auth, InvalidAction). The deployed contract has no `authorize_as_current_contract`
+// and no upgrade entrypoint, so we seed from the admin account instead — its single
+// signature authorizes the router's internal transfers and pair creation.
+//
+// Token sources (the admin is `to`, so also the source of both legs):
+//   - pToken: the admin IS the pToken issuer, so the router's transfer mints it.
+//   - USDC:   the admin must already hold >= usdcAmount of real USDC.
+//
+// The admin receives the LP tokens.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Asset, Operation, TransactionBuilder } from '@stellar/stellar-sdk';
+import { TransactionBuilder } from '@stellar/stellar-sdk';
 import { toast } from 'sonner';
 
 import { TrancheKind, NETWORK_PASSPHRASE } from '@/app/lib/constants';
-import {
-  addr,
-  getCoreClient,
-  getHorizonServer,
-  nativeToScVal,
-  ContractClient,
-  type StellarSigner,
-} from '@/app/lib/stellar';
-import { ACTIVE_CONTRACTS, ACTIVE_NETWORK } from '@/app/lib/addresses';
-
-const BASE_RESERVE_XLM = 0.5;
-const FEE_BUFFER_XLM = 0.02;
-
-const PTOKEN_ISSUER: Record<'testnet' | 'mainnet', string> = {
-  mainnet: 'GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO',
-  testnet: 'GCZFPAJEJHMQPZ4BQUWUEBV7KJQ7GEKDF4FAWYUW4NOIRSWXCMDEOESW',
-};
-
-const PTOKEN_ASSET_CODE: Record<TrancheKind, string> = {
-  [TrancheKind.Prime]: 'PPRIME',
-  [TrancheKind.Core]:  'PCORE',
-  [TrancheKind.Alpha]: 'PALPHA',
-};
+import { type StellarSigner } from '@/app/lib/stellar';
+import { addLiquidity } from '@/app/lib/soroswap';
+import { ACTIVE_CONTRACTS } from '@/app/lib/addresses';
 import { useStellarWallet } from '@/components/providers/stellar-wallet-context';
-import { useSelectedVaultId } from '@/hooks/useSelectedVault';
 
 const PTOKEN_BY_KIND: Record<TrancheKind, keyof typeof ACTIVE_CONTRACTS> = {
   [TrancheKind.Prime]: 'ptokenPrime',
@@ -45,9 +34,8 @@ const PTOKEN_BY_KIND: Record<TrancheKind, keyof typeof ACTIVE_CONTRACTS> = {
 };
 
 export function useSeedPool() {
-  const wallet    = useStellarWallet();
+  const wallet      = useStellarWallet();
   const queryClient = useQueryClient();
-  const { vaultId } = useSelectedVaultId();
 
   return useMutation({
     mutationFn: async ({
@@ -61,91 +49,8 @@ export function useSeedPool() {
     }) => {
       if (!wallet.address) throw new Error('Connect your admin Stellar wallet first');
 
-      const contracts    = ACTIVE_CONTRACTS;
-      const ptokenId     = contracts[PTOKEN_BY_KIND[trancheKind]] as string;
-      const ptokenClient = new ContractClient(ptokenId);
-      const usdcClient   = new ContractClient(contracts.usdc);
-      const coreClient   = getCoreClient();
-
-      // ── Trustline pre-flight ───────────────────────────────────────────────
-      // The admin wallet must have a trustline for the pToken before it can
-      // hold or transfer it. Auto-establish it if missing (one extra Freighter
-      // prompt on first seed only).
-      const horizon   = getHorizonServer();
-      const issuer    = PTOKEN_ISSUER[ACTIVE_NETWORK];
-      const assetCode = PTOKEN_ASSET_CODE[trancheKind];
-
-      // The asset issuer holds an implicit, unlimited balance of its own asset and
-      // is forbidden from creating a trustline to it — Stellar rejects that as
-      // op_malformed. In the default single-key setup the admin wallet *is* the
-      // pToken issuer, so we must skip the trustline pre-flight: `transfer` from
-      // the issuer mints the pTokens straight to the contract, no trustline needed.
-      const isIssuer = wallet.address === issuer;
-
-      let source = await horizon.loadAccount(wallet.address);
-
-      const hasTrustline = source.balances.some(
-        (b) =>
-          b.asset_type !== 'native' &&
-          (b as { asset_code: string; asset_issuer: string }).asset_code === assetCode &&
-          (b as { asset_code: string; asset_issuer: string }).asset_issuer === issuer,
-      );
-
-      if (!hasTrustline && !isIssuer) {
-        const nativeEntry = source.balances.find(
-          (b) => b.asset_type === 'native',
-        ) as { balance: string; selling_liabilities?: string } | undefined;
-        const nativeBalance      = Number(nativeEntry?.balance ?? '0');
-        const sellingLiabilities = Number(nativeEntry?.selling_liabilities ?? '0');
-        const requiredXlm =
-          (2 + source.subentry_count + 1) * BASE_RESERVE_XLM +
-          sellingLiabilities +
-          FEE_BUFFER_XLM;
-
-        if (nativeBalance < requiredXlm) {
-          const shortfall = (requiredXlm - nativeBalance).toFixed(2);
-          throw new Error(
-            `Not enough XLM to add the ${assetCode} trustline. Need ~${shortfall} more XLM.`,
-          );
-        }
-
-        toast.info(`Adding ${assetCode} trustline to admin wallet…`);
-
-        source = await horizon.loadAccount(wallet.address);
-        const trustTx = new TransactionBuilder(source, {
-          fee: '10000',
-          networkPassphrase: NETWORK_PASSPHRASE,
-        })
-          .addOperation(Operation.changeTrust({ asset: new Asset(assetCode, issuer) }))
-          .setTimeout(180)
-          .build();
-
-        const signedTrustXdr = await wallet.signTransaction(trustTx.toXDR());
-        const horizonUrl = horizon.serverURL.toString().replace(/\/$/, '');
-        const horizonResp = await fetch(`${horizonUrl}/transactions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ tx: signedTrustXdr }),
-        });
-
-        if (!horizonResp.ok) {
-          const body = await horizonResp.json().catch(() => ({})) as {
-            extras?: { result_codes?: { transaction?: string; operations?: string[] } };
-          };
-          const opCode = body?.extras?.result_codes?.operations?.[0];
-          const txCode = body?.extras?.result_codes?.transaction;
-          if (opCode === 'op_low_reserve') {
-            throw new Error(
-              'Not enough XLM to add a trustline. Top up your XLM and try again.',
-            );
-          }
-          throw new Error(
-            `Trustline setup failed (${opCode ?? txCode ?? horizonResp.status}).`,
-          );
-        }
-
-        source = await horizon.loadAccount(wallet.address);
-      }
+      const contracts = ACTIVE_CONTRACTS;
+      const ptokenId  = contracts[PTOKEN_BY_KIND[trancheKind]] as string;
 
       // Wrap the Freighter wallet as a StellarSigner.
       const signer: StellarSigner = {
@@ -159,34 +64,19 @@ export function useSeedPool() {
         },
       };
 
-      // ── Step 1: transfer pTokens wallet → contract ─────────────────────
-      toast.info('Step 1/3: Sending pTokens to contract…');
-      await ptokenClient.invoke(signer, 'transfer', [
-        addr(wallet.address),
-        addr(contracts.prismCore),
-        nativeToScVal(ptokenAmount, { type: 'i128' }),
-      ]);
-
-      // ── Step 2: transfer USDC wallet → contract ────────────────────────
-      toast.info('Step 2/3: Sending USDC to contract…');
-      await usdcClient.invoke(signer, 'transfer', [
-        addr(wallet.address),
-        addr(contracts.prismCore),
-        nativeToScVal(usdcAmount, { type: 'i128' }),
-      ]);
-
-      // ── Step 3: seed_pool_liquidity ────────────────────────────────────
-      toast.info('Step 3/3: Seeding the AMM pool…');
-      await coreClient.invoke(signer, 'seed_pool_liquidity', [
-        addr(wallet.address),
-        nativeToScVal(vaultId, { type: 'u32' }),
-        nativeToScVal(trancheKind, { type: 'u32' }),
-        addr(contracts.soroswapRouter),
-        nativeToScVal(usdcAmount, { type: 'i128' }),
-        nativeToScVal(ptokenAmount, { type: 'i128' }),
-        nativeToScVal(0n, { type: 'i128' }),
-        nativeToScVal(0n, { type: 'i128' }),
-      ]);
+      // One signed router call: creates the pair, transfers USDC + pToken into it,
+      // and mints LP tokens back to the admin. Mins are 0 — initial seed has no price.
+      toast.info('Seeding the AMM pool — one signature…');
+      return addLiquidity(
+        signer,
+        contracts.usdc,
+        ptokenId,
+        usdcAmount,
+        ptokenAmount,
+        0n,
+        0n,
+        contracts.soroswapRouter,
+      );
     },
 
     onSuccess: (_, { trancheKind }) => {

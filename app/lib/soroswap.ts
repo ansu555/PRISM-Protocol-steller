@@ -7,9 +7,11 @@
 //
 // Architecture:
 //   - End-user swaps go directly to the Soroswap router (NOT through prism-core).
-//   - Pool seeding (add_liquidity) is called by the admin via prism-core's
-//     `seed_pool_liquidity` handler, which wraps the router call on-chain.
-//   - This module handles the user-facing paths: quote + swap.
+//   - Pool seeding (add_liquidity) is called directly by the admin wallet. The
+//     admin's single signature authorizes the router's internal token transfers
+//     and pair creation — a contract source (prism-core) cannot do this without
+//     `authorize_as_current_contract`, which the deployed contract lacks.
+//   - This module handles the user-facing paths: quote, swap, and seed.
 //
 // Soroswap router interface (Uniswap-V2 style):
 //   swap_exact_tokens_for_tokens(amount_in, amount_out_min, path, to, deadline) → Vec<i128>
@@ -182,6 +184,110 @@ export async function executeSwap(
     : [];
 
   return { txHash: sendResult.hash, amounts };
+}
+
+// ── Add liquidity (pool seeding) ─────────────────────────────────────────────────
+
+export interface AddLiquidityResult {
+  txHash: string;
+  /** Actual token_a amount deposited. */
+  amountA: bigint;
+  /** Actual token_b amount deposited. */
+  amountB: bigint;
+  /** LP tokens minted to the signer. */
+  lpMinted: bigint;
+}
+
+/**
+ * Add liquidity to a Soroswap pool directly from the signer's wallet.
+ *
+ * The signer is both the token source and the LP recipient (`to = signer`).
+ * Because the signer is a regular account, its single envelope signature
+ * authorizes the entire nested call tree — the router's internal
+ * `transfer(signer → pair)` calls plus on-the-fly pair creation. This is the
+ * critical difference from routing through a contract: a contract source must
+ * call `authorize_as_current_contract` for those inner transfers, which the
+ * deployed prism-core does not do.
+ *
+ * Creates the pair if it does not exist yet. Pass `0n` mins for initial seeding
+ * (no pool price exists, so there is nothing to slip against).
+ *
+ * @param signer          Wallet signer (becomes the LP).
+ * @param tokenA          First token contract id.
+ * @param tokenB          Second token contract id.
+ * @param amountADesired  Desired token_a amount (7 decimals).
+ * @param amountBDesired  Desired token_b amount (7 decimals).
+ * @param amountAMin      Min accepted token_a (slippage guard; 0 for seeding).
+ * @param amountBMin      Min accepted token_b (slippage guard; 0 for seeding).
+ * @param routerId        Soroswap router contract id.
+ */
+export async function addLiquidity(
+  signer: StellarSigner,
+  tokenA: string,
+  tokenB: string,
+  amountADesired: bigint,
+  amountBDesired: bigint,
+  amountAMin: bigint,
+  amountBMin: bigint,
+  routerId = SOROSWAP_ROUTER_ID,
+): Promise<AddLiquidityResult> {
+  const server = getRpcServer();
+  const sourceAccount = await getHorizonServer().loadAccount(signer.publicKey());
+  const router = new Contract(routerId);
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 300);
+
+  let tx = new TransactionBuilder(sourceAccount, {
+    fee: '10000',
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(
+      router.call(
+        'add_liquidity',
+        new Address(tokenA).toScVal(),
+        new Address(tokenB).toScVal(),
+        nativeToScVal(amountADesired, { type: 'i128' }),
+        nativeToScVal(amountBDesired, { type: 'i128' }),
+        nativeToScVal(amountAMin, { type: 'i128' }),
+        nativeToScVal(amountBMin, { type: 'i128' }),
+        new Address(signer.publicKey()).toScVal(), // to — LP recipient = source
+        nativeToScVal(deadline, { type: 'u64' }),
+      ),
+    )
+    .setTimeout(120)
+    .build();
+
+  // prepareTransaction simulates and attaches the Soroban footprint + auth.
+  // The nested transfers resolve to source-account auth, covered by the signature.
+  tx = await server.prepareTransaction(tx);
+  await signer.sign(tx);
+
+  const sendResult = await server.sendTransaction(tx);
+  if (sendResult.status === 'ERROR') {
+    throw new Error(`add_liquidity failed: ${JSON.stringify(sendResult.errorResult)}`);
+  }
+
+  // Poll for settlement.
+  const settleBy = Date.now() + 40_000;
+  let status = await server.getTransaction(sendResult.hash);
+  while (status.status === 'NOT_FOUND' && Date.now() < settleBy) {
+    await new Promise((r) => setTimeout(r, 1_500));
+    status = await server.getTransaction(sendResult.hash);
+  }
+
+  if (status.status !== 'SUCCESS') {
+    throw new Error(`add_liquidity settled with status ${status.status}`);
+  }
+
+  // Return value is the tuple (amount_a, amount_b, lp_minted).
+  let amountA = 0n;
+  let amountB = 0n;
+  let lpMinted = 0n;
+  if (status.returnValue) {
+    const tuple = scValToNative(status.returnValue) as [bigint, bigint, bigint];
+    [amountA, amountB, lpMinted] = tuple;
+  }
+
+  return { txHash: sendResult.hash, amountA, amountB, lpMinted };
 }
 
 // ── Convenience helpers ────────────────────────────────────────────────────────
