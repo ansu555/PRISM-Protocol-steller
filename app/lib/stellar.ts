@@ -227,7 +227,8 @@ let _usdcClient: ContractClient | null = null;
 
 function currentNetwork(): string {
   if (typeof window !== 'undefined') {
-    return window.localStorage.getItem('prism_network') ?? 'testnet';
+    const stored = window.localStorage.getItem('prism_network');
+    if (stored === 'mainnet' || stored === 'testnet') return stored;
   }
   return process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? 'testnet';
 }

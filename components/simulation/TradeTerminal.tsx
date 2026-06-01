@@ -1,6 +1,7 @@
 'use client';
 
 import { useWallet } from '@/components/providers/stellar-wallet-provider';
+import { useStellarWallet } from '@/components/providers/stellar-wallet-context';
 import {
   Activity,
   ArrowDown,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState, useMemo, type ReactNode } from 'react';
 import { useDeposit } from '@/hooks/useDeposit';
+import { useSeedPool } from '@/hooks/useSeedPool';
 
 import { TrancheKind, TRANCHE_CONFIG, Q64_ONE } from '@/app/lib/constants';
 import { formatUsdc, shortKey, formatNavQ, parseUsdc } from '@/app/lib/format';
@@ -42,7 +44,7 @@ const TRANCHE_META = {
 const TRADE_TABS = ['Secondary swap', 'AMM pools', 'Cross-chain margin'] as const;
 
 const SIDE_INFO: Record<string, { symbol: string; color: string; desc: string }> = {
-  usdc: { symbol: 'USDC', color: '#4ade80', desc: typeof window !== 'undefined' && window.localStorage.getItem('prism_network') === 'mainnet' ? 'Stellar Mainnet' : 'Stellar Testnet' },
+  usdc: { symbol: 'USDC', color: '#4ade80', desc: typeof window !== 'undefined' ? (window.localStorage.getItem('prism_network') === 'testnet' ? 'Stellar Testnet' : (process.env.NEXT_PUBLIC_STELLAR_NETWORK === 'mainnet' ? 'Stellar Mainnet' : 'Stellar Testnet')) : 'Stellar Mainnet' },
   [String(TrancheKind.Prime)]: { symbol: 'pPRIME', color: '#647b8c', desc: 'PRISM Senior' },
   [String(TrancheKind.Core)]:  { symbol: 'pCORE',  color: '#b29b70', desc: 'PRISM Mezz' },
   [String(TrancheKind.Alpha)]: { symbol: 'pALPHA', color: '#b07073', desc: 'PRISM Equity' },
@@ -951,6 +953,108 @@ function CompactSwapCard({
   );
 }
 
+const ADMIN_ADDRESS = process.env.NEXT_PUBLIC_ADMIN_ADDRESS ?? 'GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO';
+
+// ─── Seed Pool Modal (admin only) ──────────────────────────────────
+
+function SeedPoolModal({
+  tranche,
+  onClose,
+}: {
+  tranche: TradeData['tranches'][number];
+  onClose: () => void;
+}) {
+  const meta = TRANCHE_META[tranche.kind];
+  const seed = useSeedPool();
+  const [usdcAmt, setUsdcAmt] = useState('10');
+  const [ptokenAmt, setPtokenAmt] = useState('10');
+
+  const usdcAmount = (() => { try { return parseUsdc(usdcAmt); } catch { return 0n; } })();
+  const ptokenAmount = (() => { try { return parseUsdc(ptokenAmt); } catch { return 0n; } })();
+  const canSeed = usdcAmount > 0n && ptokenAmount > 0n && !seed.isPending;
+
+  async function handleSeed() {
+    if (!canSeed) return;
+    await seed.mutateAsync({ trancheKind: tranche.kind, usdcAmount, ptokenAmount });
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-sm rounded-2xl border border-white/[0.06] bg-[#0c0c0f] p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2.5">
+            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: meta.color }} />
+            <div>
+              <p className="font-mono text-xs font-semibold tracking-wider text-white/80">Seed {meta.token} Pool</p>
+              <p className="font-mono text-[9px] text-white/25 uppercase tracking-widest">Admin · 3-step flow</p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="text-white/20 hover:text-white/60 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.05] px-4 py-3">
+            <p className="font-mono text-[9px] text-amber-400/80 uppercase tracking-widest leading-relaxed">
+              This sends your tokens to the contract (2 txs), then seeds the Soroswap pool (1 tx). 3 Freighter prompts total.
+            </p>
+          </div>
+
+          {[
+            { label: 'USDC to seed', value: usdcAmt, onChange: setUsdcAmt, symbol: 'USDC' },
+            { label: `${meta.token} to seed`, value: ptokenAmt, onChange: setPtokenAmt, symbol: meta.token },
+          ].map(({ label, value, onChange, symbol }) => (
+            <div key={symbol}>
+              <label className="font-mono text-[9px] uppercase tracking-widest text-white/25 mb-1.5 block">{label}</label>
+              <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-black/30 px-4 py-3 focus-within:border-white/[0.12]">
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0.00"
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  className="flex-1 bg-transparent font-mono text-sm text-white outline-none placeholder:text-white/20"
+                />
+                <span className="font-mono text-[10px] text-white/30 shrink-0">{symbol}</span>
+              </div>
+            </div>
+          ))}
+
+          <div className="rounded-xl border border-white/[0.03] bg-white/[0.01] px-4 py-3 space-y-1.5">
+            {[
+              ['Step 1', `Send ${ptokenAmt || '0'} ${meta.token} → contract`],
+              ['Step 2', `Send ${usdcAmt || '0'} USDC → contract`],
+              ['Step 3', 'seed_pool_liquidity → Soroswap'],
+            ].map(([step, desc]) => (
+              <div key={step} className="flex items-center gap-2">
+                <span className="font-mono text-[9px] text-white/25 uppercase tracking-widest w-10 shrink-0">{step}</span>
+                <span className="font-mono text-[9px] text-white/40">{desc}</span>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void handleSeed()}
+            disabled={!canSeed}
+            className="w-full py-3 rounded-xl font-mono text-[10px] font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: canSeed ? meta.color : undefined,
+              color: canSeed ? '#000' : undefined,
+              border: !canSeed ? '1px solid rgba(255,255,255,0.06)' : undefined,
+            }}
+          >
+            {seed.isPending ? 'Seeding pool…' : `Seed ${meta.token} Pool`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Provide Liquidity Modal ──────────────────────────────────────
 
 function LiquidityModal({
@@ -1058,11 +1162,17 @@ function LiquidityModal({
 
 function PoolsPanel({ data }: { data: TradeData }) {
   const [activeTranche, setActiveTranche] = useState<TradeData['tranches'][number] | null>(null);
+  const [seedTranche, setSeedTranche] = useState<TradeData['tranches'][number] | null>(null);
+  const stellarWallet = useStellarWallet();
+  const isAdmin = !!stellarWallet.address && stellarWallet.address === ADMIN_ADDRESS;
 
   return (
     <>
       {activeTranche && (
         <LiquidityModal tranche={activeTranche} onClose={() => setActiveTranche(null)} />
+      )}
+      {seedTranche && (
+        <SeedPoolModal tranche={seedTranche} onClose={() => setSeedTranche(null)} />
       )}
 
       <div className="space-y-6">
@@ -1110,8 +1220,22 @@ function PoolsPanel({ data }: { data: TradeData }) {
                   onClick={() => setActiveTranche(t)}
                   className="w-full py-2.5 border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.1] rounded-xl font-mono text-[10px] uppercase tracking-wider text-white/60 hover:text-white transition-all duration-200"
                 >
-                  Provide Liquidity
+                  Deposit into Tranche
                 </button>
+                {isAdmin && t.ammQuoteBalance === 0n && (
+                  <button
+                    type="button"
+                    onClick={() => setSeedTranche(t)}
+                    className="w-full py-2.5 rounded-xl font-mono text-[10px] uppercase tracking-wider transition-all duration-200 border"
+                    style={{
+                      borderColor: `${meta.color}40`,
+                      backgroundColor: `${meta.color}10`,
+                      color: meta.color,
+                    }}
+                  >
+                    Seed AMM Pool (Admin)
+                  </button>
+                )}
               </Card>
             );
           })}
