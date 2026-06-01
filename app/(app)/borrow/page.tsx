@@ -542,13 +542,13 @@ function BorrowPageInner() {
 
           {/* Supported collateral */}
           <section className="rounded-2xl border border-white/[0.03] bg-[#0c0c0f] p-6">
-            <p className="font-mono text-[9px] text-white/25 mb-1">Testnet</p>
+            <p className="font-mono text-[9px] text-white/25 mb-1">Mainnet</p>
             <h2 className="font-sans text-base font-semibold text-white mb-4">Accepted Collateral</h2>
             <div className="space-y-2">
               {[
-                { symbol: 'ETH',  name: 'Ethereum',      chain: 'Ethereum Sepolia', color: '#627EEA', note: 'Native — no approval needed' },
-                { symbol: 'USDC', name: 'Mock USDC',      chain: 'Ethereum Sepolia', color: '#2775CA', note: '6 decimals · ERC-20' },
-                { symbol: 'wETH', name: 'Mock wETH',      chain: 'Ethereum Sepolia', color: '#7B3FE4', note: '18 decimals · ERC-20' },
+                { symbol: 'ETH',  name: 'Ethereum',      chain: 'Ethereum', color: '#627EEA', note: 'Native — no approval needed' },
+                { symbol: 'USDC', name: 'USDC',      chain: 'Ethereum', color: '#2775CA', note: '6 decimals · ERC-20' },
+                { symbol: 'wETH', name: 'wETH',      chain: 'Ethereum', color: '#7B3FE4', note: '18 decimals · ERC-20' },
               ].map(({ symbol, name, chain, color, note }) => (
                 <div key={symbol} className="flex items-center justify-between rounded-xl border border-white/[0.03] bg-white/[0.01] px-4 py-3">
                   <div className="flex items-center gap-3">
