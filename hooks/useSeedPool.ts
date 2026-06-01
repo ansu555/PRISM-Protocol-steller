@@ -75,6 +75,13 @@ export function useSeedPool() {
       const issuer    = PTOKEN_ISSUER[ACTIVE_NETWORK];
       const assetCode = PTOKEN_ASSET_CODE[trancheKind];
 
+      // The asset issuer holds an implicit, unlimited balance of its own asset and
+      // is forbidden from creating a trustline to it — Stellar rejects that as
+      // op_malformed. In the default single-key setup the admin wallet *is* the
+      // pToken issuer, so we must skip the trustline pre-flight: `transfer` from
+      // the issuer mints the pTokens straight to the contract, no trustline needed.
+      const isIssuer = wallet.address === issuer;
+
       let source = await horizon.loadAccount(wallet.address);
 
       const hasTrustline = source.balances.some(
@@ -84,7 +91,7 @@ export function useSeedPool() {
           (b as { asset_code: string; asset_issuer: string }).asset_issuer === issuer,
       );
 
-      if (!hasTrustline) {
+      if (!hasTrustline && !isIssuer) {
         const nativeEntry = source.balances.find(
           (b) => b.asset_type === 'native',
         ) as { balance: string; selling_liabilities?: string } | undefined;
