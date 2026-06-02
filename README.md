@@ -116,4 +116,4 @@ The frontend and API routes primarily use:
 - Soroban `prism_core` is implemented with tests.
 - Stellar wallet flow is integrated in the app shell.
 - Oracle attestation endpoints are wired for collateral, Encrypt, and Cloak patterns.
-- Soroswap and Reflector integration paths exist in both contract and frontend helpers
+- Soroswap and Reflector integration paths exist in both contract and frontend helpers.
