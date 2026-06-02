@@ -40,7 +40,7 @@ async function main() {
   console.log('Submitted:', result.hash);
 
   // Poll for confirmation
-  let status = result.status;
+  let status: string = result.status;
   while (status === 'PENDING' || status === 'NOT_FOUND') {
     await new Promise(r => setTimeout(r, 2000));
     const check = await server.getTransaction(result.hash);
