@@ -16,6 +16,6 @@
   "wasm_size_bytes": 47274,
   "admin_public_key": "GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO",
   "deployer_key": "GBF7XEKX6ZP7NYMS2IMFGAYVDZIZ66HHVLIAXAOPYFA5PF5Z6LI7PHMO",
-  "oracle_allowlist": "EMPTY — add production key via oracle-allowlist.sh before any oracle-gated flow",
+  "oracle_allowlist": "0c5ffb4b9978b86976392ec1a29c12482faee0e9aea7b969cc556a344d06bba2",
   "vault_id": 0
 }

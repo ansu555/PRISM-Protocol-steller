@@ -2,7 +2,7 @@ import postgres from 'postgres';
 
 const globalForLoans = globalThis as typeof globalThis & {
   loanSql?: ReturnType<typeof postgres>;
-  loanSchemaReady?: Promise<void>;
+  loanSchemaReadyV2?: Promise<void>;
 };
 
 function getSql() {
@@ -15,8 +15,8 @@ function getSql() {
 }
 
 async function ensureTable(sql: ReturnType<typeof postgres>) {
-  if (!globalForLoans.loanSchemaReady) {
-    globalForLoans.loanSchemaReady = (async () => {
+  if (!globalForLoans.loanSchemaReadyV2) {
+    globalForLoans.loanSchemaReadyV2 = (async () => {
       await sql`
         CREATE TABLE IF NOT EXISTS loans (
           loan_id         integer NOT NULL,
@@ -29,16 +29,19 @@ async function ensureTable(sql: ReturnType<typeof postgres>) {
           maturity_ts     bigint  NOT NULL,
           state           text    NOT NULL DEFAULT 'Originated',
           total_repaid    bigint  NOT NULL DEFAULT 0,
+          network         text    NOT NULL DEFAULT 'testnet',
           updated_at      timestamptz NOT NULL DEFAULT now(),
           PRIMARY KEY (loan_id, vault_id)
         )
       `;
+      // Migrate existing rows that predate the network column
+      await sql`ALTER TABLE loans ADD COLUMN IF NOT EXISTS network text NOT NULL DEFAULT 'testnet'`;
     })().catch((err) => {
-      globalForLoans.loanSchemaReady = undefined;
+      globalForLoans.loanSchemaReadyV2 = undefined;
       throw err;
     });
   }
-  await globalForLoans.loanSchemaReady;
+  await globalForLoans.loanSchemaReadyV2;
 }
 
 export type LoanRow = {
@@ -52,16 +55,17 @@ export type LoanRow = {
   maturity_ts: string;
   state: string;
   total_repaid: string;
+  network: string;
 };
 
-export async function listLoans(vaultId: number): Promise<LoanRow[]> {
+export async function listLoans(vaultId: number, network: string): Promise<LoanRow[]> {
   const sql = getSql();
   await ensureTable(sql);
   return sql<LoanRow[]>`
     SELECT loan_id, vault_id, pda, borrower, principal, apr_bps,
-           origination_ts, maturity_ts, state, total_repaid
+           origination_ts, maturity_ts, state, total_repaid, network
     FROM loans
-    WHERE vault_id = ${vaultId}
+    WHERE vault_id = ${vaultId} AND network = ${network}
     ORDER BY loan_id ASC
   `;
 }
@@ -77,6 +81,7 @@ export type UpsertLoanInput = {
   maturityTs: number;
   state: string;
   totalRepaid: bigint;
+  network: string;
 };
 
 export async function upsertLoan(input: UpsertLoanInput): Promise<void> {
@@ -84,20 +89,21 @@ export async function upsertLoan(input: UpsertLoanInput): Promise<void> {
   await ensureTable(sql);
   await sql`
     INSERT INTO loans
-      (loan_id, vault_id, pda, borrower, principal, apr_bps, origination_ts, maturity_ts, state, total_repaid)
+      (loan_id, vault_id, pda, borrower, principal, apr_bps, origination_ts, maturity_ts, state, total_repaid, network)
     VALUES
       (${input.loanId}, ${input.vaultId}, ${input.pda}, ${input.borrower},
        ${input.principal.toString()}, ${input.aprBps},
-       ${input.originationTs}, ${input.maturityTs}, ${input.state}, ${input.totalRepaid.toString()})
+       ${input.originationTs}, ${input.maturityTs}, ${input.state}, ${input.totalRepaid.toString()}, ${input.network})
     ON CONFLICT (loan_id, vault_id) DO UPDATE SET
-      pda           = EXCLUDED.pda,
-      borrower      = EXCLUDED.borrower,
-      principal     = EXCLUDED.principal,
-      apr_bps       = EXCLUDED.apr_bps,
+      pda            = EXCLUDED.pda,
+      borrower       = EXCLUDED.borrower,
+      principal      = EXCLUDED.principal,
+      apr_bps        = EXCLUDED.apr_bps,
       origination_ts = EXCLUDED.origination_ts,
-      maturity_ts   = EXCLUDED.maturity_ts,
-      state         = EXCLUDED.state,
-      total_repaid  = EXCLUDED.total_repaid,
-      updated_at    = now()
+      maturity_ts    = EXCLUDED.maturity_ts,
+      state          = EXCLUDED.state,
+      total_repaid   = EXCLUDED.total_repaid,
+      network        = EXCLUDED.network,
+      updated_at     = now()
   `;
 }

@@ -24,9 +24,18 @@ export interface EVMLock {
 
 const LOCK_STATES: LockState[] = ['Empty', 'Locked', 'Released', 'Liquidated'];
 
+// Select network-specific vars when available, fall back to the generic ones.
+// Set EVM_RPC_URL_MAINNET + EVM_VAULT_ADDRESS_MAINNET for Polygon mainnet;
+// EVM_RPC_URL (+ EVM_VAULT_ADDRESS) are used for testnet / as the default.
+function resolveEvmEnv() {
+  const isMainnet = process.env.NEXT_PUBLIC_STELLAR_NETWORK === 'mainnet';
+  const rpcUrl       = (isMainnet ? process.env.EVM_RPC_URL_MAINNET       : undefined) ?? process.env.EVM_RPC_URL;
+  const vaultAddress = (isMainnet ? process.env.EVM_VAULT_ADDRESS_MAINNET  : undefined) ?? process.env.EVM_VAULT_ADDRESS;
+  return { rpcUrl, vaultAddress };
+}
+
 function getConfig() {
-  const rpcUrl       = process.env.EVM_RPC_URL;
-  const vaultAddress = process.env.EVM_VAULT_ADDRESS;
+  const { rpcUrl, vaultAddress } = resolveEvmEnv();
   const privateKey   = process.env.EVM_DEPLOYER_PRIVATE_KEY;
   const treasury     = process.env.EVM_TREASURY_ADDRESS;
 
@@ -38,8 +47,7 @@ function getConfig() {
 
 // Read-only provider — no private key needed for view calls
 function getEvmReadClient() {
-  const rpcUrl       = process.env.EVM_RPC_URL;
-  const vaultAddress = process.env.EVM_VAULT_ADDRESS;
+  const { rpcUrl, vaultAddress } = resolveEvmEnv();
   if (!rpcUrl || !vaultAddress) throw new Error('Missing EVM_RPC_URL or EVM_VAULT_ADDRESS');
   const provider = new JsonRpcProvider(rpcUrl);
   const vault    = new Contract(vaultAddress, VAULT_ABI, provider);

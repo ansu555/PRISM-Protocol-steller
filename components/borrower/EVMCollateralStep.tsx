@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BrowserProvider, Contract, parseUnits, formatUnits, JsonRpcSigner } from 'ethers';
 import { getCoreClient, freighterSigner, addr, nativeToScVal } from '@/app/lib/stellar';
+import { ACTIVE_NETWORK } from '@/app/lib/addresses';
 import { useStellarWallet } from '@/components/providers/stellar-wallet-provider';
 import {
   AlertCircle,
@@ -47,9 +48,9 @@ const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     explorer: 'https://polygonscan.com',
     tokens: [
       {
-        symbol: 'MATIC', name: 'Polygon (MATIC)',
+        symbol: 'POL', name: 'Polygon (POL)',
         address: '0x0', decimals: 18, isNative: true,
-        priceFeed: '0xAB594600376Ec9fD91F8e885dADF0CE036862dE0', // MATIC/USD
+        priceFeed: '0xAB594600376Ec9fD91F8e885dADF0CE036862dE0', // POL/USD (formerly MATIC/USD)
       },
       {
         symbol: 'USDC', name: 'USD Coin',
@@ -100,7 +101,7 @@ const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
   },
 };
 
-const DEFAULT_CHAIN_ID = 137; // Polygon mainnet
+const DEFAULT_CHAIN_ID = ACTIVE_NETWORK === 'mainnet' ? 137 : 11155111;
 
 // ─── ABIs (minimal) ───────────────────────────────────────────────────────────
 
@@ -224,9 +225,10 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
   const [prices, setPrices]               = useState<Record<string, number>>({});
   const [loadingBals, setLoadingBals]     = useState(false);
   const [mintingToken, setMintingToken]   = useState<string | null>(null);
+  const [restoredLock, setRestoredLock]   = useState<{ tokenAddress: string; rawAmount: string } | null>(null);
 
   const chain     = SUPPORTED_CHAINS[chainId];
-  const isCorrectChain = !!chain;
+  const isCorrectChain = chainId === DEFAULT_CHAIN_ID;
   const minCollateral = (requestedUSDC * 1.2).toFixed(2);
 
   const isAttached = collateralStatus === 'Attached';
@@ -239,8 +241,11 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
     if (isAttached) return;
     fetch(`/api/collateral/evm-lock?loanId=${loanId}`)
       .then(r => r.json())
-      .then((d: { lock?: { state: string } }) => {
+      .then((d: { lock?: { state: string; token?: string; amount?: string } }) => {
         if (d.lock?.state === 'Locked') {
+          if (d.lock.token && d.lock.amount) {
+            setRestoredLock({ tokenAddress: d.lock.token, rawAmount: d.lock.amount });
+          }
           setFlowStep('stellar_register');
         } else {
           setFlowStep('connect');
@@ -334,7 +339,7 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
             params: [{
               chainId: '0x89',
               chainName: 'Polygon',
-              nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+              nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 },
               rpcUrls: ['https://polygon-rpc.com'],
               blockExplorerUrls: ['https://polygonscan.com'],
             }],
@@ -556,21 +561,36 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
 
   // Step 2 of lock: register on Stellar with Freighter
   if (flowStep === 'stellar_register' || flowStep === 'stellar_registering') {
+    // Resolve display token: prefer in-session selectedToken, fall back to restored lock info
+    const defaultChain = SUPPORTED_CHAINS[DEFAULT_CHAIN_ID];
+    const displayToken = selectedToken ?? (restoredLock
+      ? defaultChain?.tokens.find(t => t.address.toLowerCase() === restoredLock.tokenAddress.toLowerCase()) ?? null
+      : null);
+    const displayAmount = amount || (restoredLock && displayToken
+      ? (Number(restoredLock.rawAmount) / 10 ** displayToken.decimals).toFixed(4)
+      : null);
+    const explorerBase = chain?.explorer ?? defaultChain?.explorer ?? 'https://polygonscan.com';
+    const chainLabel   = chain?.name ?? defaultChain?.name ?? 'EVM';
+
     return (
       <div className="space-y-5">
         <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5 space-y-3">
           <div className="flex items-center gap-3">
             <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
             <div>
-              <p className="font-sans text-base font-semibold text-emerald-300">Locked on Ethereum</p>
-              <p className="font-mono text-[10px] text-white/30 mt-0.5">0.6 ETH confirmed on-chain</p>
+              <p className="font-sans text-base font-semibold text-emerald-300">Locked on {chainLabel}</p>
+              <p className="font-mono text-[10px] text-white/30 mt-0.5">
+                {displayAmount && displayToken
+                  ? `${displayAmount} ${displayToken.symbol} confirmed on-chain`
+                  : 'Collateral confirmed on-chain'}
+              </p>
             </div>
           </div>
           {txHash && (
-            <a href={`${chain?.explorer ?? 'https://sepolia.etherscan.io'}/tx/${txHash}`}
+            <a href={`${explorerBase}/tx/${txHash}`}
               target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-1.5 font-mono text-[9px] text-white/30 hover:text-white/60">
-              <ExternalLink className="h-3 w-3" /> {txHash.slice(0, 12)}… on Etherscan
+              <ExternalLink className="h-3 w-3" /> {txHash.slice(0, 12)}… on {chainLabel}scan
             </a>
           )}
         </div>
@@ -754,7 +774,7 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
                 </div>
 
                 {/* Mint mock tokens */}
-                {chain.tokens.filter(t => !t.isNative).some(t => {
+                {ACTIVE_NETWORK === 'testnet' && chain.tokens.filter(t => !t.isNative).some(t => {
                   const b = parseFloat(balances[t.symbol] ?? '0');
                   return isNaN(b) || b < 1;
                 }) && (
@@ -960,7 +980,7 @@ export function EVMCollateralStep({ stellarAddress, loanId, requestedUSDC, colla
               {flowStep === 'locking' && (
                 <div className="space-y-3">
                   <button disabled className="w-full flex items-center justify-center gap-2 rounded-xl bg-white/10 py-3.5 font-mono text-[11px] font-bold uppercase tracking-widest text-white/40">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Locking on Ethereum…
+                    <Loader2 className="h-4 w-4 animate-spin" /> Locking on {SUPPORTED_CHAINS[DEFAULT_CHAIN_ID]?.name ?? 'EVM'}…
                   </button>
                   {txHash && (
                     <a

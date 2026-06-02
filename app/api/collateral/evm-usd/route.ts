@@ -17,7 +17,7 @@ const CHAINLINK_ABI = [
 // Native token (address(0)) maps to the chain's native/gas token price feed
 const PRICE_FEEDS: Record<string, string> = {
   // ── Polygon Mainnet (chain 137) ───────────────────────────────────────────
-  // MATIC/POL native
+  // POL native (formerly MATIC)
   '0x0000000000000000000000000000000000000000': '0xAB594600376Ec9fD91F8e885dADF0CE036862dE0',
   // wETH on Polygon → ETH/USD
   '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619': '0xF9680D99D6C9589e2a93a78A04A279e509205945',
@@ -43,7 +43,7 @@ const PRICE_FEEDS: Record<string, string> = {
 // Token decimals
 const TOKEN_DECIMALS: Record<string, number> = {
   // Polygon
-  '0x0000000000000000000000000000000000000000': 18, // MATIC
+  '0x0000000000000000000000000000000000000000': 18, // POL
   '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619': 18, // wETH
   '0x1bfd67037b42cf73acf2047067bd4f2c47d9bfd6': 8,  // wBTC
   '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359': 6,  // USDC
@@ -78,7 +78,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Missing loanId' }, { status: 400 });
   }
 
-  const rpcUrl = process.env.EVM_RPC_URL;
+  const isMainnet = process.env.NEXT_PUBLIC_STELLAR_NETWORK === 'mainnet';
+  const rpcUrl = (isMainnet ? process.env.EVM_RPC_URL_MAINNET : undefined) ?? process.env.EVM_RPC_URL;
   if (!rpcUrl) return NextResponse.json({ error: 'EVM_RPC_URL not set' }, { status: 500 });
 
   try {
@@ -102,7 +103,7 @@ export async function GET(req: NextRequest) {
       usdMicro,
       usdValue:    usdValue.toFixed(2),
       tokenAmount: tokenAmount.toFixed(6),
-      tokenSymbol: lock.token === '0x0000000000000000000000000000000000000000' ? 'ETH' : lock.token.slice(0, 10),
+      tokenSymbol: lock.token === '0x0000000000000000000000000000000000000000' ? 'POL' : lock.token.slice(0, 10),
       usdPrice:    usdPrice.toFixed(2),
     });
   } catch (err) {

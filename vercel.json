@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/collateral/watcher-poll",
+      "schedule": "* * * * *"
+    }
+  ]
+}

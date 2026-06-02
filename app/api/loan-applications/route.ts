@@ -3,9 +3,11 @@ import { listApplications, insertApplication, deleteApplicationsByStatus } from 
 import { VAULT_ID } from '@/app/lib/constants';
 
 export async function GET(req: NextRequest) {
-  const vaultId = Number(new URL(req.url).searchParams.get('vaultId') ?? VAULT_ID);
+  const url = new URL(req.url);
+  const vaultId = Number(url.searchParams.get('vaultId') ?? VAULT_ID);
+  const network = url.searchParams.get('network') ?? process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? 'testnet';
   try {
-    const rows = await listApplications(vaultId);
+    const rows = await listApplications(vaultId, network);
     return NextResponse.json({ applications: rows });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
@@ -27,13 +29,14 @@ export async function POST(req: NextRequest) {
   const purpose = String(body.purpose ?? '');
   const vaultId = Number(body.vaultId ?? VAULT_ID);
   const submittedAt = Number(body.submittedAt ?? Date.now());
+  const network = String(body.network ?? process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? 'testnet');
 
   if (!borrowerPubkey) {
     return NextResponse.json({ error: 'borrowerPubkey is required' }, { status: 400 });
   }
 
   try {
-    await insertApplication({ id, borrowerPubkey, requestedUsdc, maturityDays, purpose, vaultId, submittedAt });
+    await insertApplication({ id, borrowerPubkey, requestedUsdc, maturityDays, purpose, vaultId, submittedAt, network });
     return NextResponse.json({ ok: true, id });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
@@ -43,9 +46,10 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const url = new URL(req.url);
   const vaultId = Number(url.searchParams.get('vaultId') ?? VAULT_ID);
+  const network = url.searchParams.get('network') ?? process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? 'testnet';
   const status = (url.searchParams.get('status') ?? 'all') as 'pending' | 'approved' | 'rejected' | 'all';
   try {
-    const deleted = await deleteApplicationsByStatus(vaultId, status);
+    const deleted = await deleteApplicationsByStatus(vaultId, network, status);
     return NextResponse.json({ ok: true, deleted });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

@@ -17,7 +17,10 @@ import { useLoans } from '@/hooks/useLoans';
 import { useVaultState } from '@/hooks/useVaultState';
 
 const DEFAULT_APR_BPS = 800;
-const EVM_EXPLORER = process.env.NEXT_PUBLIC_EVM_EXPLORER_URL ?? 'https://sepolia.etherscan.io';
+const IS_MAINNET   = process.env.NEXT_PUBLIC_STELLAR_NETWORK === 'mainnet';
+const EVM_EXPLORER = process.env.NEXT_PUBLIC_EVM_EXPLORER_URL
+  ?? (IS_MAINNET ? 'https://polygonscan.com' : 'https://sepolia.etherscan.io');
+const EVM_CHAIN_LABEL = IS_MAINNET ? 'Polygon (chain_id=137)' : 'ETH (chain_id=1)';
 
 // ─── EVM lock state hook ──────────────────────────────────────────────────────
 
@@ -107,7 +110,7 @@ function EVMCollateralCard({ loanId, borrowerPubkey }: { loanId: number; borrowe
               target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-1.5 font-mono text-[9px] text-white/25 hover:text-white/50 transition-colors"
             >
-              View vault on Etherscan <ExternalLink className="h-3 w-3" />
+              View vault on {IS_MAINNET ? 'Polygonscan' : 'Etherscan'} <ExternalLink className="h-3 w-3" />
             </a>
 
             {/* Re-attest button — shown when EVM is Locked but Stellar hasn't confirmed yet */}
@@ -518,7 +521,7 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                 {[
                   { label: 'Status',       value: collateral.status },
                   { label: 'USD Value',    value: `$${(Number(collateral.amountUsdMicro) / 1_000_000).toFixed(2)}` },
-                  { label: 'Chain',        value: 'ETH (chain_id=1)' },
+                  { label: 'Chain',        value: EVM_CHAIN_LABEL },
                   { label: 'Valued At',    value: collateral.valuedAtTs > 0n ? new Date(Number(collateral.valuedAtTs) * 1000).toLocaleDateString() : '—' },
                 ].map(({ label, value }) => (
                   <div key={label} className="rounded-xl bg-black/20 px-4 py-3">
@@ -564,7 +567,7 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                 </span>
               </div>
             </div>
-            <a href="https://stellar.expert/explorer/testnet" target="_blank" rel="noreferrer"
+            <a href={`https://stellar.expert/explorer/${IS_MAINNET ? 'public' : 'testnet'}`} target="_blank" rel="noreferrer"
               className="mt-6 inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-emerald-300/70 hover:text-emerald-200">
               Stellar Expert <ArrowUpRight className="h-3 w-3" />
             </a>

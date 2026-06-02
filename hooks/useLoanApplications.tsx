@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { VAULT_ID } from '@/app/lib/constants';
+import { ACTIVE_NETWORK } from '@/app/lib/addresses';
 
 export interface LoanApplication {
   id: string;
@@ -32,8 +33,8 @@ function rowToApp(row: Record<string, unknown>): LoanApplication {
   };
 }
 
-async function fetchApplications(vaultId: number): Promise<LoanApplication[]> {
-  const res = await fetch(`/api/loan-applications?vaultId=${vaultId}`);
+async function fetchApplications(vaultId: number, network: string): Promise<LoanApplication[]> {
+  const res = await fetch(`/api/loan-applications?vaultId=${vaultId}&network=${network}`);
   if (!res.ok) throw new Error(await res.text());
   const data = await res.json();
   return (data.applications as Record<string, unknown>[]).map(rowToApp);
@@ -54,11 +55,12 @@ const Ctx = createContext<ContextValue | null>(null);
 export function LoanApplicationProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
   const vaultId = VAULT_ID;
-  const qKey = ['loan-applications', vaultId];
+  const network = ACTIVE_NETWORK;
+  const qKey = ['loan-applications', vaultId, network];
 
   const { data: applications = [], isLoading } = useQuery({
     queryKey: qKey,
-    queryFn: () => fetchApplications(vaultId),
+    queryFn: () => fetchApplications(vaultId, network),
     refetchInterval: 10_000,
     staleTime: 5_000,
   });
@@ -71,7 +73,7 @@ export function LoanApplicationProvider({ children }: { children: ReactNode }) {
       const res = await fetch('/api/loan-applications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, ...app, borrowerPubkey: app.borrowerPubkey, submittedAt: Date.now() }),
+        body: JSON.stringify({ id, ...app, borrowerPubkey: app.borrowerPubkey, submittedAt: Date.now(), network }),
       });
       if (!res.ok) throw new Error(await res.text());
     },
@@ -104,7 +106,7 @@ export function LoanApplicationProvider({ children }: { children: ReactNode }) {
 
   const clearAllMut = useMutation({
     mutationFn: async (status: 'pending' | 'approved' | 'rejected' | 'all' = 'all') => {
-      const res = await fetch(`/api/loan-applications?vaultId=${vaultId}&status=${status}`, {
+      const res = await fetch(`/api/loan-applications?vaultId=${vaultId}&network=${network}&status=${status}`, {
         method: 'DELETE',
       });
       if (!res.ok) throw new Error(await res.text());

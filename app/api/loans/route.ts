@@ -1,14 +1,14 @@
 import { type NextRequest, NextResponse } from 'next/server';
-
 import { listLoans, upsertLoan } from '@/lib/loanStore';
 import { VAULT_ID } from '@/app/lib/constants';
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const vaultId = Number(url.searchParams.get('vaultId') ?? VAULT_ID);
+  const network = url.searchParams.get('network') ?? process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? 'testnet';
 
   try {
-    const loans = await listLoans(vaultId);
+    const loans = await listLoans(vaultId, network);
     return NextResponse.json({ loans });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -35,13 +35,26 @@ export async function POST(req: NextRequest) {
   const maturityTs = Number(b.maturityTs ?? 0);
   const state = String(b.state ?? 'Originated');
   const totalRepaid = BigInt(String(b.totalRepaid ?? '0'));
+  const network = String(b.network ?? process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? 'testnet');
 
   if (!pda || !borrower) {
     return NextResponse.json({ error: 'pda and borrower are required' }, { status: 400 });
   }
 
   try {
-    await upsertLoan({ loanId, vaultId, pda, borrower, principal, aprBps, originationTs, maturityTs, state, totalRepaid });
+    await upsertLoan({
+      loanId,
+      vaultId,
+      pda,
+      borrower,
+      principal,
+      aprBps,
+      originationTs,
+      maturityTs,
+      state,
+      totalRepaid,
+      network
+    });
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

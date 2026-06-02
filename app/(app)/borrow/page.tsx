@@ -94,7 +94,7 @@ function ApplyForm({ address }: { address: string }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const usd = parseFloat(amount);
-    if (isNaN(usd) || usd <= 0) { toast.error('Enter a valid amount'); return; }
+    if (isNaN(usd) || usd < 0.01) { toast.error('Minimum loan amount is $0.01'); return; }
     if (usd > 500_000) { toast.error('Max credit limit is $500,000'); return; }
     setLoading(true);
     try {
@@ -114,7 +114,7 @@ function ApplyForm({ address }: { address: string }) {
         <div className="relative">
           <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-white/25 text-sm">$</span>
           <input
-            type="number" min="100" max="500000" step="100" placeholder="10,000"
+            type="number" min="0.01" max="500000" step="0.01" placeholder="10,000"
             value={amount} onChange={e => setAmount(e.target.value)}
             className="w-full rounded-xl border border-white/[0.06] bg-black/30 pl-7 pr-4 py-2.5 font-mono text-sm text-white placeholder:text-white/15 focus:border-white/15 focus:outline-none"
             required
@@ -153,7 +153,7 @@ function ApplyForm({ address }: { address: string }) {
       </div>
 
       <button type="submit" disabled={loading}
-        className="w-full flex items-center justify-center gap-2 rounded-xl bg-white py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-black hover:bg-white/90 disabled:opacity-40 transition-all">
+        className="w-full flex items-center justify-center gap-2 rounded-xl bg-white py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-black hover:bg-white/90 disabled:opacity-40 premium-btn-hover">
         {loading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Submitting…</> : <>Submit Application <ArrowRight className="h-3.5 w-3.5" /></>}
       </button>
     </form>
@@ -400,7 +400,7 @@ function RepaySection({ address, loanId }: { address: string; loanId: number }) 
           })()}
         </div>
         <button type="submit" disabled={repay.isPending}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-white py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-black hover:bg-white/90 disabled:opacity-40 transition-all">
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-white py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-black hover:bg-white/90 disabled:opacity-40 premium-btn-hover">
           {repay.isPending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Processing…</> : <>Repay <ArrowRight className="h-3.5 w-3.5" /></>}
         </button>
       </form>
@@ -457,7 +457,7 @@ function BorrowPageInner() {
             <p className="font-mono text-[9px] text-white/25 uppercase tracking-widest">PRISM Protocol · Credit</p>
             <h1 className="mt-1 font-sans text-3xl font-semibold tracking-tight text-white">Credit Facility</h1>
             <p className="mt-2 font-sans text-sm text-white/40 max-w-md leading-relaxed">
-              Institutional-grade undercollateralised lending on Stellar Soroban. Lock cross-chain collateral on Ethereum, receive USDC on Stellar.
+              Institutional-grade undercollateralised lending on Stellar Soroban. Lock cross-chain collateral on {ACTIVE_NETWORK === 'mainnet' ? 'Polygon' : 'Ethereum'}, receive USDC on Stellar.
             </p>
           </div>
         </section>
@@ -474,21 +474,21 @@ function BorrowPageInner() {
   // ── Connected ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="w-full max-w-[1800px] mx-auto space-y-5 pb-10">
+    <div className="w-full max-w-[1800px] mx-auto space-y-5 pb-10 animate-fade-in will-change-transform-opacity">
 
       {/* ── Hero header ──────────────────────────────────────────── */}
-      <section className="rounded-2xl border border-white/[0.03] bg-[#0c0c0f] overflow-hidden">
+      <section className="rounded-2xl border border-white/[0.03] bg-[#0c0c0f] overflow-hidden animate-fade-up will-change-transform-opacity">
         <div className="px-8 py-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <p className="font-mono text-[9px] text-white/25 uppercase tracking-widest">PRISM Protocol · Credit Facility</p>
-            <h1 className="mt-0.5 font-sans text-2xl font-semibold tracking-tight text-white">Borrow</h1>
-            <p className="mt-1 font-mono text-[10px] text-white/30">
+            <p className="font-mono text-[9px] text-white/25 uppercase tracking-widest animate-fade-in delay-100">PRISM Protocol · Credit Facility</p>
+            <h1 className="mt-0.5 font-sans text-2xl font-semibold tracking-tight text-white animate-fade-up delay-150">Borrow</h1>
+            <p className="mt-1 font-mono text-[10px] text-white/30 animate-fade-in delay-200">
               {address.slice(0, 8)}…{address.slice(-6)} · Stellar {networkLabel}
             </p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.03] bg-white/[0.01]">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 premium-pulse-dot" />
               <span className="font-mono text-[9px] text-white/30">Live · {networkLabel}</span>
             </div>
             {app && !isComplete && (
@@ -509,7 +509,7 @@ function BorrowPageInner() {
       <MarketStats reserve={reserve} activeLoans={activeLoans} />
 
       {/* ── Main two-column layout ───────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-5 animate-fade-up delay-300 will-change-transform-opacity">
 
         {/* Left: Protocol info */}
         <div className="space-y-5">
@@ -521,7 +521,7 @@ function BorrowPageInner() {
             <h2 className="font-sans text-base font-semibold text-white mb-5">How Collateral Works</h2>
             <div className="space-y-4">
               {[
-                { n: '01', icon: Lock,      title: 'Lock on Ethereum',    desc: 'Connect MetaMask and lock ETH, USDC, or wETH in the PRISM vault contract on Ethereum Sepolia.' },
+                { n: '01', icon: Lock,      title: ACTIVE_NETWORK === 'mainnet' ? 'Lock on Polygon' : 'Lock on Ethereum',    desc: ACTIVE_NETWORK === 'mainnet' ? 'Connect MetaMask and lock MATIC, USDC, or wETH in the PRISM vault contract on Polygon Mainnet.' : 'Connect MetaMask and lock ETH, USDC, or wETH in the PRISM vault contract on Ethereum Sepolia.' },
                 { n: '02', icon: Activity,  title: 'Oracle Detects',      desc: 'The PRISM Collateral Oracle watches the vault contract and detects your lock within 3 block confirmations.' },
                 { n: '03', icon: ShieldCheck, title: 'Stellar Attestation', desc: 'Oracle signs a 73-byte Ed25519 message and submits it to Soroban — collateral status flips to Attached.' },
                 { n: '04', icon: Zap,       title: 'Funds Disbursed',     desc: 'Admin disburses TUSDC from the vault to your Stellar wallet. Repay principal + accrued interest to close.' },
@@ -548,9 +548,17 @@ function BorrowPageInner() {
             <h2 className="font-sans text-base font-semibold text-white mb-4">Accepted Collateral</h2>
             <div className="space-y-2">
               {[
-                { symbol: 'ETH',  name: 'Ethereum',      chain: 'Ethereum', color: '#627EEA', note: 'Native — no approval needed' },
-                { symbol: 'USDC', name: 'USDC',      chain: 'Ethereum', color: '#2775CA', note: '6 decimals · ERC-20' },
-                { symbol: 'wETH', name: 'wETH',      chain: 'Ethereum', color: '#7B3FE4', note: '18 decimals · ERC-20' },
+                ...(ACTIVE_NETWORK === 'mainnet' ? [
+                  { symbol: 'POL',  name: 'Polygon (POL)', chain: 'Polygon', color: '#8247E5', note: 'Native — no approval needed' },
+                  { symbol: 'USDC', name: 'USDC',          chain: 'Polygon', color: '#2775CA', note: '6 decimals · ERC-20' },
+                  { symbol: 'USDT', name: 'USDT',          chain: 'Polygon', color: '#26A17B', note: '6 decimals · ERC-20' },
+                  { symbol: 'wETH', name: 'wETH',          chain: 'Polygon', color: '#7B3FE4', note: '18 decimals · ERC-20' },
+                  { symbol: 'wBTC', name: 'wBTC',          chain: 'Polygon', color: '#F7931A', note: '8 decimals · ERC-20' },
+                ] : [
+                  { symbol: 'ETH',  name: 'Ethereum',      chain: 'Sepolia', color: '#627EEA', note: 'Native — no approval needed' },
+                  { symbol: 'USDC', name: 'Mock USDC',      chain: 'Sepolia', color: '#2775CA', note: '6 decimals · ERC-20' },
+                  { symbol: 'wETH', name: 'Mock wETH',      chain: 'Sepolia', color: '#7B3FE4', note: '18 decimals · ERC-20' },
+                ]),
               ].map(({ symbol, name, chain, color, note }) => (
                 <div key={symbol} className="flex items-center justify-between rounded-xl border border-white/[0.03] bg-white/[0.01] px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -631,7 +639,7 @@ function BorrowPageInner() {
                 </>
               ) : step === 3 ? (
                 <>
-                  <p className="font-mono text-[9px] text-white/25 mb-1 uppercase tracking-widest">Ethereum Sepolia</p>
+                  <p className="font-mono text-[9px] text-white/25 mb-1 uppercase tracking-widest">{ACTIVE_NETWORK === 'mainnet' ? 'Polygon Mainnet' : 'Ethereum Sepolia'}</p>
                   <h2 className="font-sans text-base font-semibold text-white mb-4">Lock Collateral</h2>
                   <EVMCollateralStep
                     stellarAddress={address}
@@ -657,7 +665,7 @@ function BorrowPageInner() {
           {/* Risk disclosure */}
           <div className="rounded-xl border border-white/[0.03] bg-white/[0.01] px-4 py-3">
             <p className="font-mono text-[9px] text-white/20 leading-relaxed">
-              Credit facilities are issued on Stellar Soroban testnet. Collateral is held in an immutable Ethereum escrow contract. Liquidation requires 2-of-3 Gnosis Safe approval. Not financial advice.
+              Credit facilities are issued on Stellar Soroban {ACTIVE_NETWORK === 'mainnet' ? 'mainnet' : 'testnet'}. Collateral is held in an immutable {ACTIVE_NETWORK === 'mainnet' ? 'Polygon' : 'Ethereum'} escrow contract. Liquidation requires 2-of-3 Gnosis Safe approval. Not financial advice.
             </p>
           </div>
         </div>
@@ -677,8 +685,12 @@ function MarketStats({ reserve, activeLoans }: { reserve: bigint; activeLoans: n
   ];
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {stats.map(({ label, value, icon: Icon, color }) => (
-        <div key={label} className="rounded-2xl border border-white/[0.03] bg-[#0c0c0f] px-5 py-4">
+      {stats.map(({ label, value, icon: Icon, color }, idx) => (
+        <div
+          key={label}
+          className="rounded-2xl border border-white/[0.03] bg-[#0c0c0f] px-5 py-4 premium-card-hover animate-fade-up will-change-transform-opacity"
+          style={{ animationDelay: `${(idx + 2) * 75}ms` }}
+        >
           <div className="flex items-center gap-2 mb-2">
             <Icon className={`h-3.5 w-3.5 ${color}`} />
             <p className="font-mono text-[9px] text-white/25 uppercase tracking-widest">{label}</p>
@@ -711,7 +723,7 @@ function ProtocolInfoGrid() {
           { label: 'Interest Rate',        value: '8.0% APR',   sub: 'Simple, accrues per second'},
           { label: 'Min Collateral Ratio', value: '120%',        sub: 'Of loan principal'        },
           { label: 'Loan Terms',           value: '30–180 days', sub: 'Flexible maturity'        },
-          { label: 'Collateral Chains',    value: 'Ethereum',    sub: 'Base · Arbitrum (soon)'   },
+          { label: 'Collateral Chains',    value: ACTIVE_NETWORK === 'mainnet' ? 'Polygon' : 'Ethereum',    sub: 'Base · Arbitrum (soon)'   },
           { label: 'Settlement',           value: 'Stellar',     sub: 'Soroban smart contract'   },
         ].map(({ label, value, sub }) => (
           <div key={label} className="rounded-xl border border-white/[0.03] bg-white/[0.01] px-4 py-3.5">
