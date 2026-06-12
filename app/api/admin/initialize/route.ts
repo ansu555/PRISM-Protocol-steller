@@ -1,142 +1,72 @@
-import { parseStellarError } from '@/app/lib/errors';
+// Initialize the on-chain demo state: vault + 3 tranches + the seed loan.
+//
+// NOTE (XION): the global config (admin, usdc_token, oracle_allowlist) is set at
+// contract *instantiate* time via InstantiateMsg — there is no `init_config`
+// execute call. This route only runs the post-deploy execute steps. Idempotent:
+// the contract returns "already initialized" for steps that already ran.
+
 import { NextRequest, NextResponse } from 'next/server';
-import { Keypair, xdr } from '@stellar/stellar-sdk';
 
-import {
-  getCoreClient,
-  keypairSigner,
-  addr,
-  nativeToScVal,
-} from '@/app/lib/stellar';
-import {
-  USDC_CONTRACT_ID,
-  VAULT_ID,
-  TrancheKind,
-  PTOKEN_PRIME_CONTRACT_ID,
-  PTOKEN_CORE_CONTRACT_ID,
-  PTOKEN_ALPHA_CONTRACT_ID,
-  ENCRYPT_ORACLE_PUBKEY,
-  CLOAK_ORACLE_PUBKEY,
-  DEFAULT_DEMO_LOAN_PRINCIPAL,
-} from '@/app/lib/constants';
-
-// AlreadyInitialized = PrismError #50. The contract returns this when an
-// init_* function is called on state that already exists. We treat it as a
-// successful skip so the route is fully idempotent.
-function isAlreadyInitialized(err: unknown): boolean {
-  const msg = parseStellarError(err);
-  return msg.includes('#50') || msg.includes('AlreadyInitialized');
-}
-
-async function tryInvoke(
-  fn: () => Promise<void>,
-  stepName: string,
-  steps: string[],
-  skipped: string[],
-): Promise<void> {
-  try {
-    await fn();
-    steps.push(stepName);
-  } catch (err) {
-    if (isAlreadyInitialized(err)) {
-      skipped.push(stepName);
-    } else {
-      throw err;
-    }
-  }
-}
+import { ACTIVE_XION, coreExecute, type XionSigner } from '@/app/lib/xion';
+import { adminSigner, isContractError, xionErrorMessage } from '@/app/lib/xion-server';
+import { VAULT_ID, TrancheKind, DEFAULT_DEMO_LOAN_PRINCIPAL } from '@/app/lib/constants';
 
 export async function POST(req: NextRequest) {
-  const seed = process.env.ADMIN_SECRET_SEED;
-  if (!seed) {
-    return NextResponse.json(
-      { error: 'ADMIN_SECRET_SEED is not set on the server. Add it to .env.local.' },
-      { status: 500 },
-    );
-  }
-
-  let adminKeypair: Keypair;
+  let signer: XionSigner;
   try {
-    adminKeypair = Keypair.fromSecret(seed);
-  } catch {
-    return NextResponse.json(
-      { error: 'ADMIN_SECRET_SEED is not a valid Stellar secret key (S...)' },
-      { status: 500 },
-    );
+    signer = await adminSigner();
+  } catch (e) {
+    return NextResponse.json({ error: xionErrorMessage(e) }, { status: 500 });
   }
 
   const body = await req.json().catch(() => ({}));
-  const borrowerAddress: string = body.borrowerAddress ?? adminKeypair.publicKey();
+  const borrowerAddress: string = body.borrowerAddress ?? signer.address;
 
-  const signer = keypairSigner(adminKeypair);
-  const core   = getCoreClient();
-  const steps: string[]   = [];
+  const steps: string[] = [];
   const skipped: string[] = [];
 
+  const tryStep = async (name: string, fn: () => Promise<unknown>): Promise<void> => {
+    try {
+      await fn();
+      steps.push(name);
+    } catch (err) {
+      if (isContractError(err, 'already initialized')) skipped.push(name);
+      else throw err;
+    }
+  };
+
   try {
-    // 1. init_config
-    await tryInvoke(
-      () => core.invoke(signer, 'init_config', [
-        addr(adminKeypair.publicKey()),
-        addr(USDC_CONTRACT_ID),
-        nativeToScVal(800, { type: 'u32' }),
-        xdr.ScVal.scvVec(
-          [ENCRYPT_ORACLE_PUBKEY, CLOAK_ORACLE_PUBKEY].map((hex) =>
-            nativeToScVal(Buffer.from(hex, 'hex'), { type: 'bytes' }),
-          ),
-        ),
-      ]).then(() => {}),
-      'init_config',
-      steps,
-      skipped,
-    );
+    await tryStep('init_vault', () => coreExecute(signer, { init_vault: { vault_id: VAULT_ID } }));
 
-    // 2. init_vault
-    await tryInvoke(
-      () => core.invoke(signer, 'init_vault', [
-        nativeToScVal(VAULT_ID, { type: 'u32' }),
-      ]).then(() => {}),
-      'init_vault',
-      steps,
-      skipped,
-    );
-
-    // 3. init_tranche × 3
-    const trancheConfig = [
-      { kind: TrancheKind.Prime, aprBps: 500,  ptoken: PTOKEN_PRIME_CONTRACT_ID },
-      { kind: TrancheKind.Core,  aprBps: 800,  ptoken: PTOKEN_CORE_CONTRACT_ID  },
-      { kind: TrancheKind.Alpha, aprBps: 1500, ptoken: PTOKEN_ALPHA_CONTRACT_ID },
+    const tranches = [
+      { kind: TrancheKind.Prime, apy: 500, ptoken: ACTIVE_XION.ptokenPrime },
+      { kind: TrancheKind.Core, apy: 800, ptoken: ACTIVE_XION.ptokenCore },
+      { kind: TrancheKind.Alpha, apy: 1500, ptoken: ACTIVE_XION.ptokenAlpha },
     ];
-    for (const { kind, aprBps, ptoken } of trancheConfig) {
-      await tryInvoke(
-        () => core.invoke(signer, 'init_tranche', [
-          nativeToScVal(VAULT_ID, { type: 'u32' }),
-          nativeToScVal(kind,     { type: 'u32' }),
-          nativeToScVal(aprBps,   { type: 'u32' }),
-          addr(ptoken),
-        ]).then(() => {}),
-        `init_tranche(${TrancheKind[kind]})`,
-        steps,
-        skipped,
+    for (const t of tranches) {
+      await tryStep(`init_tranche(${TrancheKind[t.kind]})`, () =>
+        coreExecute(signer, {
+          init_tranche: {
+            vault_id: VAULT_ID,
+            kind: t.kind,
+            target_apy_bps: t.apy,
+            ptoken: t.ptoken,
+          },
+        }),
       );
     }
 
-    // 4. init_loan #0
-    await tryInvoke(
-      () => core.invoke(signer, 'init_loan', [
-        nativeToScVal(VAULT_ID, { type: 'u32' }),
-        nativeToScVal(0,        { type: 'u32' }),
-        addr(borrowerAddress),
-        nativeToScVal(DEFAULT_DEMO_LOAN_PRINCIPAL, { type: 'i128' }),
-        nativeToScVal(800, { type: 'u32' }),
-        nativeToScVal(
-          BigInt(Math.floor(Date.now() / 1000) + 365 * 24 * 3600),
-          { type: 'u64' },
-        ),
-      ]).then(() => {}),
-      'init_loan',
-      steps,
-      skipped,
+    await tryStep('init_loan', () =>
+      coreExecute(signer, {
+        init_loan: {
+          vault_id: VAULT_ID,
+          loan_id: 0,
+          borrower: borrowerAddress,
+          principal: DEFAULT_DEMO_LOAN_PRINCIPAL.toString(),
+          apr_bps: 800,
+          maturity_ts: Math.floor(Date.now() / 1000) + 365 * 24 * 3600,
+        },
+      }),
     );
 
     return NextResponse.json({
@@ -144,10 +74,9 @@ export async function POST(req: NextRequest) {
       steps,
       skipped,
       alreadyInitialized: steps.length === 0,
-      adminAddress: adminKeypair.publicKey(),
+      adminAddress: signer.address,
     });
   } catch (err) {
-    const message = parseStellarError(err);
-    return NextResponse.json({ error: message, steps, skipped }, { status: 500 });
+    return NextResponse.json({ error: xionErrorMessage(err), steps, skipped }, { status: 500 });
   }
 }

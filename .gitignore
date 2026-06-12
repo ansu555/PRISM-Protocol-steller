@@ -16,6 +16,9 @@ node_modules
 .DS_Store
 .agents/skills/
 contracts/target/
+soroban/target/
+cosmwasm/target/
+target/
 .test-ledger/
 scratch/
 test-ledger/

@@ -1,0 +1,29 @@
+[package]
+name = "prism-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "PRISM Protocol — tranched credit engine on XION (CosmWasm)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# Use library feature to disable all instantiate/execute/query exports.
+library = []
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw2 = { workspace = true }
+cw20 = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+cw-multi-test = "2.0.0"
+cw20-base = { version = "2.0.0", features = ["library"] }
+ed25519-dalek = "2.1"
+rand = "0.8"
+hex = "0.4"

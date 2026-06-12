@@ -1,44 +1,30 @@
 'use client';
 
-// Poll the deployed Soroban contracts for the full vault snapshot.
-// Replaces the Anchor `account.fetchNullable` flow with Soroban contract reads.
+// Poll the deployed prism-core CosmWasm contract for the full vault snapshot.
 //
-// Returned shape:
-//   {
-//     config, vault, loan, tranches[3], reserveBalance, lossBucketBalance,
-//     usdcMint, programIds
-//   }
+// Each field is a `coreQuery` smart-query against prism-core on XION (replaces
+// the Soroban `getCoreClient().read` simulation path). CosmWasm returns plain
+// JSON: `u64` amounts decode as numbers, `Uint128` (nav_per_share_q, loss
+// bucket) as strings — `toBigInt` normalizes both.
 //
-// Soroban doesn't have PDAs. The contract id is the only "address" any
-// caller needs, so dashboards display tranche `kind` or the contract id.
+// Returned shape is deliberately UNCHANGED from the Stellar build (legacy
+// `pda` / `mint` / `programIds` / `toBase58` fields kept) so every downstream
+// component reads from this one hook without edits.
 
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 
-import {
-  PRISM_AMM_CONTRACT_ID,
-  PRISM_CORE_CONTRACT_ID,
-  SOROSWAP_FACTORY_ID,
-  TRANCHE_CONFIG,
-  TrancheKind,
-  USDC_CONTRACT_ID,
-} from '@/app/lib/constants';
+import { TRANCHE_CONFIG, TrancheKind } from '@/app/lib/constants';
 import { toBigInt } from '@/app/lib/format';
-import {
-  addr,
-  ContractClient,
-  getCoreClient,
-  getUsdcClient,
-  nativeToScVal,
-} from '@/app/lib/stellar';
+import { coreQuery, cw20Balance, ACTIVE_XION } from '@/app/lib/xion';
 import { useSelectedVaultId } from '@/hooks/useSelectedVault';
 
 interface VaultSnapshot {
   credit_event_seq: number;
   id: number;
-  last_yield_timestamp: bigint;
-  state: 'Active' | 'Defaulted' | 'Resolved';
-  total_deposits: bigint;
-  total_loaned: bigint;
+  last_yield_timestamp: number;
+  state: 'active' | 'defaulted' | 'resolved';
+  total_deposits: number;
+  total_loaned: number;
 }
 
 interface ConfigSnapshot {
@@ -50,15 +36,15 @@ interface ConfigSnapshot {
 }
 
 interface TrancheSnapshot {
-  cumulative_loss: bigint;
-  cumulative_yield: bigint;
-  kind: 'Prime' | 'Core' | 'Alpha';
-  last_nav_update_ts: bigint;
-  nav_per_share_q: bigint;
+  cumulative_loss: number;
+  cumulative_yield: number;
+  kind: 'prime' | 'core' | 'alpha';
+  last_nav_update_ts: number;
+  nav_per_share_q: string;
   ptoken: string;
   target_apy_bps: number;
-  total_assets: bigint;
-  total_supply: bigint;
+  total_assets: number;
+  total_supply: number;
   vault_id: number;
 }
 
@@ -66,28 +52,19 @@ interface LoanSnapshot {
   apr_bps: number;
   borrower: string;
   id: number;
-  maturity_ts: bigint;
-  origination_ts: bigint;
-  principal: bigint;
-  state: 'Originated' | 'Active' | 'Repaying' | 'Repaid' | 'Defaulted' | 'Resolved';
-  total_repaid: bigint;
+  maturity_ts: number;
+  origination_ts: number;
+  principal: number;
+  state: 'originated' | 'active' | 'repaying' | 'repaid' | 'defaulted' | 'resolved';
+  total_repaid: number;
   vault_id: number;
-}
-
-interface AmmPoolSnapshot {
-  fee_bps: number;
-  lp_token: string;
-  quote_token: string;
-  tranche_token: string;
 }
 
 const trancheKinds = [TrancheKind.Prime, TrancheKind.Core, TrancheKind.Alpha] as const;
 
-async function readUsdcBalance(holder: string): Promise<bigint> {
+async function readContractUsdcBalance(): Promise<bigint> {
   try {
-    const usdc = getUsdcClient();
-    const bal = await usdc.read<bigint | number | string>('balance', [addr(holder)]);
-    return toBigInt(bal);
+    return await cw20Balance(ACTIVE_XION.usdc, ACTIVE_XION.prismCore);
   } catch {
     return 0n;
   }
@@ -98,65 +75,44 @@ export function useVaultState(vaultIdOverride?: number) {
   const vaultId = vaultIdOverride ?? contextVaultId;
 
   return useQuery({
-    queryKey: ['vault-state', PRISM_CORE_CONTRACT_ID, vaultId],
+    queryKey: ['vault-state', ACTIVE_XION.prismCore, vaultId],
     refetchInterval: 5_000,
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const core    = getCoreClient();
-      const factory = new ContractClient(SOROSWAP_FACTORY_ID);
-
-      // Three parallel reads against prism-core for the headline state.
-      const [config, vault, contractUsdcBalance] = await Promise.all([
-        core.read<ConfigSnapshot | null>('get_config').catch(() => null),
-        core.read<VaultSnapshot | null>('get_vault', [nativeToScVal(vaultId, { type: 'u32' })]).catch(
-          () => null,
-        ),
-        readUsdcBalance(PRISM_CORE_CONTRACT_ID),
+      // Headline state — config + vault + the contract's own USDC balance +
+      // the loss bucket, in parallel. All guarded: pre-deploy (empty contract
+      // id) these reject and degrade to null/0 rather than throwing.
+      const [config, vault, contractUsdcBalance, lossBucketBalance] = await Promise.all([
+        coreQuery<ConfigSnapshot | null>({ get_config: {} }).catch(() => null),
+        coreQuery<VaultSnapshot | null>({ get_vault: { vault_id: vaultId } }).catch(() => null),
+        readContractUsdcBalance(),
+        coreQuery<string>({ get_loss_bucket_balance: { vault_id: vaultId } })
+          .then(toBigInt)
+          .catch(() => 0n),
       ]);
 
-      // Try to read loan id = 1 (the first loan in our demo flows). For a
-      // multi-loan vault this would iterate; the current UI only renders
-      // one. Failure here is non-fatal.
-      const loan = await core
-        .read<LoanSnapshot | null>('get_loan', [nativeToScVal(1, { type: 'u32' })])
-        .catch(() => null);
+      // Demo loan id. NOTE: the admin/initialize route seeds loan_id 0 while the
+      // originate flow uses the monotonic counter (first id = 1). Kept at 1 to
+      // match prior behavior; reconcile if the demo loan id changes.
+      const loan = await coreQuery<LoanSnapshot | null>({ get_loan: { loan_id: 1 } }).catch(
+        () => null,
+      );
 
-      // Per-tranche reads — get_tranche on prism-core + get_pool/get_reserves on prism-amm.
       const tranches = await Promise.all(
         trancheKinds.map(async (kind) => {
-          const tranche = await core
-            .read<TrancheSnapshot | null>('get_tranche', [
-              nativeToScVal(vaultId, { type: 'u32' }),
-              nativeToScVal(kind, { type: 'u32' }),
-            ])
-            .catch(() => null);
+          const tranche = await coreQuery<TrancheSnapshot | null>({
+            get_tranche: { vault_id: vaultId, kind },
+          }).catch(() => null);
 
-          let ammTrancheBalance = 0n;
-          let ammQuoteBalance = 0n;
-          if (tranche?.ptoken) {
-            // Read reserves from Soroswap: factory.get_pair → pair.get_reserves
-            const pairAddress = await factory
-              .read<string | null>('get_pair', [addr(USDC_CONTRACT_ID), addr(tranche.ptoken)])
-              .catch(() => null);
-            if (pairAddress && typeof pairAddress === 'string') {
-              const pair = new ContractClient(pairAddress);
-              const reserves = await pair
-                .read<[bigint, bigint] | null>('get_reserves')
-                .catch(() => null);
-              if (reserves) {
-                // Soroswap orders tokens lexicographically; USDC may be token_0 or token_1.
-                // We compare the pToken address to determine which reserve is which.
-                const usdcIsFirst = USDC_CONTRACT_ID.toLowerCase() < tranche.ptoken.toLowerCase();
-                ammQuoteBalance   = toBigInt(usdcIsFirst ? reserves[0] : reserves[1]);
-                ammTrancheBalance = toBigInt(usdcIsFirst ? reserves[1] : reserves[0]);
-              }
-            }
-          }
+          // AMM tranche/quote reserves come from the self-deployed DEX pair
+          // (Slice 3). Until that contract is deployed they read as 0.
+          const ammTrancheBalance = 0n;
+          const ammQuoteBalance = 0n;
 
           return {
             kind,
             ...TRANCHE_CONFIG[kind],
-            pda: tranche?.ptoken ?? PRISM_CORE_CONTRACT_ID, // legacy field name kept
+            pda: tranche?.ptoken ?? ACTIVE_XION.prismCore, // legacy field name kept
             mint: tranche?.ptoken ?? '',
             account: tranche
               ? {
@@ -194,7 +150,7 @@ export function useVaultState(vaultIdOverride?: number) {
               oracleAllowlist: config.oracle_allowlist,
             }
           : null,
-        configPda: PRISM_CORE_CONTRACT_ID,
+        configPda: ACTIVE_XION.prismCore,
         vault: vault
           ? {
               id: vault.id,
@@ -205,11 +161,11 @@ export function useVaultState(vaultIdOverride?: number) {
               creditEventSeq: vault.credit_event_seq,
             }
           : null,
-        vaultPda: PRISM_CORE_CONTRACT_ID,
-        reservePda: PRISM_CORE_CONTRACT_ID,
+        vaultPda: ACTIVE_XION.prismCore,
+        reservePda: ACTIVE_XION.prismCore,
         reserveBalance: contractUsdcBalance,
-        lossBucketPda: PRISM_CORE_CONTRACT_ID,
-        lossBucketBalance: 0n, // Loss bucket is informational on Stellar; the contract holds USDC directly.
+        lossBucketPda: ACTIVE_XION.prismCore,
+        lossBucketBalance,
         loan: loan
           ? {
               id: loan.id,
@@ -222,12 +178,18 @@ export function useVaultState(vaultIdOverride?: number) {
               totalRepaid: toBigInt(loan.total_repaid),
             }
           : null,
-        loanPda: PRISM_CORE_CONTRACT_ID,
-        usdcMint: config?.usdc_token ?? USDC_CONTRACT_ID,
+        loanPda: ACTIVE_XION.prismCore,
+        usdcMint: config?.usdc_token ?? ACTIVE_XION.usdc,
         tranches,
         programIds: {
-          core: { toBase58: () => PRISM_CORE_CONTRACT_ID, toString: () => PRISM_CORE_CONTRACT_ID },
-          amm: { toBase58: () => PRISM_AMM_CONTRACT_ID, toString: () => PRISM_AMM_CONTRACT_ID },
+          core: {
+            toBase58: () => ACTIVE_XION.prismCore,
+            toString: () => ACTIVE_XION.prismCore,
+          },
+          amm: {
+            toBase58: () => ACTIVE_XION.dexRouter ?? '',
+            toString: () => ACTIVE_XION.dexRouter ?? '',
+          },
         },
       };
     },

@@ -1,19 +1,20 @@
 // Server-side execution of admin-gated contract calls.
-// The admin keypair (GBF7...) is only available server-side via ADMIN_SECRET_SEED.
-// ActionPanel calls this instead of invoking the contract client-side with the
-// wrong random keypair that useIdentity generates for the admin role.
+// The admin mnemonic (ADMIN_MNEMONIC) is only available server-side. ActionPanel
+// calls this instead of signing client-side (the demo admin identity has no
+// usable secret on the client).
 
 import { createPrivateKey, createPublicKey } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { Keypair } from '@stellar/stellar-sdk';
 
-import { getCoreClient, keypairSigner, addr, nativeToScVal } from '@/app/lib/stellar';
-import { parseStellarError } from '@/app/lib/errors';
 import {
-  VAULT_ID,
-  DEFAULT_DEMO_YIELD_AMOUNT,
-  DEFAULT_DEMO_LOSS_AMOUNT,
-} from '@/app/lib/constants';
+  ACTIVE_XION,
+  coreExecute,
+  coreQuery,
+  increaseAllowance,
+  type XionSigner,
+} from '@/app/lib/xion';
+import { adminSigner, xionErrorMessage } from '@/app/lib/xion-server';
+import { VAULT_ID, DEFAULT_DEMO_YIELD_AMOUNT, DEFAULT_DEMO_LOSS_AMOUNT } from '@/app/lib/constants';
 
 export type AdminAction =
   | 'accrue_yield'
@@ -33,26 +34,19 @@ function deriveOraclePubkeyHex(seedHex: string): string {
     format: 'der',
     type: 'pkcs8',
   });
-  return createPublicKey(privateKey)
-    .export({ type: 'spki', format: 'der' })
-    .slice(-32)
-    .toString('hex');
+  return createPublicKey(privateKey).export({ type: 'spki', format: 'der' }).slice(-32).toString('hex');
 }
 
 export async function POST(req: NextRequest) {
-  const seed = process.env.ADMIN_SECRET_SEED;
-  if (!seed) {
-    return NextResponse.json({ error: 'ADMIN_SECRET_SEED not set' }, { status: 500 });
-  }
-
-  let adminKeypair: Keypair;
+  let signer: XionSigner;
   try {
-    adminKeypair = Keypair.fromSecret(seed);
-  } catch {
-    return NextResponse.json({ error: 'Invalid ADMIN_SECRET_SEED' }, { status: 500 });
+    signer = await adminSigner();
+  } catch (e) {
+    return NextResponse.json({ error: xionErrorMessage(e) }, { status: 500 });
   }
+  const adminAddr = signer.address;
 
-  const body = await req.json().catch(() => ({})) as {
+  const body = (await req.json().catch(() => ({}))) as {
     action: AdminAction;
     loanId?: number;
     borrower?: string;
@@ -62,6 +56,7 @@ export async function POST(req: NextRequest) {
     yieldAmount?: string;
     lossAmount?: string;
     severity?: number;
+    eventType?: number;
   };
 
   const { action } = body;
@@ -69,74 +64,69 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing action' }, { status: 400 });
   }
 
-  const signer = keypairSigner(adminKeypair);
-  const core   = getCoreClient();
-  const adminAddr = adminKeypair.publicKey();
-
   try {
     let hash = '';
 
     if (action === 'accrue_yield') {
       const amount = BigInt(body.yieldAmount ?? String(DEFAULT_DEMO_YIELD_AMOUNT));
-      const result = await core.invoke(signer, 'accrue_yield', [
-        addr(adminAddr),
-        nativeToScVal(VAULT_ID, { type: 'u32' }),
-        nativeToScVal(amount,   { type: 'i128' }),
-      ]);
-      hash = result.hash;
-
+      // accrue_yield pulls USDC from `payer` via cw20 TransferFrom — admin (the
+      // payer) must grant prism-core an allowance first, and hold the USDC.
+      await increaseAllowance(signer, ACTIVE_XION.usdc, ACTIVE_XION.prismCore, amount);
+      const res = await coreExecute(signer, {
+        accrue_yield: { vault_id: VAULT_ID, payer: adminAddr, amount: amount.toString() },
+      });
+      hash = res.transactionHash;
     } else if (action === 'trigger_credit_event') {
-      const amount   = BigInt(body.lossAmount ?? String(DEFAULT_DEMO_LOSS_AMOUNT));
-      const severity = body.severity ?? 2;
-      const result = await core.invoke(signer, 'trigger_credit_event', [
-        addr(adminAddr),
-        nativeToScVal(VAULT_ID,  { type: 'u32' }),
-        nativeToScVal(amount,    { type: 'i128' }),
-        nativeToScVal(severity,  { type: 'u32' }),
-      ]);
-      hash = result.hash;
-
+      const amount = BigInt(body.lossAmount ?? String(DEFAULT_DEMO_LOSS_AMOUNT));
+      // Reference-card §4.5 cascade defaults: Default event, full severity.
+      const eventType = body.eventType ?? 0; // 0=Default, 1=PartialLoss, 2=Recovery
+      const severityBps = body.severity ?? 10_000;
+      const loanId = body.loanId ?? 0;
+      const res = await coreExecute(signer, {
+        trigger_credit_event: {
+          vault_id: VAULT_ID,
+          event_type: eventType,
+          loss_amount: amount.toString(),
+          severity_bps: severityBps,
+          loan_id: loanId,
+        },
+      });
+      hash = res.transactionHash;
     } else if (action === 'disburse_loan') {
       const loanId = body.loanId ?? 0;
-      const result = await core.invoke(signer, 'disburse_loan', [
-        nativeToScVal(VAULT_ID, { type: 'u32' }),
-        nativeToScVal(loanId,   { type: 'u32' }),
-      ]);
-      hash = result.hash;
-
+      const res = await coreExecute(signer, { disburse_loan: { vault_id: VAULT_ID, loan_id: loanId } });
+      hash = res.transactionHash;
     } else if (action === 'init_loan') {
       const borrower = body.borrower;
       if (!borrower) throw new Error('borrower address required for init_loan');
-
       const principal = BigInt(body.principal ?? '0');
       if (principal <= 0n) throw new Error('principal must be > 0');
-
       const aprBps = body.aprBps ?? 800;
       const maturityDays = body.maturityDays ?? 90;
-      const maturityTs = BigInt(Math.floor(Date.now() / 1000) + maturityDays * 86400);
+      const maturityTs = Math.floor(Date.now() / 1000) + maturityDays * 86400;
 
-      // Find the next unused sequential loan ID (probe 0..29)
+      // Find the next unused sequential loan id (probe 0..29).
       let nextLoanId = 0;
       for (let id = 0; id < 30; id++) {
-        const existing = await core
-          .read<Record<string, unknown> | null>('get_loan', [nativeToScVal(id, { type: 'u32' })])
-          .catch(() => null);
-        if (!existing) { nextLoanId = id; break; }
-        if (id === 29) throw new Error('Too many loans — could not find a free loan ID');
+        const existing = await coreQuery({ get_loan: { loan_id: id } }).catch(() => null);
+        if (!existing) {
+          nextLoanId = id;
+          break;
+        }
+        if (id === 29) throw new Error('Too many loans — could not find a free loan id');
       }
 
-      const result = await core.invoke(signer, 'init_loan', [
-        nativeToScVal(VAULT_ID,     { type: 'u32' }),
-        nativeToScVal(nextLoanId,   { type: 'u32' }),
-        addr(borrower),
-        nativeToScVal(principal,    { type: 'i128' }),
-        nativeToScVal(aprBps,       { type: 'u32' }),
-        nativeToScVal(maturityTs,   { type: 'u64' }),
-      ]);
-      hash = result.hash;
-      // Return the loan_id so the caller can persist it
-      return NextResponse.json({ ok: true, action, hash, adminAddress: adminAddr, loanId: nextLoanId });
-
+      const res = await coreExecute(signer, {
+        init_loan: {
+          vault_id: VAULT_ID,
+          loan_id: nextLoanId,
+          borrower,
+          principal: principal.toString(),
+          apr_bps: aprBps,
+          maturity_ts: maturityTs,
+        },
+      });
+      return NextResponse.json({ ok: true, action, hash: res.transactionHash, adminAddress: adminAddr, loanId: nextLoanId });
     } else if (action === 'add_collateral_oracle') {
       const oracleSeed =
         process.env.COLLATERAL_ORACLE_SEED ??
@@ -144,28 +134,20 @@ export async function POST(req: NextRequest) {
         process.env.IKA_TEST_ORACLE_SECRET_SEED;
       if (!oracleSeed) throw new Error('COLLATERAL_ORACLE_SEED not set in environment');
       const pubkeyHex = deriveOraclePubkeyHex(oracleSeed.trim());
-      const pubkeyBytes = Buffer.from(pubkeyHex, 'hex');
-
-      const result = await core.invoke(signer, 'add_oracle_to_allowlist', [
-        nativeToScVal(pubkeyBytes, { type: 'bytes' }),
-      ]);
-      hash = result.hash;
-      return NextResponse.json({ ok: true, action, hash, adminAddress: adminAddr, oraclePubkeyHex: pubkeyHex });
-
+      const res = await coreExecute(signer, { add_oracle_to_allowlist: { oracle_pubkey: pubkeyHex } });
+      return NextResponse.json({ ok: true, action, hash: res.transactionHash, adminAddress: adminAddr, oraclePubkeyHex: pubkeyHex });
     } else if (action === 'pause') {
-      const result = await core.invoke(signer, 'pause', []);
-      hash = result.hash;
-
+      const res = await coreExecute(signer, { pause: {} });
+      hash = res.transactionHash;
     } else if (action === 'unpause') {
-      const result = await core.invoke(signer, 'unpause', []);
-      hash = result.hash;
-
+      const res = await coreExecute(signer, { unpause: {} });
+      hash = res.transactionHash;
     } else {
       return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
     }
 
     return NextResponse.json({ ok: true, action, hash, adminAddress: adminAddr });
   } catch (err) {
-    return NextResponse.json({ error: parseStellarError(err) }, { status: 500 });
+    return NextResponse.json({ error: xionErrorMessage(err) }, { status: 500 });
   }
 }
